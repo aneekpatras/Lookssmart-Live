@@ -1,22 +1,8 @@
 import { Head, router } from '@inertiajs/react';
 import { Download, FileText } from 'lucide-react';
 import * as React from 'react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 
+import { ChartFallback } from '@/Components/admin/charts/ChartFallback';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { EmptyState } from '@/Components/ui/empty-state';
@@ -31,6 +17,16 @@ import {
 } from '@/Components/ui/select';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { formatCurrency } from '@/lib/currency';
+
+const RevenueTrendChart = React.lazy(() =>
+  import('@/Components/admin/charts/ReportsCharts').then((m) => ({ default: m.RevenueTrendChart })),
+);
+const PaymentSplitChart = React.lazy(() =>
+  import('@/Components/admin/charts/ReportsCharts').then((m) => ({ default: m.PaymentSplitChart })),
+);
+const TopServicesChart = React.lazy(() =>
+  import('@/Components/admin/charts/ReportsCharts').then((m) => ({ default: m.TopServicesChart })),
+);
 
 type RangeKey = 'today' | 'this_week' | 'this_month' | 'custom';
 
@@ -77,7 +73,6 @@ interface ReportsIndexPageProps {
   filters: { range: RangeKey; from: string; to: string };
 }
 
-const PIE_COLORS = ['#c9a66b', '#8a6a34', '#e8d5b5', '#4f4a46', '#d8c1a0'];
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
@@ -196,15 +191,9 @@ export default function ReportsIndex({
               {revenueTrend.length === 0 ? (
                 <EmptyState title="No revenue yet" description="No completed bookings in this range." />
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={revenueTrend.map((p) => ({ ...p, revenue: Number(p.revenue) }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ece1d6" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Area type="monotone" dataKey="revenue" stroke="#c9a66b" fill="#c9a66b" fillOpacity={0.25} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <React.Suspense fallback={<ChartFallback className="h-[260px]" />}>
+                  <RevenueTrendChart data={revenueTrend.map((p) => ({ ...p, revenue: Number(p.revenue) }))} />
+                </React.Suspense>
               )}
             </CardContent>
           </Card>
@@ -220,22 +209,9 @@ export default function ReportsIndex({
                   description="Payment recording is part of a later Phase 12 sub-step (the POS terminal itself)."
                 />
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie
-                      data={paymentMethodSplit.map((p) => ({ ...p, total: Number(p.total) }))}
-                      dataKey="total"
-                      nameKey="method"
-                      outerRadius={90}
-                    >
-                      {paymentMethodSplit.map((_, index) => (
-                        <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                <React.Suspense fallback={<ChartFallback className="h-[260px]" />}>
+                  <PaymentSplitChart data={paymentMethodSplit.map((p) => ({ ...p, total: Number(p.total) }))} />
+                </React.Suspense>
               )}
             </CardContent>
           </Card>
@@ -249,15 +225,9 @@ export default function ReportsIndex({
             {topServices.length === 0 ? (
               <EmptyState title="No services booked" description="No completed bookings in this range." />
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={topServices.map((s) => ({ ...s, revenue: Number(s.revenue) }))} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ece1d6" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                  <Bar dataKey="revenue" fill="#c9a66b" />
-                </BarChart>
-              </ResponsiveContainer>
+              <React.Suspense fallback={<ChartFallback className="h-[240px]" />}>
+                <TopServicesChart data={topServices.map((s) => ({ ...s, revenue: Number(s.revenue) }))} />
+              </React.Suspense>
             )}
           </CardContent>
         </Card>

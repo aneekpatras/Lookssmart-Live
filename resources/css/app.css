@@ -172,6 +172,32 @@
 .marquee-track[data-count='11'] { --marquee-duration: 33s; }
 .marquee-track[data-count='12'] { --marquee-duration: 36s; }
 
+/* Skeletons only for loads that outlast 300ms: hidden for the first 300ms, then shown. */
+@keyframes skeleton-delay-show {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.skeleton-delay {
+    animation: skeleton-delay-show 0.01s linear 0.3s both;
+}
+
+/* Auth card entrance (login/register): CSS-only so the auth pages need no animation library. */
+@keyframes auth-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-card-in {
+    animation: auth-card-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;

@@ -1,5 +1,4 @@
 import { Link } from '@inertiajs/react';
-import { motion, useReducedMotion } from 'framer-motion';
 import * as React from 'react';
 
 import { Toaster } from '@/Components/ui/toaster';
@@ -13,17 +12,10 @@ export default function AuthLayout({
   description?: string;
   children: React.ReactNode;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
     <div className="bg-ivory flex min-h-screen items-center justify-center px-4 py-12">
       <Toaster />
-      <motion.div
-        initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="glass w-full max-w-md rounded-2xl p-8"
-      >
+      <div className="glass auth-card-in w-full max-w-md rounded-2xl p-8">
         <Link href="/" className="font-display text-ink text-lg font-medium">
           Looks Smart
         </Link>
@@ -34,7 +26,7 @@ export default function AuthLayout({
         </div>
 
         <div className="mt-6">{children}</div>
-      </motion.div>
+      </div>
     </div>
   );
 }

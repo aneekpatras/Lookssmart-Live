@@ -173,6 +173,10 @@ function HeroBackground() {
         src={HERO_POSTER}
         alt=""
         aria-hidden="true"
+        width={1600}
+        height={900}
+        fetchPriority="high"
+        decoding="async"
         className="absolute inset-0 -z-20 size-full object-cover"
       />
     );

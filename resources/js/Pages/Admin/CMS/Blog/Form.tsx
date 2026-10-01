@@ -1,7 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import * as React from 'react';
 
-import { TipTapEditor } from '@/Components/admin/TipTapEditor';
+import { ChartFallback } from '@/Components/admin/charts/ChartFallback';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
@@ -15,6 +15,11 @@ import {
 } from '@/Components/ui/select';
 import { Textarea } from '@/Components/ui/textarea';
 import AdminLayout from '@/Layouts/AdminLayout';
+
+// TipTap/ProseMirror is ~400 kB — only fetched when this form actually mounts.
+const TipTapEditor = React.lazy(() =>
+  import('@/Components/admin/TipTapEditor').then((m) => ({ default: m.TipTapEditor })),
+);
 
 interface CategoryOption {
   id: number;
@@ -106,7 +111,9 @@ export default function BlogForm({ post, categories }: BlogFormPageProps) {
 
               <div className="space-y-1.5">
                 <Label htmlFor="body">Content</Label>
-                <TipTapEditor value={data.body} onChange={(html) => setData('body', html)} />
+                <React.Suspense fallback={<ChartFallback className="h-[320px]" />}>
+                  <TipTapEditor value={data.body} onChange={(html) => setData('body', html)} />
+                </React.Suspense>
                 {errors.body && <p className="text-sm text-red-600">{errors.body}</p>}
               </div>
             </CardContent>

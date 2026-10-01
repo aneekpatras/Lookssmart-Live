@@ -1,15 +1,8 @@
 import { Head } from '@inertiajs/react';
 import { AlertTriangle, Calendar, Info, TrendingUp, Users } from 'lucide-react';
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import * as React from 'react';
 
+import { ChartFallback } from '@/Components/admin/charts/ChartFallback';
 import { Badge } from '@/Components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { EmptyState } from '@/Components/ui/empty-state';
@@ -51,6 +44,10 @@ interface DashboardPageProps {
   alerts: Alert[];
 }
 
+
+const DashboardRevenueChart = React.lazy(
+  () => import('@/Components/admin/charts/DashboardRevenueChart'),
+);
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
@@ -135,43 +132,9 @@ export default function Dashboard({
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueChart} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#c9a66b" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#c9a66b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e8e1d6" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(value: string) => new Date(value).getDate().toString()}
-                    tick={{ fontSize: 12, fill: '#6b6157' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tickFormatter={(value: number) => formatCurrency(value)}
-                    tick={{ fontSize: 12, fill: '#6b6157' }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={64}
-                  />
-                  <Tooltip
-                    formatter={(value) => formatCurrency(Number(value))}
-                    labelFormatter={(value) => new Date(String(value)).toLocaleDateString()}
-                    contentStyle={{ borderRadius: 8, borderColor: '#e8e1d6', fontSize: 13 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#b08d4f"
-                    strokeWidth={2}
-                    fill="url(#revenueFill)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <React.Suspense fallback={<ChartFallback className="h-64" />}>
+                <DashboardRevenueChart data={revenueChart} />
+              </React.Suspense>
             </div>
           </CardContent>
         </Card>
