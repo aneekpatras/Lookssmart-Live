@@ -23,6 +23,9 @@ class Review extends Model
         'Laser Hair Removal',
     ];
 
+    /** Extra choice on the write-a-review form: the visitor types their own service name instead. */
+    public const WRITE_REVIEW_OTHER = 'Other';
+
     protected $fillable = [
         'customer_id',
         'reviewer_name',
@@ -36,6 +39,7 @@ class Review extends Model
         'source',
         'admin_reply',
         'published_at',
+        'sort',
     ];
 
     protected function casts(): array

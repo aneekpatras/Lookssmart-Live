@@ -110,18 +110,27 @@ class ServiceImportController extends Controller
 
         $import->update(['status' => 'committing']);
 
-        DB::transaction(function () use ($import, $sanitizer) {
-            $import->rows()
-                ->whereIn('action', ['create', 'update'])
-                ->orderBy('row_number')
-                ->chunkById(200, function ($rows) use ($sanitizer) {
-                    foreach ($rows as $row) {
-                        $this->applyRow($row, $sanitizer);
-                    }
-                });
+        try {
+            DB::transaction(function () use ($import, $sanitizer) {
+                $import->rows()
+                    ->whereIn('action', ['create', 'update'])
+                    ->orderBy('row_number')
+                    ->chunkById(200, function ($rows) use ($sanitizer) {
+                        foreach ($rows as $row) {
+                            $this->applyRow($row, $sanitizer);
+                        }
+                    });
 
-            $import->update(['status' => 'committed', 'committed_at' => now()]);
-        });
+                $import->update(['status' => 'committed', 'committed_at' => now()]);
+            });
+        } catch (\Throwable $e) {
+            // The transaction rolled back, so nothing was imported — put the import back to
+            // 'previewed' instead of leaving it stuck on 'committing' forever.
+            report($e);
+            $import->update(['status' => 'previewed']);
+
+            return back()->withErrors(['import' => 'Import failed and nothing was saved. Check the server log for details.']);
+        }
 
         activity('catalog')
             ->causedBy(request()->user())

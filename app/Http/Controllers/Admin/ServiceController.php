@@ -79,12 +79,12 @@ class ServiceController extends Controller
             ->when($request->filled('search'), fn ($query) => $query->where('name', 'like', '%' . $request->string('search')->value() . '%'))
             ->when($request->filled('category_id'), fn ($query) => $query->where('service_category_id', $request->integer('category_id')))
             ->orderBy($sort, $direction)
-            ->paginate(15)
+            ->paginate(30)
             ->withQueryString();
 
         // `staff_ids` and the rest of the editable-but-not-listed fields (description, buffer_min,
         // faq, seo_*) ride along on every row so the admin list's quick-edit modal has everything it
-        // needs to open instantly — no second request per row. 15 rows/page keeps this cheap.
+        // needs to open instantly — no second request per row. 30 rows/page is still cheap.
         return Inertia::render('Admin/Services', [
             'services' => $services->through(fn (Service $service) => [
                 'id' => $service->id,
@@ -206,6 +206,42 @@ class ServiceController extends Controller
         $service->delete();
 
         return back()->with('success', "\"{$service->name}\" deleted.");
+    }
+
+    /**
+     * Bulk delete: either the explicit `ids` the admin ticked, or `all=1` meaning every service
+     * matching the list's current search/category filter (so "delete all" can't silently reach past
+     * what the admin is looking at). Soft delete, same as destroy() — past bookings keep their link.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $this->authorize('delete', new Service);
+
+        $validated = $request->validate([
+            'ids' => ['required_without:all', 'array', 'max:500'],
+            'ids.*' => ['integer'],
+            'all' => ['sometimes', 'boolean'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'category_id' => ['nullable', 'integer'],
+        ]);
+
+        $query = Service::query();
+
+        if ($request->boolean('all')) {
+            $query
+                ->when(! empty($validated['search']), fn ($q) => $q->where('name', 'like', '%' . $validated['search'] . '%'))
+                ->when(! empty($validated['category_id']), fn ($q) => $q->where('service_category_id', $validated['category_id']));
+        } else {
+            $query->whereIn('id', $validated['ids']);
+        }
+
+        $count = 0;
+        $query->each(function (Service $service) use (&$count) {
+            $service->delete();
+            $count++;
+        });
+
+        return back()->with('success', "{$count} service(s) deleted.");
     }
 
     /** Full catalog export — see ServicesExport for the column set and re-import round-trip. */

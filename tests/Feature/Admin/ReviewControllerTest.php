@@ -162,3 +162,56 @@ it('deletes a review', function () use ($makeConfirmedUser) {
 
     expect(Review::find($review->id))->toBeNull();
 });
+
+it('lets an admin add a Google review that goes live on the homepage immediately', function () use ($makeConfirmedUser) {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $admin = $makeConfirmedUser('admin');
+
+    $this->actingAs($admin)->post('/admin/reviews', [
+        'reviewer_name' => 'Irma Umar',
+        'rating' => 4,
+        'body' => 'Lovely staff and a calm salon.',
+        'published_at' => now()->subWeek()->toDateString(),
+    ])->assertRedirect();
+
+    $review = Review::where('reviewer_name', 'Irma Umar')->first();
+    expect($review)->not->toBeNull()
+        ->and($review->source)->toBe('google')
+        ->and($review->status)->toBe('approved')
+        ->and($review->rating)->toBe(4);
+
+    $this->get('/')->assertInertia(fn ($page) => $page
+        ->where('testimonials.0.name', 'Irma Umar')
+        ->where('testimonials.0.rating', 4));
+});
+
+it('requires crm.manage to add a Google review or reorder reviews', function () use ($makeConfirmedUser) {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $staff = $makeConfirmedUser('staff');
+    $review = Review::factory()->create(['status' => 'approved', 'published_at' => now()]);
+
+    $this->actingAs($staff)->post('/admin/reviews', ['reviewer_name' => 'X', 'rating' => 5, 'body' => 'Great place'])->assertForbidden();
+    $this->actingAs($staff)->post('/admin/reviews/reorder', ['order' => [$review->id]])->assertForbidden();
+});
+
+it('saves the homepage order and the homepage follows it, hidden reviews dropping out', function () use ($makeConfirmedUser) {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $admin = $makeConfirmedUser('admin');
+
+    $a = Review::factory()->create(['reviewer_name' => 'Alpha', 'status' => 'approved', 'published_at' => now()->subDays(3)]);
+    $b = Review::factory()->create(['reviewer_name' => 'Bravo', 'status' => 'approved', 'published_at' => now()->subDays(2)]);
+    $c = Review::factory()->create(['reviewer_name' => 'Charlie', 'status' => 'approved', 'published_at' => now()->subDay()]);
+
+    $this->actingAs($admin)->post('/admin/reviews/reorder', ['order' => [$b->id, $c->id, $a->id]])->assertRedirect();
+
+    $this->get('/')->assertInertia(fn ($page) => $page
+        ->where('testimonials.0.name', 'Bravo')
+        ->where('testimonials.1.name', 'Charlie')
+        ->where('testimonials.2.name', 'Alpha'));
+
+    $this->actingAs($admin)->patch("/admin/reviews/{$b->id}/reject")->assertRedirect();
+
+    $this->get('/')->assertInertia(fn ($page) => $page
+        ->has('testimonials', 2)
+        ->where('testimonials.0.name', 'Charlie'));
+});

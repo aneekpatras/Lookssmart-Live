@@ -24,7 +24,19 @@ const SERVICE_CATEGORIES = [
   'Laser Hair Removal',
 ] as const;
 
-type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+const OTHER = 'Other';
+type ServiceCategory = (typeof SERVICE_CATEGORIES)[number] | typeof OTHER;
+
+const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+
+/** Templates for "Other": written to fit any service, with the visitor's own service name filled in. */
+function otherTemplates(service: string): string[] {
+  return [
+    `I had ${service} done here and I'm really happy with the result. The team was professional and friendly throughout.`,
+    `Booked ${service} on a friend's recommendation and it was worth it. Clean salon, on-time appointment and a great finish.`,
+    `My ${service} experience was relaxing and the staff took real care over the details. I'll definitely be back.`,
+  ];
+}
 
 const DEFAULT_REVIEWER_NAME = 'Verified Guest';
 
@@ -33,7 +45,7 @@ const DEFAULT_REVIEWER_NAME = 'Verified Guest';
  * marketing copy — a customer can click one as a starting point or ignore all of them and type their
  * own review from scratch (the textarea is never read-only).
  */
-const TEMPLATES: Record<ServiceCategory, string[]> = {
+const TEMPLATES: Record<(typeof SERVICE_CATEGORIES)[number], string[]> = {
   'Hair Treatments': [
     'Extremely impressed with the Keratin treatment! My hair feels silky, soft, and so healthy. Highly recommended!',
     'Got a haircut and blow dry here and the stylist really listened to what I wanted. Left feeling so much more confident.',
@@ -67,7 +79,7 @@ interface WriteReviewModalProps {
   onOpenChange: (open: boolean) => void;
   /** Called with the real, server-created review so the caller can show it in the carousel
    * immediately — never called with fabricated/optimistic data before the server confirms it. */
-  onReviewSaved: (review: ReviewShowcase) => void;
+  onReviewSaved?: (review: ReviewShowcase) => void;
 }
 
 /**
@@ -86,6 +98,7 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
   const [rating, setRating] = React.useState(0);
   const [hoverRating, setHoverRating] = React.useState(0);
   const [category, setCategory] = React.useState<ServiceCategory | null>(null);
+  const [customService, setCustomService] = React.useState('');
   const [comment, setComment] = React.useState('');
   const [name, setName] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
@@ -99,6 +112,7 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
     setRating(0);
     setHoverRating(0);
     setCategory(null);
+    setCustomService('');
     setComment('');
     setName('');
     setRenderedAt(Math.floor(Date.now() / 1000));
@@ -109,12 +123,21 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
     onOpenChange(next);
   }
 
+  const serviceReady =
+    category !== null && (category !== OTHER || customService.trim().length >= 2);
+  const templates: string[] =
+    category === null
+      ? []
+      : category === OTHER
+        ? otherTemplates(customService.trim())
+        : TEMPLATES[category];
+
   function applyTemplate(template: string) {
     setComment(template);
   }
 
   async function submit() {
-    if (rating === 0 || comment.trim() === '' || submitting) return;
+    if (rating === 0 || comment.trim() === '' || !serviceReady || submitting) return;
 
     setSubmitting(true);
 
@@ -125,6 +148,7 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
           name: auth.user ? undefined : name.trim() || undefined,
           rating,
           category,
+          custom_service: category === OTHER ? customService.trim() : undefined,
           body: comment.trim(),
           website: '', // honeypot — always blank for a real visitor
           rendered_at: renderedAt,
@@ -132,7 +156,7 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
       );
 
       if (response.data.review) {
-        onReviewSaved(response.data.review);
+        onReviewSaved?.(response.data.review);
       }
 
       toast.success('Thank you! Your review has been submitted successfully.');
@@ -177,21 +201,24 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
                     className="focus-visible:ring-accent-500 rounded p-0.5 focus-visible:ring-2 focus-visible:outline-none"
                   >
                     <Star
-                      className={`size-8 transition-colors ${
+                      className={`size-9 transition-colors ${
                         value <= (hoverRating || rating)
                           ? 'text-accent-500 fill-current'
-                          : 'text-border-soft'
+                          : 'text-ink-muted/60'
                       }`}
                     />
                   </button>
                 ))}
               </div>
+              <p className="text-accent-700 mt-1 h-5 text-sm font-medium" aria-live="polite">
+                {RATING_LABELS[hoverRating || rating]}
+              </p>
             </div>
 
             <div>
               <p className="text-ink text-sm font-medium">Which service was this for?</p>
               <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Service category">
-                {SERVICE_CATEGORIES.map((option) => (
+                {([...SERVICE_CATEGORIES, OTHER] as ServiceCategory[]).map((option) => (
                   <button
                     key={option}
                     type="button"
@@ -207,13 +234,28 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
                   </button>
                 ))}
               </div>
+              {category === OTHER && (
+                <div className="mt-3">
+                  <label htmlFor="review-custom-service" className="text-ink text-sm font-medium">
+                    Which service did you have?
+                  </label>
+                  <Input
+                    id="review-custom-service"
+                    value={customService}
+                    onChange={(event) => setCustomService(event.target.value)}
+                    placeholder="e.g. Nails, Waxing, Massage"
+                    maxLength={60}
+                    className="mt-2"
+                  />
+                </div>
+              )}
             </div>
 
             <Button
               type="button"
               variant="accent"
               className="w-full"
-              disabled={rating === 0 || category === null}
+              disabled={rating === 0 || !serviceReady}
               onClick={() => setStep(2)}
             >
               Continue <ArrowRight className="size-4" aria-hidden="true" />
@@ -221,13 +263,15 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
           </div>
         )}
 
-        {step === 2 && category && (
+        {step === 2 && category && serviceReady && (
           <div className="space-y-5">
             <div>
               <p className="text-ink text-sm font-medium">Smart templates</p>
-              <p className="text-ink-muted text-xs">Tap one to start, then edit it however you like.</p>
+              <p className="text-ink-muted text-xs">
+                Tap one to start, then edit it however you like.
+              </p>
               <div className="mt-2 space-y-2">
-                {TEMPLATES[category].map((template) => (
+                {templates.map((template) => (
                   <button
                     key={template}
                     type="button"
@@ -269,7 +313,12 @@ export function WriteReviewModal({ open, onOpenChange, onReviewSaved }: WriteRev
             )}
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button type="button" variant="outline" className="sm:flex-1" onClick={() => setStep(1)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="sm:flex-1"
+                onClick={() => setStep(1)}
+              >
                 Back
               </Button>
               <Button

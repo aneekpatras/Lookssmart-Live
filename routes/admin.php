@@ -107,6 +107,7 @@ Route::prefix('admin')
         Route::get('/services/{service}/edit', [ServiceController::class, 'edit'])->name('services.edit');
         Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
         Route::delete('/services/{service}', [ServiceController::class, 'destroy'])->name('services.destroy');
+        Route::post('/services/bulk-delete', [ServiceController::class, 'bulkDestroy'])->name('services.bulk-destroy');
 
         // Phase 6 sub-step 4.
         Route::get('/services-import', [ServiceImportController::class, 'index'])->name('services.import');
@@ -123,6 +124,7 @@ Route::prefix('admin')
         Route::get('/deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
         Route::put('/deals/{deal}', [DealController::class, 'update'])->name('deals.update');
         Route::delete('/deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
+        Route::post('/deals/bulk-delete', [DealController::class, 'bulkDestroy'])->name('deals.bulk-destroy');
 
         // Phase 6 sub-step 2.
         Route::get('/pricing', [ServicePriceController::class, 'index'])->name('pricing');
@@ -149,6 +151,8 @@ Route::prefix('admin')
         Route::patch('/reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
         Route::patch('/reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
         Route::post('/reviews/{review}/reply', [ReviewController::class, 'reply'])->name('reviews.reply');
+        Route::post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
+        Route::post('/reviews/reorder', [ReviewController::class, 'reorder'])->name('reviews.reorder');
         Route::post('/reviews/bulk', [ReviewController::class, 'bulkAction'])->name('reviews.bulk');
         Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
         // Phase 10 sub-step 2.

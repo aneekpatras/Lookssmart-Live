@@ -10,6 +10,7 @@ import { HeaderCartButton } from '@/Components/HeaderCartButton';
 import { HeaderUserMenu } from '@/Components/HeaderUserMenu';
 import { NavigationProgressOverlay } from '@/Components/NavigationProgressOverlay';
 import { SmoothScroll } from '@/Components/SmoothScroll';
+import { WhatsAppButton } from '@/Components/WhatsAppButton';
 
 /**
  * The globally shared `site` block (HandleInertiaRequests::share) — contact details, social
@@ -64,13 +65,11 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
   // or a short page, `glass` reads as intentional; over a long, constantly-scrolling grid of cards
   // passing directly underneath a `fixed` header, the same translucency lets card text visibly bleed
   // through it (a real, screenshotted bug, ad hoc task 26 fix — not merely a hypothetical one).
-  const navSurfaceClass = solidHeader
-    ? 'bg-ivory border-border-soft border shadow-soft'
-    : 'glass';
+  const navSurfaceClass = solidHeader ? 'bg-ivory border-border-soft border shadow-soft' : 'glass';
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-40 flex justify-center px-4 pt-4 ${solidHeader ? 'bg-ivory' : ''}`}
+      className={`fixed inset-x-0 top-0 z-40 flex justify-center px-4 pt-4 transition-transform duration-300 [html[data-header-hidden=true]_&]:-translate-y-[110%] ${solidHeader ? 'bg-ivory' : ''}`}
     >
       <nav
         className={`${navSurfaceClass} motion-safe-transition flex w-full max-w-5xl items-center justify-between rounded-full px-5 transition-[padding,box-shadow] duration-300 ${
@@ -282,7 +281,7 @@ export default function PublicLayout({
       <div className="flex min-h-screen flex-col">
         <a
           href="#main-content"
-          className="bg-ink text-ivory focus:not-sr-only sr-only fixed top-4 left-4 z-50 rounded-md px-4 py-2 text-sm font-medium"
+          className="bg-ink text-ivory sr-only fixed top-4 left-4 z-50 rounded-md px-4 py-2 text-sm font-medium focus:not-sr-only"
         >
           Skip to main content
         </a>
@@ -303,6 +302,7 @@ export default function PublicLayout({
           </AnimatePresence>
         </main>
         <Footer />
+        <WhatsAppButton />
       </div>
     </SmoothScroll>
   );

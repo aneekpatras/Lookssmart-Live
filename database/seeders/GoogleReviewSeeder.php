@@ -7,120 +7,115 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
 /**
- * Seeds the homepage reviews carousel with Google-sourced reviews (`source = 'google'`).
+ * Seeds the homepage reviews carousel with the salon's REAL Google reviews (`source = 'google'`),
+ * hand-picked by the owner from the live Google Business Profile listing and kept word-for-word
+ * (original spelling and punctuation included — nothing is rewritten).
  *
- * **Honesty note, read before assuming these are real**: this app has no Google Places/Business
- * Profile API credentials anywhere (confirmed — `integrations.google_maps_api_key` exists in
- * `SettingService::SCHEMA` but is unset, and no Google Places client is installed), so there is no
- * legitimate way to actually fetch this salon's real Google reviews. The task's own text
- * acknowledges this by saying "seed with real/realistic" content. These 12 reviews are AUTHORED
- * content written to read like genuine 5-star Google reviews for a Lahore salon (specific, varied
- * phrasing, real treatment names from the seeded catalog, no generic filler) — they are not scraped
- * or copied from any actual customer. If real Google reviews are ever synced (via the Places API,
- * once credentials exist), replace this seeder's rows rather than layering fabricated ones on top of
- * genuine ones — `source = 'google'` makes the two easy to tell apart and bulk-replace.
+ * Google does not show the star rating in the text that was copied, so every picked review is stored
+ * as 5 stars; the owner chose only clearly glowing ones. Check a rating against Google if in doubt.
  *
- * Pre-approved and pre-published directly (no moderation queue): a seeded review is, by definition,
- * already reviewed by whoever wrote this seeder, unlike a real visitor-submitted review which still
- * needs `Admin\ReviewController::approve()`.
+ * This replaces an earlier set of AUTHORED placeholder "Google" reviews: every `source = 'google'`
+ * row that is not in the list below is deleted on each run, so re-running this seeder always leaves
+ * exactly this set. Organic (website-submitted) reviews are never touched.
+ *
+ * `published_at` is approximated from Google's relative dates ("a month ago", "10 months ago"), as
+ * Google gives no exact date for a review. Pre-approved and pre-published: no moderation queue.
+ *
+ * Run on an existing database with: php artisan db:seed --class=GoogleReviewSeeder
  */
 class GoogleReviewSeeder extends Seeder
 {
     public function run(): void
     {
-        foreach ($this->reviews() as $index => $review) {
+        $reviews = $this->reviews();
+
+        Review::query()
+            ->where('source', 'google')
+            ->whereNotIn('reviewer_name', array_column($reviews, 'name'))
+            ->delete();
+
+        foreach ($reviews as $review) {
             Review::updateOrCreate(
-                ['source' => 'google', 'reviewer_name' => $review['name'], 'title' => $review['title']],
+                ['source' => 'google', 'reviewer_name' => $review['name']],
                 [
                     'rating' => 5,
+                    'title' => null,
                     'body' => $review['body'],
-                    'reviewer_category' => $review['category'],
+                    'reviewer_category' => null,
                     'status' => 'approved',
-                    // Spread across the last few months so `latest('published_at')` doesn't show 12
-                    // reviews all dated the same instant.
-                    'published_at' => Carbon::now()->subDays(3 + $index * 11)->subHours($index * 3),
+                    'published_at' => Carbon::now()->subDays($review['days_ago']),
                 ],
             );
         }
     }
 
     /**
-     * @return list<array{name: string, title: string, category: string, body: string}>
+     * Newest first.
+     *
+     * @return list<array{name: string, days_ago: int, body: string}>
      */
     private function reviews(): array
     {
         return [
             [
-                'name' => 'Amna Riaz',
-                'title' => 'Keratin treatment exceeded expectations',
-                'category' => 'Hair Treatments',
-                'body' => 'Extremely impressed with the Hair Botox treatment here! My hair feels silky, soft, and so much healthier than before. The stylist explained every step and my frizz is genuinely gone weeks later. Highly recommended!',
+                'name' => 'Fatima Saleem',
+                'days_ago' => 28,
+                'body' => 'I have been coming here for about one year And I always love her work I wish you all the best for future also ❤️❤️❤️',
             ],
             [
-                'name' => 'Sana Malik',
-                'title' => 'Best haircut I\'ve had in Lahore',
-                'category' => 'Hair Treatments',
-                'body' => 'Went in for a blow dry and left with the best haircut I\'ve had in years. The team really listens before they pick up the scissors, and the salon itself is calm and clean. Booked my next appointment before I even left.',
+                'name' => 'Irma Umar',
+                'days_ago' => 30,
+                'body' => "I have been going to Look Smart Salon for almost 10 years, and my experience has always been absolutely amazing! ❤️ She is extremely cooperative, positive, professional, and genuinely dedicated to providing the best services to her clients.\n\nWhat I love most is the attention to detail. She and her staff take proper time with every client, listen carefully, and discuss each and every detail before providing the service. Her makeup and hairstyling are simply 200% perfect! Every time, I leave the salon completely satisfied and happy.\n\nHer staff is also highly professional, well-mannered, and attentive. The quality of service is truly exceptional, especially considering the very reasonable and affordable charges.\n\nIn my opinion, Look Smart Salon is one of the best service providers in Lahore at such reasonable prices. I would highly recommend it to everyone looking for professional, reliable, and excellent beauty services.\n\n2000% HIGHLY RECOMMENDED! ❤️✨",
             ],
             [
-                'name' => 'Hira Ahmed',
-                'title' => 'X-Tenso smoothing, zero regrets',
-                'category' => 'Hair Treatments',
-                'body' => 'Was nervous about a smoothing treatment ruining my hair texture but the L\'Oréal X-Tenso here was handled so carefully. Three months in and it still looks natural, not stiff or fake. Worth every rupee.',
+                'name' => 'Shakeela Shahzad',
+                'days_ago' => 31,
+                'body' => 'Had an amazing experience at the salon today. The staff was super friendly and professional, taking their time to understand exactly what I wanted instead of rushing through. The place was spotless, well-maintained, and had a great relaxing vibe. Absolutely loved the final results and will definitely be coming back. Highly recommended to anyone looking for quality service.',
             ],
             [
-                'name' => 'Fatima Sheikh',
-                'title' => 'Gold Hydra Facial glow is real',
-                'category' => 'Facials & Skin Care',
-                'body' => 'My skin was looking so dull before my wedding events started and the Gold Hydra Facial completely turned it around. The therapist actually checked my skin type before choosing products instead of just running a standard routine. Glowing for days after.',
+                'name' => 'Sana Ch.',
+                'days_ago' => 32,
+                'body' => 'Madam owner is very humble and good in dealing. Services are outstanding. A good saloon in society.',
             ],
             [
-                'name' => 'Mahnoor Iqbal',
-                'title' => 'Gentle, thorough, and honest advice',
-                'category' => 'Facials & Skin Care',
-                'body' => 'What I appreciated most was that they told me which add-ons I actually needed instead of upselling everything on the menu. The polish + mask combo left my skin so smooth. Clean facility and very professional staff.',
+                'name' => 'Zainab Arslan',
+                'days_ago' => 150,
+                'body' => 'Bohat acha experience hai. Services bohat achi hain. Make up bohat acha krti hain. Highly recommended for best services',
             ],
             [
-                'name' => 'Zara Nasir',
-                'title' => 'My go-to for pre-event skin prep',
-                'category' => 'Facials & Skin Care',
-                'body' => 'I always book a facial here a few days before any big event and it never disappoints. This time I tried their full-face threading with the polish and my skin looked flawless under makeup the next day.',
+                'name' => 'Hina Ali',
+                'days_ago' => 270,
+                'body' => 'Very good service and owner is very nice lady my experience is 12 years it was very good',
             ],
             [
-                'name' => 'Ayesha Khan',
-                'title' => 'Bridal makeup that actually lasted the whole day',
-                'category' => 'Bridal & Makeup',
-                'body' => 'Booked the Bridal Day Package for my Barat and it was worth every minute of the 2-week advance booking. The makeup lasted through pictures, dinner, and dancing without needing a single touch-up. My artist was so patient with my vision.',
+                'name' => 'Shazia patras',
+                'days_ago' => 300,
+                'body' => 'Absolutely loved my experience here! The staff treated me so well and the results were even better than I expected. The salon is clean, relaxing, and very professional. I walked out feeling amazing. Truly the best — highly recommended! ⭐️🤩🤩',
             ],
             [
-                'name' => 'Noor Fatima',
-                'title' => 'Engagement look was exactly what I wanted',
-                'category' => 'Bridal & Makeup',
-                'body' => 'Senior artist did my engagement makeup and it was elegant, not overdone like some places tend to go. She listened to my reference photos properly. Threading beforehand made such a difference to how clean my face looked in photos.',
+                'name' => 'Nouman_ SanDhu',
+                'days_ago' => 305,
+                'body' => 'Absolutely loved my haircut and hair color. Great service and outstanding results. Highly recommended!',
             ],
             [
-                'name' => 'Rabia Tariq',
-                'title' => 'Party glam that photographs beautifully',
-                'category' => 'Bridal & Makeup',
-                'body' => 'Tried the Party Glam Duo package for a friend\'s mehndi and got so many compliments. The HD finish held up under the event lighting and camera flashes all night. Booking again for my own function next month.',
+                'name' => 'Muqdas Abishay',
+                'days_ago' => 365,
+                'body' => "Amazing service truly satisfied the results\nVery professional and friendly staff loved the experience\nGreat attention to detail and exactly what I asked for Thank you",
             ],
             [
-                'name' => 'Komal Yousaf',
-                'title' => 'Painless and professional laser sessions',
-                'category' => 'Laser Hair Removal',
-                'body' => 'Was hesitant about laser after a bad experience elsewhere, but the technician here explained the process, did a patch test, and the sessions were far more comfortable than I expected. Already seeing real reduction after a few visits.',
+                'name' => 'Mrs Gsvali',
+                'days_ago' => 370,
+                'body' => 'Best salon in Central park I was vist last 5 year regularly',
             ],
             [
-                'name' => 'Sadia Bashir',
-                'title' => 'Consistent results, clean equipment',
-                'category' => 'Laser Hair Removal',
-                'body' => 'Five sessions in and the results speak for themselves. What stood out was how seriously they take hygiene — fresh equipment covers every time and they actually track your progress between visits instead of just running you through.',
+                'name' => 'uzma zaheen',
+                'days_ago' => 380,
+                'body' => 'Highly recommended, A true professional with magic in her hands 💇‍♀️',
             ],
             [
-                'name' => 'Warda Aslam',
-                'title' => 'Finally a salon that doesn\'t overbook appointments',
-                'category' => 'Laser Hair Removal',
-                'body' => 'My laser sessions have always started on time here, no long waits like other places in Lahore. The staff is knowledgeable about aftercare too — genuinely helped with the sensitivity I had after my first couple of sessions.',
+                'name' => 'mahrukh zahid',
+                'days_ago' => 730,
+                'body' => 'I am their regular client. Excellent skin care , hair care and polisher services. Must visit for high quality services.',
             ],
         ];
     }

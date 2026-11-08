@@ -17,6 +17,9 @@ use App\Models\Review;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\Setting;
+use App\Models\User;
+use App\Notifications\AdminNewLeadAlert;
+use App\Notifications\LeadReceived;
 use App\Services\SecureUploadService;
 use App\Services\SeoService;
 use App\Support\FeaturedGalleryImages;
@@ -26,6 +29,8 @@ use DOMDocument;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -192,6 +197,16 @@ class PublicWebsiteController extends Controller
         return Inertia::render('Public/Book', [
             'services' => Service::active()->with(['category:id,name,stock_image_url', 'prices'])->orderBy('sort')->orderBy('name')->get()->map(fn (Service $service) => $this->serviceData($service)),
             'categories' => ServiceCategory::active()->ordered()->get(['id', 'name']),
+            // Active deals that actually have bookable services attached: picking one on the "Deals"
+            // tab selects those services and applies the deal's promo code (same as "Claim Offer").
+            'deals' => Deal::active()
+                ->with('services:id,name,base_price')
+                ->orderByDesc('is_top_deal')
+                ->orderBy('ends_at')
+                ->get()
+                ->filter(fn (Deal $deal) => $deal->services->isNotEmpty())
+                ->map(fn (Deal $deal) => [...$this->dealShowcaseData($deal), 'code' => $deal->code])
+                ->values(),
             'authUser' => auth()->user()?->only(['name', 'email']),
         ]);
     }
@@ -353,10 +368,9 @@ class PublicWebsiteController extends Controller
      * derived from a `Staff` row, so she cannot vanish from the page if that record is ever
      * deactivated.
      *
-     * `photo_url` is intentionally null: there is no photograph of the founder in the project, and
-     * the only portraits available are the bridal client photos in `public/images/`. Using one of
-     * those and captioning it with her name would misrepresent a real person, so the page renders a
-     * monogram until a genuine photo is supplied (§10 #42).
+     * `photo_url` is the founder's own portrait (`public/images/founder-dua.webp`, 786x1024). Never
+     * swap in a stock or bridal client photo — captioning it with her name would misrepresent a
+     * real person. The About page falls back to a monogram if this is ever set back to null.
      *
      * @return array<string, mixed>
      */
@@ -366,7 +380,7 @@ class PublicWebsiteController extends Controller
             'name' => 'Dua',
             // Title per the salon's own brief for this page.
             'role' => 'Founder & Creative Director',
-            'photo_url' => null,
+            'photo_url' => '/images/founder-dua.webp',
             'quote' => 'No two clients should ever leave with the same look.',
             'bio' => 'Dua founded Looks Smart Beauty Salon on a simple conviction: that beauty work should begin with a conversation, not a price list. A decade at the chair has made her a specialist in precision hair styling and signature bridal transformations — and she still personally consults on every bridal booking the salon takes.',
             'narrative' => 'What began as a single chair on Main Ferozpur Road has grown into a full-service salon with a private bridal suite, without ever becoming a production line. Dua trains every stylist who joins, keeps the appointment book deliberately unhurried, and holds the room to the same standard whether it is a Rs. 150 threading or a Rs. 60,000 bridal booking.',
@@ -437,7 +451,7 @@ class PublicWebsiteController extends Controller
             return back()->with('success', 'Thanks for reaching out — we will be in touch shortly.');
         }
 
-        Lead::create([
+        $lead = Lead::create([
             'name' => $data['name'],
             'email' => $data['email'] ?? null,
             'phone' => $data['phone'],
@@ -448,7 +462,44 @@ class PublicWebsiteController extends Controller
             'notes' => trim((! empty($data['subject']) ? "Subject: {$data['subject']}\n\n" : '') . $data['message']),
         ]);
 
+        $this->sendLeadNotifications($lead);
+
         return back()->with('success', 'Thanks for reaching out — we will be in touch shortly.');
+    }
+
+    /**
+     * Admin alert + customer auto-reply. Each dispatch is individually try/caught (same reasoning as
+     * `CreateBookingAction::sendNotifications()`): a mail failure must never turn a saved lead into
+     * a 500 for the visitor.
+     */
+    private function sendLeadNotifications(Lead $lead): void
+    {
+        $admins = User::role(['admin', 'super-admin'])->get();
+
+        try {
+            if ($admins->isNotEmpty()) {
+                Notification::send($admins, new AdminNewLeadAlert($lead));
+            }
+        } catch (\Throwable $e) {
+            Log::error("Failed to send AdminNewLeadAlert for lead {$lead->id}: {$e->getMessage()}", ['exception' => $e]);
+        }
+
+        try {
+            $adminEmail = config('mail.admin_notification_email');
+            if ($adminEmail && ! $admins->pluck('email')->contains($adminEmail)) {
+                Notification::route('mail', $adminEmail)->notify(new AdminNewLeadAlert($lead));
+            }
+        } catch (\Throwable $e) {
+            Log::error("Failed to send AdminNewLeadAlert to ADMIN_NOTIFICATION_EMAIL for lead {$lead->id}: {$e->getMessage()}", ['exception' => $e]);
+        }
+
+        if ($lead->email) {
+            try {
+                Notification::route('mail', $lead->email)->notify(new LeadReceived($lead));
+            } catch (\Throwable $e) {
+                Log::error("Failed to send LeadReceived for lead {$lead->id}: {$e->getMessage()}", ['exception' => $e]);
+            }
+        }
     }
 
     /**
@@ -481,7 +532,9 @@ class PublicWebsiteController extends Controller
         $review = Review::create([
             'customer_id' => $user?->id,
             'reviewer_name' => $user ? null : ($data['name'] ?? 'Verified Guest'),
-            'reviewer_category' => $data['category'],
+            'reviewer_category' => $data['category'] === Review::WRITE_REVIEW_OTHER
+                ? trim(strip_tags((string) $data['custom_service']))
+                : $data['category'],
             'rating' => $data['rating'],
             'body' => $data['body'],
             'source' => 'organic',
@@ -741,6 +794,25 @@ class PublicWebsiteController extends Controller
     }
 
     /** @return array<string, mixed> */
+    /**
+     * Original upload for the detail banner; the sharper 'card' conversion for cards, falling back
+     * to 'thumb' for images uploaded before 'card' existed (until media-library:regenerate is run).
+     */
+    private function serviceImageUrl(Service $service, bool $detail): string
+    {
+        $media = $service->getFirstMedia('image');
+
+        if (! $media) {
+            return '';
+        }
+
+        if ($detail) {
+            return $media->hasGeneratedConversion('banner') ? $media->getUrl('banner') : $media->getUrl();
+        }
+
+        return $media->hasGeneratedConversion('card') ? $media->getUrl('card') : $media->getUrl('thumb');
+    }
+
     private function serviceData(Service $service, bool $detail = false): array
     {
         $price = $service->prices
@@ -752,7 +824,11 @@ class PublicWebsiteController extends Controller
             'id' => $service->id,
             'name' => $service->name,
             'slug' => $service->slug,
-            'description' => $detail ? $service->description : null,
+            // Admin-entered descriptions sometimes carry wrapping HTML (<p>…</p>) from the import/editor;
+            // the page renders it as plain text, so strip tags and decode entities here.
+            'description' => $detail && $service->description !== null
+                ? trim(html_entity_decode(strip_tags($service->description), ENT_QUOTES | ENT_HTML5))
+                : null,
             'category' => $service->category?->name,
             'category_id' => $service->service_category_id,
             'duration_min' => $service->duration_min,
@@ -762,7 +838,9 @@ class PublicWebsiteController extends Controller
             // ServiceController::applyImage()) is the next fallback, then the category's remote
             // stock photo. Null only if none of the three exist, in which case the UI shows its own
             // empty state rather than a broken image.
-            'image_url' => $service->getFirstMediaUrl('image', 'thumb')
+            // The detail page shows the image as a full-width banner, so it gets the original upload;
+            // the 400px 'thumb' conversion (right for cards) looks blurry when stretched that wide.
+            'image_url' => $this->serviceImageUrl($service, $detail)
                 ?: ($service->stock_image_url ?: ($service->category?->stock_image_url ?: null)),
             'faq' => $detail ? $service->faq : null,
             'rating' => $service->relationLoaded('reviews') ? round((float) $service->reviews->avg('rating'), 1) : null,
@@ -774,9 +852,8 @@ class PublicWebsiteController extends Controller
      * Homepage "Current offers" compact grid — capped at 6 (a balanced 2-row, 3-column grid) and
      * ranked the same way `deals()`'s own Top Deals bucket is (pinned first, soonest-ending next),
      * so the homepage naturally surfaces the deals an admin cares most about rather than an arbitrary
-     * slice. `original_price`/`deal_price` feed the card's strikethrough price breakdown when an
-     * admin has set them; `savings_percent` is the same real, computed-not-stored accessor the /deals
-     * page already uses for its badge.
+     * slice. Each entry is `dealShowcaseData()` (what /deals uses, so the Details popup works from
+     * here too) plus `type`/`value`/`code` for the compact card's own badge and code chip.
      */
     private function offers(): array
     {
@@ -785,19 +862,14 @@ class PublicWebsiteController extends Controller
             ->orderByDesc('is_top_deal')
             ->orderBy('ends_at')
             ->limit(6)
-            ->get(['id', 'title', 'type', 'value', 'code', 'ends_at', 'original_price', 'deal_price'])
+            ->get()
+            // The same payload the /deals page cards use (so the "Details" popup can open straight
+            // from a homepage offer), plus the few extra fields the compact homepage card reads.
             ->map(fn (Deal $deal) => [
-                'id' => $deal->id,
-                'title' => $deal->title,
+                ...$this->dealShowcaseData($deal),
                 'type' => $deal->type,
                 'value' => (string) $deal->value,
                 'code' => $deal->code,
-                'ends_at' => $deal->ends_at?->toIso8601String(),
-                'original_price' => $deal->original_price !== null ? (string) $deal->original_price : null,
-                'deal_price' => $deal->deal_price !== null ? (string) $deal->deal_price : null,
-                'savings_percent' => $deal->savings_percent,
-                'claim_url' => $this->dealClaimUrl($deal),
-                'bundled_services' => $this->dealBundledServices($deal),
             ])->all();
     }
 
@@ -951,12 +1023,15 @@ class PublicWebsiteController extends Controller
 
     /**
      * Feeds the homepage Reviews Carousel. Raised from the old static grid's `limit(6)` to 12 so a
-     * 3-per-page carousel actually has more than one page to rotate through — still only real
-     * `approved`+`published_at` rows, organic and Google-sourced alike (see `GoogleReviewSeeder`).
+     * 3-per-page carousel actually has more than one page to rotate through.
+     *
+     * Every `approved`+`published_at` review (Google ones the admin pasted in, and visitor-submitted
+     * ones), in the admin's own order: Admin > Reviews > "Homepage order" sets `sort` (lowest first),
+     * ties fall back to newest. Hiding a review there (status `rejected`) removes it from here.
      */
     private function testimonials(): array
     {
-        return Review::approved()->whereNotNull('published_at')->with(['customer:id,name', 'service:id,service_category_id', 'service.category:id,name'])->latest('published_at')->limit(12)->get()->map(fn (Review $review) => $this->reviewData($review))->all();
+        return Review::approved()->whereNotNull('published_at')->with(['customer:id,name', 'service:id,service_category_id', 'service.category:id,name'])->orderBy('sort')->latest('published_at')->limit(12)->get()->map(fn (Review $review) => $this->reviewData($review))->all();
     }
 
     private function reviewData(Review $review): array

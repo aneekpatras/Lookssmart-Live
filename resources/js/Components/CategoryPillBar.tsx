@@ -13,6 +13,11 @@ interface CategoryPillBarProps {
    * highlighting any specific category. */
   topAnchorId?: string;
   ariaLabel: string;
+  /** Called with a pill's id when it is clicked (before scrolling) — lets a page expand that section. */
+  onSelect?: (id: string) => void;
+  /** Distance (px) from the viewport top to where a section counts as "current" — set this to the
+   * height of whatever sticks above the content (header + this bar). */
+  spyOffset?: number;
   /** Spacing utilities ONLY (e.g. `mb-6`) — merged onto this component's own root. Do NOT wrap this
    * component in an extra `<div>` for spacing instead: a `position: sticky` element only stays stuck
    * for as long as its immediate parent's box does, so a tight wrapper with no other content gives it
@@ -22,7 +27,7 @@ interface CategoryPillBarProps {
 }
 
 function pillClass(active: boolean): string {
-  return `shrink-0 rounded-full border px-4 py-2 text-sm ${
+  return `shrink-0 rounded-full border px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm ${
     active ? 'border-ink bg-ink text-ivory' : 'border-border-soft text-ink-muted hover:border-accent-500'
   }`;
 }
@@ -43,18 +48,36 @@ function pillClass(active: boolean): string {
  * implicit-width track on mobile) to stretch to fit every pill unwrapped, blowing out the whole page's
  * width instead of scrolling within its own bounds (ad hoc task 25 fix — a real mobile overflow bug).
  */
-export function CategoryPillBar({ pills, topAnchorId, ariaLabel, className }: CategoryPillBarProps) {
+export function CategoryPillBar({
+  pills,
+  topAnchorId,
+  ariaLabel,
+  className,
+  onSelect,
+  spyOffset,
+}: CategoryPillBarProps) {
   const ids = React.useMemo(() => pills.map((pill) => pill.id), [pills]);
-  const activeId = useScrollSpy(ids);
+  const activeId = useScrollSpy(ids, spyOffset);
+  const rowRef = React.useRef<HTMLDivElement>(null);
+
+  // Keep the highlighted pill visible in the horizontally-scrolling row as the page scrolls. Scrolls
+  // the row itself (never `scrollIntoView`, which would also move the page vertically).
+  React.useEffect(() => {
+    const row = rowRef.current;
+    const pill = activeId ? row?.querySelector<HTMLElement>(`[data-pill-id="${activeId}"]`) : null;
+    if (!row || !pill) return;
+    row.scrollTo({ left: pill.offsetLeft - (row.clientWidth - pill.clientWidth) / 2, behavior: 'smooth' });
+  }, [activeId]);
 
   return (
     <div
       className={`border-border-soft bg-ivory -mx-1 min-w-0 border-b py-3 ${className ?? ''}`}
     >
       <div
+        ref={rowRef}
         role="group"
         aria-label={ariaLabel}
-        className="flex min-w-0 gap-2 overflow-x-auto whitespace-nowrap px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative flex min-w-0 gap-2 overflow-x-auto whitespace-nowrap px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {topAnchorId && (
           <button
@@ -69,9 +92,13 @@ export function CategoryPillBar({ pills, topAnchorId, ariaLabel, className }: Ca
         {pills.map((pill) => (
           <button
             key={pill.id}
+            data-pill-id={pill.id}
             type="button"
             aria-pressed={activeId === pill.id}
-            onClick={() => scrollToSection(pill.id)}
+            onClick={() => {
+              onSelect?.(pill.id);
+              scrollToSection(pill.id);
+            }}
             className={pillClass(activeId === pill.id)}
           >
             {pill.label}

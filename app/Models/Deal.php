@@ -51,6 +51,25 @@ class Deal extends Model
         'is_top_deal',
     ];
 
+    /**
+     * `slug` and `code` are UNIQUE at the DB level and soft-deleted rows still occupy them, so a
+     * deleted deal would block re-creating the same coupon code. Rename them out of the way on
+     * soft delete (same approach as Service::booted()). `code` is only 50 chars wide.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Deal $deal) {
+            if ($deal->isForceDeleting()) {
+                return;
+            }
+
+            $suffix = '--deleted-' . $deal->id;
+            $deal->slug = mb_substr((string) $deal->slug, 0, 255 - mb_strlen($suffix)) . $suffix;
+            $deal->code = $deal->code ? mb_substr($deal->code, 0, 50 - mb_strlen($suffix)) . $suffix : null;
+            $deal->saveQuietly();
+        });
+    }
+
     protected function casts(): array
     {
         return [

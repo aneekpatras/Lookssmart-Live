@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BulkReviewActionRequest;
 use App\Http\Requests\Admin\ReplyToReviewRequest;
+use App\Http\Requests\Admin\StoreGoogleReviewRequest;
 use App\Models\Review;
 use App\Models\Staff;
 use App\Notifications\ReviewStatusUpdated;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,6 +40,22 @@ class ReviewController extends Controller
 
         return Inertia::render('Admin/CRM/Reviews/Index', [
             'reviews' => $reviews->map(fn (Review $review) => $this->reviewData($review)),
+            // Everything the homepage carousel can show, in the exact order it shows it: the
+            // drag-to-reorder list at the top of the page.
+            'homepageOrder' => Review::query()
+                ->with(['customer:id,name'])
+                ->where('status', 'approved')
+                ->whereNotNull('published_at')
+                ->orderBy('sort')
+                ->latest('published_at')
+                ->get()
+                ->map(fn (Review $review) => [
+                    'id' => $review->id,
+                    'rating' => $review->rating,
+                    'body' => $review->body,
+                    'name' => $review->display_name,
+                    'source' => $review->source,
+                ]),
             'staffOptions' => Staff::active()->with('user:id,name')->get()->map(fn (Staff $staff) => [
                 'id' => $staff->id,
                 'name' => $staff->user?->name ?? 'Team member',
@@ -53,6 +72,45 @@ class ReviewController extends Controller
                 'staff_id' => $request->integer('staff_id') ?: null,
             ],
         ]);
+    }
+
+    /** Adds a review the owner copied from Google (name, stars, text); it goes live at once. */
+    public function store(StoreGoogleReviewRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+
+        Review::create([
+            'reviewer_name' => trim(strip_tags($data['reviewer_name'])),
+            'rating' => $data['rating'],
+            'body' => trim(strip_tags($data['body'])),
+            'source' => 'google',
+            'status' => 'approved',
+            'published_at' => isset($data['published_at']) ? Carbon::parse($data['published_at']) : now(),
+        ]);
+
+        return back()->with('success', 'Google review added to the homepage.');
+    }
+
+    /**
+     * Saves the drag-and-drop homepage order: the submitted ids become sort 1..n in that order.
+     * Reviews not in the list (pending/hidden) keep their old value; it does not matter for them.
+     */
+    public function reorder(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->can('crm.manage'), 403);
+
+        $data = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['integer', 'distinct', 'exists:reviews,id'],
+        ]);
+
+        DB::transaction(function () use ($data) {
+            foreach (array_values($data['order']) as $index => $id) {
+                Review::whereKey($id)->update(['sort' => $index + 1]);
+            }
+        });
+
+        return back()->with('success', 'Homepage order saved.');
     }
 
     public function approve(Review $review): RedirectResponse
@@ -139,6 +197,8 @@ class ReviewController extends Controller
             'service_name' => $review->service?->name,
             'booking_code' => $review->booking?->code,
             'staff_name' => $review->booking?->staff?->user?->name,
+            'display_name' => $review->display_name,
+            'source' => $review->source,
             'is_verified' => $review->booking_id !== null,
             'created_at' => $review->created_at?->toIso8601String(),
         ];

@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { MoreHorizontal, Plus } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
 import {
@@ -10,12 +10,6 @@ import {
 import { DealFormDialog, type DealDialogRow } from '@/Components/admin/DealFormDialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/Components/ui/dropdown-menu';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { formatCurrency } from '@/lib/currency';
 
@@ -49,31 +43,31 @@ function formatValue(deal: DealRow) {
 
 function DealRowActions({ row, onEdit }: { row: DealRow; onEdit: (row: DealRow) => void }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" aria-label={`Actions for ${row.title}`}>
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => onEdit(row)}>Edit</DropdownMenuItem>
-        <DropdownMenuItem
-          className="text-red-600 hover:bg-red-50 focus:bg-red-50"
-          onSelect={() => {
-            if (confirm(`Delete "${row.title}"?`)) {
-              router.delete(`/admin/deals/${row.id}`);
-            }
-          }}
-        >
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      aria-label={`Edit ${row.title}`}
+      onClick={() => onEdit(row)}
+    >
+      <Pencil className="size-3.5" />
+      Edit
+    </Button>
   );
 }
 
 export default function Deals({ deals, filters, services, categories, categoryTags }: DealsPageProps) {
   const [dialogTarget, setDialogTarget] = React.useState<DealRow | null | undefined>(undefined);
+
+  function deleteAllMatching() {
+    const scope = filters.search ? 'matching the current search' : 'ALL';
+    if (confirm(`Delete ${scope} ${deals.total} deal(s)?`)) {
+      router.post('/admin/deals/bulk-delete', {
+        all: true,
+        search: filters.search ?? undefined,
+      });
+    }
+  }
 
   const columns: DataTableColumn<DealRow>[] = [
     {
@@ -151,7 +145,7 @@ export default function Deals({ deals, filters, services, categories, categoryTa
       id: 'actions',
       header: '',
       alwaysVisible: true,
-      className: 'w-10 text-right',
+      className: 'w-24 text-right',
       cell: (row) => <DealRowActions row={row} onEdit={setDialogTarget} />,
     },
   ];
@@ -165,10 +159,22 @@ export default function Deals({ deals, filters, services, categories, categoryTa
             <h1 className="font-display text-ink text-2xl font-medium">Deals</h1>
             <p className="text-ink-muted text-sm">Coupon codes, percent/fixed/bundle discounts.</p>
           </div>
-          <Button onClick={() => setDialogTarget(null)}>
-            <Plus className="size-4" />
-            New deal
-          </Button>
+          <div className="flex gap-2">
+            {deals.total > 0 && (
+              <Button
+                variant="outline"
+                className="text-red-600 hover:bg-red-50"
+                onClick={deleteAllMatching}
+              >
+                <Trash2 className="size-4" />
+                Delete all
+              </Button>
+            )}
+            <Button onClick={() => setDialogTarget(null)}>
+              <Plus className="size-4" />
+              New deal
+            </Button>
+          </div>
         </div>
         <DataTable<DealRow>
           columns={columns}
@@ -176,6 +182,21 @@ export default function Deals({ deals, filters, services, categories, categoryTa
           meta={deals satisfies DataTablePaginationMeta}
           getRowId={(row) => row.id}
           filters={filters}
+          bulkActions={[
+            {
+              label: 'Delete selected',
+              variant: 'destructive',
+              onAction: (selectedRows) => {
+                if (confirm(`Delete ${selectedRows.length} selected deal(s)?`)) {
+                  router.post(
+                    '/admin/deals/bulk-delete',
+                    { ids: selectedRows.map((row) => row.id) },
+                    { preserveScroll: true },
+                  );
+                }
+              },
+            },
+          ]}
           searchPlaceholder="Search title or code..."
           emptyTitle="No deals yet"
           csvFilename="deals.csv"

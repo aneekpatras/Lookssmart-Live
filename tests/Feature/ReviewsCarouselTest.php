@@ -56,6 +56,7 @@ it('caps testimonials at 12 even when more approved reviews exist', function () 
         'status' => 'approved',
         'published_at' => now(),
         'reviewer_name' => 'Seed Reviewer',
+        'source' => 'google',
     ]);
 
     $this->get('/')->assertInertia(fn ($page) => $page->has('testimonials', 12));

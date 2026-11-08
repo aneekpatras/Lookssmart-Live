@@ -7,6 +7,12 @@
     {{-- Phase 13 sub-step 2: real brand accent (resources/css/app.css --color-accent-500), not a
     placeholder — tints supporting browsers' UI chrome and the PWA-lite splash/task-switcher card. --}}
     <meta name="theme-color" content="#c9a66b">
+    {{-- Google Search Console ownership verification (public by design, not a secret). Keep it in place
+    after verification succeeds, or Google will un-verify the property. --}}
+    <meta name="google-site-verification" content="7eXs5Yo8XWjW7Fl2pYjKCHfY1nxQzLoz4g0AUoO7EvU" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    {{-- favicon.ico is an empty 0-byte placeholder, so it is deliberately not linked here (it would
+    override the SVG in Chromium browsers). Re-add it once a real .ico exists. --}}
     <link rel="manifest" href="{{ route('manifest') }}">
 
     <title inertia>{{ config('app.name', 'Looks Smart Beauty Salon') }}</title>

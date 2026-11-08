@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -33,6 +34,25 @@ class Service extends Model implements HasMedia
         'seo_description',
         'faq',
     ];
+
+    /**
+     * `slug` and `sku` are UNIQUE at the DB level and soft-deleted rows still occupy them, so a
+     * deleted service would block re-creating/re-importing the same name. On soft delete we rename
+     * them out of the way (the row stays intact for past bookings/reports).
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Service $service) {
+            if ($service->isForceDeleting()) {
+                return;
+            }
+
+            $suffix = '--deleted-' . $service->id;
+            $service->slug = mb_substr((string) $service->slug, 0, 255 - mb_strlen($suffix)) . $suffix;
+            $service->sku = $service->sku ? mb_substr($service->sku, 0, 255 - mb_strlen($suffix)) . $suffix : null;
+            $service->saveQuietly();
+        });
+    }
 
     protected function casts(): array
     {
@@ -60,6 +80,17 @@ class Service extends Model implements HasMedia
             ->width(400)
             ->height(400)
             ->sharpen(10)
+            ->nonQueued();
+
+        // Public service cards render ~470px wide (up to 2x on retina); the 400px square 'thumb'
+        // above is only right for admin tables, and looks soft when stretched into a card.
+        $this->addMediaConversion('card')
+            ->fit(Fit::Crop, 960, 540)
+            ->nonQueued();
+
+        // Detail-page banner: sharp at full width, but far lighter than a multi-MB original upload.
+        $this->addMediaConversion('banner')
+            ->width(1600)
             ->nonQueued();
     }
 

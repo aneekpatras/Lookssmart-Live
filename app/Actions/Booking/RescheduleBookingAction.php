@@ -7,13 +7,18 @@ use App\Models\Booking;
 use App\Models\BookingStatusLog;
 use App\Models\Setting;
 use App\Models\Staff;
+use App\Models\User;
+use App\Notifications\AdminBookingRescheduledAlert;
 use App\Notifications\BookingRescheduled as BookingRescheduledNotification;
 use App\Services\AvailabilityEngine;
 use App\Services\SlotHoldService;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -108,10 +113,42 @@ class RescheduleBookingAction
         $this->slotHoldService->release($staffId, $startsAt, $holdToken);
 
         $fresh = $booking->fresh();
-        $fresh->customer?->notify(new BookingRescheduledNotification($fresh, $originalStart));
+        $this->sendNotifications($fresh, $originalStart);
         event(new BookingRescheduled($fresh, $originalStart));
 
         return $fresh;
+    }
+
+    /**
+     * See `CancelBookingAction::execute()` — each dispatch is individually try/caught so a mail
+     * failure (notably under QUEUE_CONNECTION=sync) never turns a successful reschedule into a 500.
+     */
+    private function sendNotifications(Booking $booking, CarbonInterface $originalStart): void
+    {
+        try {
+            $booking->customer?->notify(new BookingRescheduledNotification($booking, $originalStart));
+        } catch (\Throwable $e) {
+            Log::error("Failed to send BookingRescheduled for {$booking->code}: {$e->getMessage()}", ['exception' => $e]);
+        }
+
+        $admins = User::role(['admin', 'super-admin'])->get();
+
+        try {
+            if ($admins->isNotEmpty()) {
+                Notification::send($admins, new AdminBookingRescheduledAlert($booking, $originalStart));
+            }
+        } catch (\Throwable $e) {
+            Log::error("Failed to send AdminBookingRescheduledAlert for {$booking->code}: {$e->getMessage()}", ['exception' => $e]);
+        }
+
+        try {
+            $adminEmail = config('mail.admin_notification_email');
+            if ($adminEmail && ! $admins->pluck('email')->contains($adminEmail)) {
+                Notification::route('mail', $adminEmail)->notify(new AdminBookingRescheduledAlert($booking, $originalStart));
+            }
+        } catch (\Throwable $e) {
+            Log::error("Failed to send AdminBookingRescheduledAlert to ADMIN_NOTIFICATION_EMAIL for {$booking->code}: {$e->getMessage()}", ['exception' => $e]);
+        }
     }
 
     /**

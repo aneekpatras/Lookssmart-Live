@@ -1,12 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { MoreHorizontal, Plus } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Plus } from 'lucide-react';
 import * as React from 'react';
 
-import {
-  DataTable,
-  type DataTableColumn,
-  type DataTablePaginationMeta,
-} from '@/Components/admin/DataTable';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Checkbox } from '@/Components/ui/checkbox';
@@ -156,43 +151,47 @@ function CategoryRowActions({ row }: { row: CategoryRow }) {
   );
 }
 
-export default function ServiceCategories({ categories, filters }: ServiceCategoriesPageProps) {
-  const columns: DataTableColumn<CategoryRow>[] = [
-    {
-      id: 'name',
-      header: 'Name',
-      sortable: true,
-      alwaysVisible: true,
-      cell: (row) => (
-        <div className="flex items-center gap-3">
-          {row.image_url ? (
-            <img src={row.image_url} alt="" className="size-8 rounded object-cover" />
-          ) : (
-            <div className="bg-sand size-8 rounded" />
-          )}
-          {row.name}
-        </div>
-      ),
-    },
-    { id: 'slug', header: 'Slug', cell: (row) => row.slug },
-    { id: 'services_count', header: 'Services', cell: (row) => row.services_count },
-    {
-      id: 'is_active',
-      header: 'Status',
-      cell: (row) => (
-        <Badge variant={row.is_active ? 'accent' : 'outline'}>
-          {row.is_active ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      alwaysVisible: true,
-      className: 'w-10 text-right',
-      cell: (row) => <CategoryRowActions row={row} />,
-    },
-  ];
+export default function ServiceCategories({ categories }: ServiceCategoriesPageProps) {
+  const [items, setItems] = React.useState<CategoryRow[]>(categories.data);
+  const [draggingId, setDraggingId] = React.useState<number | null>(null);
+  // Snapshot of the order when a drag starts, so a drop outside the list can be undone.
+  const startOrder = React.useRef<number[]>([]);
+
+  // Follow the server whenever it sends fresh data (after a save, create or delete).
+  const [syncedData, setSyncedData] = React.useState(categories.data);
+  if (syncedData !== categories.data) {
+    setSyncedData(categories.data);
+    setItems(categories.data);
+  }
+
+  function onDragStart(id: number) {
+    startOrder.current = items.map((item) => item.id);
+    setDraggingId(id);
+  }
+
+  function onDragOver(e: React.DragEvent, overId: number) {
+    e.preventDefault();
+    if (draggingId === null || draggingId === overId) return;
+
+    setItems((current) => {
+      const from = current.findIndex((item) => item.id === draggingId);
+      const to = current.findIndex((item) => item.id === overId);
+      if (from < 0 || to < 0) return current;
+      const next = [...current];
+      const [moved] = next.splice(from, 1);
+      if (!moved) return current;
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
+  function onDragEnd() {
+    const order = items.map((item) => item.id);
+    setDraggingId(null);
+    if (order.join(',') === startOrder.current.join(',')) return;
+
+    router.post('/admin/service-categories/reorder', { order }, { preserveScroll: true });
+  }
 
   return (
     <>
@@ -201,7 +200,10 @@ export default function ServiceCategories({ categories, filters }: ServiceCatego
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-ink text-2xl font-medium">Service Categories</h1>
-            <p className="text-ink-muted text-sm">Groups that organize services on the site.</p>
+            <p className="text-ink-muted text-sm">
+              Drag a category by its handle and drop it where you want it. This is the order they
+              appear in on the public Services page.
+            </p>
           </div>
           <CategoryDialog
             trigger={
@@ -212,16 +214,44 @@ export default function ServiceCategories({ categories, filters }: ServiceCatego
             }
           />
         </div>
-        <DataTable<CategoryRow>
-          columns={columns}
-          rows={categories.data}
-          meta={categories satisfies DataTablePaginationMeta}
-          getRowId={(row) => row.id}
-          filters={filters}
-          searchPlaceholder="Search categories..."
-          emptyTitle="No categories yet"
-          csvFilename="service-categories.csv"
-        />
+
+        {items.length === 0 ? (
+          <p className="text-ink-muted text-sm">No categories yet.</p>
+        ) : (
+          <ul className="border-border-soft bg-surface divide-border-soft divide-y rounded-2xl border">
+            {items.map((row) => (
+              <li
+                key={row.id}
+                draggable
+                onDragStart={() => onDragStart(row.id)}
+                onDragOver={(e) => onDragOver(e, row.id)}
+                onDrop={(e) => e.preventDefault()}
+                onDragEnd={onDragEnd}
+                className={`flex cursor-grab items-center gap-4 px-4 py-3 active:cursor-grabbing ${
+                  draggingId === row.id ? 'bg-accent-50 opacity-60' : ''
+                }`}
+              >
+                <GripVertical className="text-ink-muted size-5 shrink-0" aria-hidden="true" />
+                {row.image_url ? (
+                  <img src={row.image_url} alt="" className="size-10 rounded object-cover" draggable={false} />
+                ) : (
+                  <div className="bg-sand size-10 rounded" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-ink truncate font-medium">{row.name}</p>
+                  <p className="text-ink-muted truncate text-xs">
+                    {row.slug} &middot; {row.services_count}{' '}
+                    {row.services_count === 1 ? 'service' : 'services'}
+                  </p>
+                </div>
+                <Badge variant={row.is_active ? 'accent' : 'outline'}>
+                  {row.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+                <CategoryRowActions row={row} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </>
   );

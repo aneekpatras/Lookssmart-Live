@@ -9,6 +9,7 @@ use App\Models\ServiceCategory;
 use App\Services\HtmlSanitizerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -46,7 +47,7 @@ class ServiceCategoryController extends Controller
             ->withCount('services')
             ->when($request->filled('search'), fn ($query) => $query->where('name', 'like', '%' . $request->string('search')->value() . '%'))
             ->orderBy($sort, $direction)
-            ->paginate(15)
+            ->paginate(100)
             ->withQueryString();
 
         return Inertia::render('Admin/ServiceCategories', [
@@ -116,12 +117,26 @@ class ServiceCategoryController extends Controller
 
         $data = $request->validate([
             'order' => ['required', 'array'],
-            'order.*' => ['integer', 'exists:service_categories,id'],
+            'order.*' => ['integer', 'distinct', 'exists:service_categories,id'],
         ]);
 
-        foreach ($data['order'] as $index => $id) {
-            ServiceCategory::whereKey($id)->update(['sort' => $index]);
+        // The admin table is paginated and `sort` values can tie, so the submitted ids (one page)
+        // take over the slots they already occupy in the full ordering, then everything is
+        // renumbered 0..n-1. Public pages read `ServiceCategory::ordered()`, so this is their order.
+        $submitted = array_map('intval', $data['order']);
+        $slots = ServiceCategory::query()->orderBy('sort')->orderBy('id')->pluck('id')->all();
+        $queue = $submitted;
+        $final = [];
+
+        foreach ($slots as $id) {
+            $final[] = in_array($id, $submitted, true) ? array_shift($queue) : $id;
         }
+
+        DB::transaction(function () use ($final) {
+            foreach ($final as $index => $id) {
+                ServiceCategory::whereKey($id)->update(['sort' => $index]);
+            }
+        });
 
         return back()->with('success', 'Order updated.');
     }

@@ -106,7 +106,7 @@ test('cards stack to one column on mobile', async ({ page }) => {
   expect(bodyOverflows, 'page should not scroll horizontally on mobile').toBe(false);
 });
 
-test('founder card shows the real founder, title and quote — and no borrowed portrait', async ({
+test('founder card shows the real founder, title, quote and her own portrait', async ({
   page,
 }) => {
   await page.goto('/about', { waitUntil: 'domcontentloaded' });
@@ -116,10 +116,11 @@ test('founder card shows the real founder, title and quote — and no borrowed p
   await expect(section).toContainText('Founder & Creative Director');
   await expect(section).toContainText('No two clients should ever leave with the same look.');
 
-  // There is no photograph of the founder in the project; the card must NOT be showing one of the
-  // bridal client photos captioned with her name.
-  const images = await section.locator('img').count();
-  expect(images).toBe(0);
+  // Exactly one image: the founder's own portrait, never a bridal client photo.
+  const images = section.locator('img');
+  await expect(images).toHaveCount(1);
+  await expect(images.first()).toHaveAttribute('src', '/images/founder-dua.webp');
+  await expect(images.first()).toHaveAttribute('alt', /Dua/);
 });
 
 test('visit section reads location, phone and hours from real settings', async ({ page }) => {

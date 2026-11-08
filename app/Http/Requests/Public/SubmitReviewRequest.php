@@ -24,7 +24,17 @@ class SubmitReviewRequest extends BaseFormRequest
         return [
             'name' => ['nullable', 'string', 'max:255'],
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
-            'category' => ['required', 'string', Rule::in(Review::WRITE_REVIEW_CATEGORIES)],
+            'category' => ['required', 'string', Rule::in([...Review::WRITE_REVIEW_CATEGORIES, Review::WRITE_REVIEW_OTHER])],
+            // Free-text service name, only meaningful (and then required) when "Other" is chosen.
+            // Letters/numbers/basic punctuation only — it is displayed publicly as the review's category.
+            'custom_service' => [
+                'nullable',
+                'required_if:category,'.Review::WRITE_REVIEW_OTHER,
+                'string',
+                'min:2',
+                'max:60',
+                "regex:/^[\p{L}\p{N}\s&,.'()\/+-]+$/u",
+            ],
             'body' => ['required', 'string', 'min:10', 'max:2000'],
             'website' => ['nullable', 'string', 'max:255'],
             'rendered_at' => ['required', 'integer'],

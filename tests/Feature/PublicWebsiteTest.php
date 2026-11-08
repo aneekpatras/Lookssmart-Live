@@ -404,8 +404,7 @@ it('renders the about page with the quick stats, pillars, founder and contact pa
             ->where('pillars.3.title', 'Artistry')
             ->where('founder.name', 'Dua')
             ->where('founder.role', 'Founder & Creative Director')
-            // No photograph of the founder exists; the page must not borrow someone else's.
-            ->where('founder.photo_url', null)
+            ->where('founder.photo_url', '/images/founder-dua.webp')
             ->where('contact.address', 'Central Park Housing Scheme, Lahore')
             ->where('contact.whatsapp_url', 'https://wa.me/923059833859')
             ->has('contact.hours', 7));

@@ -1,5 +1,14 @@
 import { router } from '@inertiajs/react';
-import { ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Search } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Columns3,
+  Download,
+  ListChecks,
+  Search,
+  X,
+} from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@/Components/ui/button';
@@ -63,6 +72,9 @@ export interface DataTableProps<T> {
   showSearch?: boolean;
   searchPlaceholder?: string;
   bulkActions?: DataTableBulkAction<T>[];
+  /** Shown once every row on the page is ticked and more pages exist — lets a bulk action reach
+   * the whole filtered result set (the checkboxes themselves only ever cover the current page). */
+  selectAll?: { label: string; onAction: () => void };
   emptyTitle?: string;
   emptyDescription?: string;
   /** CSV of exactly what's on screen (current page, visible columns) — a full-dataset server export
@@ -89,12 +101,16 @@ export function DataTable<T>({
   showSearch = true,
   searchPlaceholder = 'Search...',
   bulkActions = [],
+  selectAll,
   emptyTitle = 'Nothing here yet',
   emptyDescription,
   csvFilename = 'export.csv',
 }: DataTableProps<T>) {
   const [searchDraft, setSearchDraft] = React.useState(filters.search ?? '');
   const [selected, setSelected] = React.useState<Set<string | number>>(new Set());
+  // Checkboxes/bulk buttons stay hidden until the admin clicks "Select" — keeps the table clean.
+  const [selectMode, setSelectMode] = React.useState(false);
+  const showSelection = selectMode && bulkActions.length > 0;
   const [hiddenColumns, setHiddenColumns] = React.useState<Set<string>>(new Set());
 
   // Keep the search input in sync with the URL's own search param (e.g. after a browser
@@ -199,13 +215,37 @@ export function DataTable<T>({
           <div />
         )}
         <div className="flex items-center gap-2">
-          {selectedRows.length > 0 &&
+          {bulkActions.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectMode((on) => !on);
+                setSelected(new Set());
+              }}
+            >
+              {selectMode ? (
+                <>
+                  <X className="size-4" />
+                  Cancel
+                </>
+              ) : (
+                <>
+                  <ListChecks className="size-4" />
+                  Select
+                </>
+              )}
+            </Button>
+          )}
+          {showSelection &&
             bulkActions.map((action) => (
               <Button
                 key={action.label}
                 type="button"
                 variant={action.variant ?? 'outline'}
                 size="sm"
+                disabled={selectedRows.length === 0}
                 onClick={() => action.onAction(selectedRows)}
               >
                 {action.label} ({selectedRows.length})
@@ -252,13 +292,22 @@ export function DataTable<T>({
         </div>
       </div>
 
+      {showSelection && selectAll && allOnPageSelected && meta.total > rows.length && (
+        <div className="bg-sand flex flex-wrap items-center justify-between gap-2 rounded-md px-4 py-2 text-sm">
+          <span>All {rows.length} on this page are selected.</span>
+          <Button type="button" variant="outline" size="sm" onClick={selectAll.onAction}>
+            {selectAll.label}
+          </Button>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <EmptyState title={emptyTitle} description={emptyDescription} />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              {bulkActions.length > 0 && (
+              {showSelection && (
                 <TableHead className="w-10">
                   <Checkbox checked={allOnPageSelected} onCheckedChange={toggleAllOnPage} />
                 </TableHead>
@@ -294,7 +343,7 @@ export function DataTable<T>({
 
               return (
                 <TableRow key={id}>
-                  {bulkActions.length > 0 && (
+                  {showSelection && (
                     <TableCell>
                       <Checkbox checked={selected.has(id)} onCheckedChange={() => toggleRow(id)} />
                     </TableCell>

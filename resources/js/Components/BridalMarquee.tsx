@@ -11,57 +11,202 @@ interface BridalMarqueeProps {
   images: MarqueeImage[];
 }
 
+/** Seconds each photo takes to travel past — the brief's "3-second cycle", applied per photo. */
+const SECONDS_PER_CARD = 3;
+/** After a touch, wheel or drag the auto-scroll waits this long before carrying on by itself. */
+const RESUME_AFTER_MS = 1500;
+/** The photos are rendered this many times; the middle copy is the one the visitor lives in. */
+const COPIES = 3;
+
 /**
  * Auto-scrolling bridal photo marquee.
  *
- * The animation lives entirely in CSS (`.marquee-*` in resources/css/app.css) rather than in JS, on
- * purpose: this app's CSP is `style-src 'self' 'nonce-…'` with no `unsafe-inline`, and inline styles
- * are already being blocked on public pages (§10 #39). Driving a transform from framer-motion or
- * setting an inline `--marquee-duration` would risk silently not applying, so everything dynamic is
- * expressed as a DATA ATTRIBUTE (`data-count`, `data-paused`), which CSP does not police.
+ * Driven by real `scrollLeft`, not a CSS transform (the previous version animated a transform on top
+ * of a native scroller, so a drag and the animation fought each other and dragging far enough left
+ * empty space behind the last photo). With one scroll position there is nothing to fight:
+ *   - auto-scroll nudges `scrollLeft` every frame (`scrollLeft` is a DOM property, not an inline
+ *     style, so this app's no-`unsafe-inline` CSP is irrelevant);
+ *   - touch, trackpad and wheel scrolling are the browser's own native behaviour;
+ *   - mouse dragging is handled here (a mouse can't drag a scroller natively).
  *
- * Seamless loop: the image list is rendered TWICE and the track translates exactly -50%, so the
- * duplicate arrives precisely where the original began and there is no snap-back frame. The second
- * copy is `aria-hidden` so screen readers and the accessibility tree see each photo once.
+ * Endless loop: the photos are rendered three times and `scrollLeft` is kept inside the middle copy.
+ * Whenever it leaves it, it is moved by exactly one copy's width — the content on screen is
+ * pixel-identical before and after, so the jump is invisible in either direction. Only the first copy
+ * is exposed to assistive tech.
  *
- * Speed: the brief asked for a "3-second cycle". Read literally as three seconds for the whole loop,
- * a dozen portrait cards would strobe past unreadably, so it is applied as a per-image cadence —
- * roughly 3s per card, via `data-count` selecting a duration in the stylesheet.
- *
- * Interaction: hover/focus pause is pure CSS. Touch and mouse dragging come from the viewport being
- * a native horizontal scroller, which also gives correct trackpad, wheel and keyboard behaviour for
- * free; the animation is paused while a pointer is down so a drag is not fighting it.
+ * Auto-scroll pauses on hover, while touching/dragging, and for a moment after any manual scroll, and
+ * does not run at all under `prefers-reduced-motion` (the strip can still be scrolled by hand).
  */
 export function BridalMarquee({ images }: BridalMarqueeProps) {
-  const [dragging, setDragging] = React.useState(false);
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const trackRef = React.useRef<HTMLUListElement>(null);
+  // Written by event handlers, read by the animation loop — refs, so a pause never re-renders.
+  const hovering = React.useRef(false);
+  const holding = React.useRef(false);
+  const resumeAt = React.useRef(0);
+  const dragStart = React.useRef<{ x: number; scrollLeft: number } | null>(null);
+  const [grabbing, setGrabbing] = React.useState(false);
+
+  React.useEffect(() => {
+    const viewport = viewportRef.current;
+    const track = trackRef.current;
+    if (!viewport || !track || images.length === 0) return;
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let onePass = track.scrollWidth / COPIES;
+    let pxPerSecond = 0;
+    let position = 0;
+    let frame = 0;
+    let lastTime = performance.now();
+    let idleTimer: number | undefined;
+
+    function measure() {
+      const card = track?.firstElementChild as HTMLElement | null;
+      if (!card || !track) return;
+      const gap = Number.parseFloat(getComputedStyle(track).columnGap) || 0;
+      pxPerSecond = (card.offsetWidth + gap) / SECONDS_PER_CARD;
+      onePass = track.scrollWidth / COPIES;
+    }
+
+    /** Moves scrollLeft back into the middle copy, by whole copies only, so nothing visibly jumps. */
+    function wrap(value: number): number {
+      if (onePass <= 0) return value;
+      let next = value;
+      while (next >= onePass * 1.5) next -= onePass;
+      while (next < onePass * 0.5) next += onePass;
+      return next;
+    }
+
+    measure();
+    position = onePass; // start at the beginning of the middle copy
+    viewport.scrollLeft = position;
+
+    // Layout changes (rotating a phone, resizing the window) change the card width, so the same
+    // photo has to stay in view: rescale the position by the change in one pass.
+    const observer = new ResizeObserver(() => {
+      const before = onePass;
+      measure();
+      if (before > 0 && onePass > 0 && before !== onePass) {
+        position = wrap((viewport.scrollLeft / before) * onePass);
+        viewport.scrollLeft = position;
+      }
+    });
+    observer.observe(track);
+
+    function tick(now: number) {
+      const elapsed = Math.min(now - lastTime, 64);
+      lastTime = now;
+
+      const paused =
+        hovering.current || holding.current || now < resumeAt.current || reducedMotion.matches;
+
+      if (paused || pxPerSecond === 0) {
+        position = viewport!.scrollLeft; // follow whatever the visitor is doing
+      } else {
+        position = wrap(position + (pxPerSecond * elapsed) / 1000);
+        viewport!.scrollLeft = position;
+      }
+      frame = requestAnimationFrame(tick);
+    }
+    frame = requestAnimationFrame(tick);
+
+    // A manual scroll (touch fling, trackpad, wheel, drag) can carry the position out of the middle
+    // copy. Re-centre once it settles — not mid-gesture, which can cancel a touch fling's momentum —
+    // and straight away only if it is about to run off either end of the whole track.
+    function onScroll() {
+      const current = viewport!.scrollLeft;
+      const nearEnd =
+        current < onePass * 0.15 || current > onePass * (COPIES - 0.15) - viewport!.clientWidth;
+      window.clearTimeout(idleTimer);
+      if (nearEnd) {
+        viewport!.scrollLeft = wrap(current);
+        return;
+      }
+      idleTimer = window.setTimeout(() => {
+        const settled = viewport!.scrollLeft;
+        const wrapped = wrap(settled);
+        if (wrapped !== settled) viewport!.scrollLeft = wrapped;
+      }, 150);
+    }
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(idleTimer);
+      observer.disconnect();
+      viewport.removeEventListener('scroll', onScroll);
+    };
+  }, [images.length]);
 
   if (images.length === 0) {
     return null;
   }
 
-  // Duration classes are enumerated for 2-12 images; outside that the stylesheet default applies.
-  const countAttribute = images.length >= 2 && images.length <= 12 ? String(images.length) : undefined;
+  function holdNow() {
+    holding.current = true;
+  }
+
+  function releaseSoon() {
+    holding.current = false;
+    resumeAt.current = performance.now() + RESUME_AFTER_MS;
+  }
+
+  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== 'mouse' || event.button !== 0) return; // touch/pen scroll natively
+    holdNow();
+    dragStart.current = { x: event.clientX, scrollLeft: event.currentTarget.scrollLeft };
+    setGrabbing(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const start = dragStart.current;
+    if (!start) return;
+    event.currentTarget.scrollLeft = start.scrollLeft - (event.clientX - start.x);
+  }
+
+  function endMouseDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (!dragStart.current) return;
+    dragStart.current = null;
+    setGrabbing(false);
+    releaseSoon();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
 
   return (
     <div
-      className="marquee-viewport relative"
-      onPointerDown={() => setDragging(true)}
-      onPointerUp={() => setDragging(false)}
-      onPointerCancel={() => setDragging(false)}
-      onPointerLeave={() => setDragging(false)}
+      ref={viewportRef}
+      className={`marquee-viewport relative ${grabbing ? 'cursor-grabbing' : 'cursor-grab'}`}
+      // Pointer events (mouse only): a touch tap also fires emulated mouse events that never get a
+      // matching "leave", which would leave the strip paused for good on a phone.
+      onPointerEnter={(event) => {
+        if (event.pointerType === 'mouse') hovering.current = true;
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === 'mouse') hovering.current = false;
+      }}
+      onTouchStart={holdNow}
+      onTouchEnd={releaseSoon}
+      onTouchCancel={releaseSoon}
+      onWheel={() => {
+        resumeAt.current = performance.now() + RESUME_AFTER_MS;
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endMouseDrag}
+      onPointerCancel={endMouseDrag}
     >
       <ul
-        className="marquee-track m-0 flex list-none gap-5 p-0"
-        data-count={countAttribute}
-        data-paused={dragging ? 'true' : undefined}
+        ref={trackRef}
+        className="marquee-track m-0 flex list-none gap-3 p-0 pr-3 sm:gap-5 sm:pr-5"
       >
-        {images.map((image) => (
-          <MarqueeCard key={image.id} image={image} />
-        ))}
-        {/* Duplicate pass — hidden from assistive tech so each photo is announced once. */}
-        {images.map((image) => (
-          <MarqueeCard key={`duplicate-${image.id}`} image={image} duplicate />
-        ))}
+        {Array.from({ length: COPIES }, (_, copy) =>
+          images.map((image) => (
+            <MarqueeCard key={`${copy}-${image.id}`} image={image} duplicate={copy > 0} />
+          )),
+        )}
       </ul>
     </div>
   );
@@ -70,7 +215,7 @@ export function BridalMarquee({ images }: BridalMarqueeProps) {
 function MarqueeCard({ image, duplicate = false }: { image: MarqueeImage; duplicate?: boolean }) {
   return (
     <li
-      className="w-[240px] shrink-0 sm:w-[264px]"
+      className="w-[38vw] max-w-[190px] shrink-0 sm:w-[264px] sm:max-w-none"
       aria-hidden={duplicate ? 'true' : undefined}
     >
       <div className="shadow-soft bg-accent-50 aspect-[3/4] overflow-hidden rounded-2xl">

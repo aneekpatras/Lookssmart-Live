@@ -12,6 +12,7 @@ import {
   Sparkles,
   Star,
   Users,
+  ExternalLink,
 } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
@@ -21,6 +22,7 @@ import { ReviewsCarousel, type ReviewShowcase } from '@/Components/ReviewsCarous
 import { SeoHead } from '@/Components/SeoHead';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
+import { DealDetailsModal, type DealShowcase } from '@/Components/DealDetailsModal';
 import { WriteReviewModal } from '@/Components/WriteReviewModal';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { addToCart } from '@/lib/cart';
@@ -38,18 +40,11 @@ interface ServiceCard {
   review_count: number;
 }
 
-interface Offer {
-  id: number;
-  title: string;
+/** A homepage offer is a full deal showcase payload (so Details can open) plus the card's own extras. */
+interface Offer extends DealShowcase {
   type: string;
   value: string;
   code: string | null;
-  ends_at: string;
-  original_price: string | null;
-  deal_price: string | null;
-  savings_percent: number | null;
-  claim_url: string;
-  bundled_services: { id: number; name: string; price: string; image_url: string | null }[];
 }
 
 interface LegacyStat {
@@ -208,8 +203,9 @@ function HeroBackground() {
  * the plain "X% off"/"Rs. X off" line otherwise), a copyable promo-code tag, and a single Claim
  * Offer CTA straight into the booking flow.
  */
-function OfferCard({ offer }: { offer: Offer }) {
-  const badgePercent = offer.savings_percent ?? (offer.type === 'percent' ? Number(offer.value) : null);
+function OfferCard({ offer, onOpen }: { offer: Offer; onOpen: (offer: Offer) => void }) {
+  const badgePercent =
+    offer.savings_percent ?? (offer.type === 'percent' ? Number(offer.value) : null);
 
   function copyCode(code: string) {
     void navigator.clipboard.writeText(code).then(() => toast.success(`Code "${code}" copied`));
@@ -230,9 +226,20 @@ function OfferCard({ offer }: { offer: Offer }) {
   }
 
   return (
-    <div className="border-accent-300 bg-surface flex flex-col rounded-lg border p-5">
+    // Clicking anywhere on the card opens the Details popup. The title is the one real button (so
+    // keyboard and screen-reader users get it too); its ::after stretches over the whole card, and the
+    // inner controls (code chip, Add to Cart, Claim Offer) sit above that with `relative z-10`.
+    <div className="border-accent-300 bg-surface hover:border-accent-500 relative flex cursor-pointer flex-col rounded-lg border p-5 transition-colors">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="font-display text-lg font-medium leading-snug">{offer.title}</h3>
+        <h3 className="font-display text-lg leading-snug font-medium">
+          <button
+            type="button"
+            onClick={() => onOpen(offer)}
+            className="focus-visible:ring-accent-500 rounded text-left after:absolute after:inset-0 after:content-[''] focus-visible:ring-2 focus-visible:outline-none"
+          >
+            {offer.title}
+          </button>
+        </h3>
         {badgePercent !== null && badgePercent > 0 && (
           <span className="bg-accent-500 text-ivory shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold">
             {badgePercent}% OFF
@@ -242,8 +249,12 @@ function OfferCard({ offer }: { offer: Offer }) {
 
       {offer.original_price && offer.deal_price ? (
         <p className="mt-3 flex items-baseline gap-2">
-          <span className="text-ink-muted text-sm line-through">{formatCurrency(offer.original_price)}</span>
-          <span className="text-ink font-display text-xl font-medium">{formatCurrency(offer.deal_price)}</span>
+          <span className="text-ink-muted text-sm line-through">
+            {formatCurrency(offer.original_price)}
+          </span>
+          <span className="text-ink font-display text-xl font-medium">
+            {formatCurrency(offer.deal_price)}
+          </span>
         </p>
       ) : (
         <p className="text-ink-muted mt-3 text-sm">
@@ -255,13 +266,13 @@ function OfferCard({ offer }: { offer: Offer }) {
         <button
           type="button"
           onClick={() => copyCode(offer.code!)}
-          className="border-accent-400 bg-accent-50 text-accent-700 mt-3 w-fit rounded-full border px-2.5 py-1 text-xs font-semibold"
+          className="border-accent-400 bg-accent-50 text-accent-700 relative z-10 mt-3 w-fit rounded-full border px-2.5 py-1 text-xs font-semibold"
         >
           Code: {offer.code}
         </button>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="relative z-10 mt-4 grid grid-cols-2 gap-2">
         <Button type="button" size="sm" variant="outline" onClick={handleAddToCart}>
           <Plus className="size-4" aria-hidden="true" /> Add to Cart
         </Button>
@@ -274,6 +285,9 @@ function OfferCard({ offer }: { offer: Offer }) {
     </div>
   );
 }
+
+/** The salon's Google Business profile — "See more reviews on Google" opens it in a new tab. */
+const GOOGLE_REVIEWS_URL = 'https://share.google/TFzPVGK9Km33WBazJ';
 
 export default function Home({
   featuredServices,
@@ -288,9 +302,9 @@ export default function Home({
   const { site } = usePage<SharedProps>().props;
   const [activeCategory, setActiveCategory] = React.useState<string>('all');
   const [writeReviewOpen, setWriteReviewOpen] = React.useState(false);
-  // Seeded from the server prop, then a genuinely-saved new review is prepended locally — the
-  // "appears in the carousel instantly" half of the Write a Review task, without a full page
-  // reload that would also reset the carousel's own auto-advance/pause state.
+  const [detailsOffer, setDetailsOffer] = React.useState<Offer | null>(null);
+  // Seeded from the server prop; a newly submitted review is prepended so it shows at once
+  // (the server also puts it first, so a reload agrees).
   const [liveTestimonials, setLiveTestimonials] = React.useState<ReviewShowcase[]>(testimonials);
 
   const visibleServices = (
@@ -316,10 +330,10 @@ export default function Home({
           aria-hidden="true"
         />
         <div className="mx-auto w-full max-w-6xl text-center">
-          <p className="text-accent-300 mb-6 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.22em]">
+          <p className="text-accent-300 mb-6 flex items-center justify-center gap-2 text-xs font-semibold tracking-[0.22em] uppercase">
             <Sparkles className="size-4" aria-hidden="true" /> Est. 2014 · Lahore
           </p>
-          <h1 className="font-display mx-auto max-w-3xl text-5xl font-medium leading-[1.05] sm:text-6xl lg:text-7xl">
+          <h1 className="font-display mx-auto max-w-3xl text-4xl leading-[1.05] font-medium sm:text-6xl lg:text-7xl">
             Looks Smart Beauty Salon
           </h1>
           <p className="text-ivory/80 mx-auto mt-7 max-w-xl text-lg leading-8">
@@ -344,13 +358,13 @@ export default function Home({
       </section>
 
       {/* Our Specialized Services — category-filterable, 4 across on desktop */}
-      <section className="px-6 py-20 lg:px-10 lg:py-28">
+      <section className="px-6 py-14 sm:py-20 lg:px-10 lg:py-28">
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
-            <h2 className="font-display text-4xl font-medium sm:text-5xl">
+            <h2 className="font-display text-3xl font-medium sm:text-5xl">
               Our Specialized Services
             </h2>
-            <p className="text-ink-muted mx-auto mt-4 max-w-xl text-lg">
+            <p className="text-ink-muted mx-auto mt-3 max-w-xl text-base sm:mt-4 sm:text-lg">
               Experience premium skin, hair, and beauty treatments in Lahore.
             </p>
           </div>
@@ -358,7 +372,7 @@ export default function Home({
           {/* Pills are driven by the real categories the controller passes, never a hardcoded list,
               so they cannot drift out of sync with the catalog the way a literal array would. */}
           <div
-            className="mt-9 flex flex-wrap justify-center gap-2"
+            className="mt-7 flex [scrollbar-width:none] gap-2 overflow-x-auto pb-1 whitespace-nowrap sm:mt-9 sm:flex-wrap sm:justify-center sm:overflow-visible [&::-webkit-scrollbar]:hidden"
             role="group"
             aria-label="Filter services by category"
           >
@@ -366,7 +380,7 @@ export default function Home({
               type="button"
               aria-pressed={activeCategory === 'all'}
               onClick={() => setActiveCategory('all')}
-              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm ${
                 activeCategory === 'all'
                   ? 'border-accent-600 bg-accent-600 text-ivory'
                   : 'border-border-soft text-ink-muted hover:border-accent-500'
@@ -380,7 +394,7 @@ export default function Home({
                 type="button"
                 aria-pressed={activeCategory === category.name}
                 onClick={() => setActiveCategory(category.name)}
-                className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm ${
                   activeCategory === category.name
                     ? 'border-accent-600 bg-accent-600 text-ivory'
                     : 'border-border-soft text-ink-muted hover:border-accent-500'
@@ -391,13 +405,17 @@ export default function Home({
             ))}
           </div>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-4 lg:grid-cols-4">
             {visibleServices.map((service) => (
               <Card
                 key={service.id}
                 className="border-border-soft bg-surface shadow-soft flex flex-col overflow-hidden"
               >
-                <div className="bg-accent-50 h-[170px] shrink-0">
+                <Link
+                  href={`/services/${service.slug}`}
+                  aria-label={`View ${service.name}`}
+                  className="bg-accent-50 block h-[110px] shrink-0 sm:h-[170px]"
+                >
                   {service.image_url ? (
                     <img
                       src={service.image_url}
@@ -411,31 +429,36 @@ export default function Home({
                       <Sparkles className="size-8" aria-hidden="true" />
                     </div>
                   )}
-                </div>
-                <CardContent className="flex flex-1 flex-col p-4">
-                  <p className="text-accent-700 text-xs font-semibold uppercase tracking-wider">
+                </Link>
+                <CardContent className="flex flex-1 flex-col p-3 sm:p-4">
+                  <p className="text-accent-700 hidden text-xs font-semibold tracking-wider uppercase sm:block">
                     {service.category}
                   </p>
-                  <h3 className="mt-1.5 text-base font-medium leading-snug">{service.name}</h3>
-                  <div className="text-ink-muted mt-auto flex items-center justify-between pt-3 text-sm">
+                  <h3 className="line-clamp-2 text-sm leading-snug font-medium sm:mt-1.5 sm:line-clamp-none sm:text-base">
+                    <Link href={`/services/${service.slug}`}>{service.name}</Link>
+                  </h3>
+                  <div className="text-ink-muted mt-auto flex flex-col gap-0.5 pt-2 text-xs sm:flex-row sm:items-center sm:justify-between sm:pt-3 sm:text-sm">
                     <span className="inline-flex items-center gap-1">
-                      <Clock3 className="size-4" aria-hidden="true" />{' '}
+                      <Clock3 className="size-3.5 sm:size-4" aria-hidden="true" />{' '}
                       {formatDuration(service.duration_min)}
                     </span>
-                    <span className="text-ink font-semibold">
-                      {formatCurrency(service.price)}
-                    </span>
+                    <span className="text-ink font-semibold">{formatCurrency(service.price)}</span>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="mt-2 grid grid-cols-1 gap-1.5 sm:mt-3 sm:grid-cols-2 sm:gap-2">
                     <Button
                       type="button"
                       variant="accent"
                       size="sm"
-                      onClick={() => addToCart({ kind: 'service', label: service.name, service }, toast)}
+                      onClick={() =>
+                        addToCart({ kind: 'service', label: service.name, service }, toast)
+                      }
                     >
-                      <Plus className="size-4" aria-hidden="true" /> Add to Cart
+                      <Plus className="size-4" aria-hidden="true" />
+                      <span>
+                        Add<span className="hidden sm:inline"> to Cart</span>
+                      </span>
                     </Button>
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
                       <Link href={`/services/${service.slug}`}>Details</Link>
                     </Button>
                   </div>
@@ -445,9 +468,7 @@ export default function Home({
           </div>
 
           {visibleServices.length === 0 && (
-            <p className="text-ink-muted py-16 text-center">
-              No services in this category yet.
-            </p>
+            <p className="text-ink-muted py-16 text-center">No services in this category yet.</p>
           )}
 
           <div className="mt-12 text-center">
@@ -463,12 +484,12 @@ export default function Home({
       {offers.length > 0 && (
         <section className="border-border-soft bg-accent-50 border-y px-6 py-16 lg:px-10">
           <div className="mx-auto max-w-6xl">
-            <p className="text-accent-700 text-sm font-semibold uppercase tracking-[0.18em]">
+            <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
               Current offers
             </p>
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
               {offers.map((offer) => (
-                <OfferCard key={offer.id} offer={offer} />
+                <OfferCard key={offer.id} offer={offer} onOpen={setDetailsOffer} />
               ))}
             </div>
             <div className="mt-8 text-center">
@@ -488,7 +509,7 @@ export default function Home({
       <section className="bg-ink text-ivory px-6 py-20 lg:px-16 lg:py-28">
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
-            <p className="text-accent-300 text-sm font-semibold uppercase tracking-[0.22em]">
+            <p className="text-accent-300 text-sm font-semibold tracking-[0.22em] uppercase">
               Our legacy
             </p>
             <h2 className="font-display mt-4 text-4xl font-medium sm:text-5xl">
@@ -522,7 +543,7 @@ export default function Home({
                       without it the label overflows the card's own border instead of wrapping — a
                       real, screenshotted bug (ad hoc task 27 fix), not a hypothetical one. Every
                       other label here happens to contain a space and wrapped fine already. */}
-                  <dt className="text-accent-300 mt-1 text-xs font-semibold tracking-wider uppercase break-words">
+                  <dt className="text-accent-300 mt-1 text-xs font-semibold tracking-wider break-words uppercase">
                     {stat.label}
                   </dt>
                   <p className="text-ivory/60 mt-2 text-xs leading-5">{stat.detail}</p>
@@ -539,7 +560,7 @@ export default function Home({
       {featuredGalleryImages.length > 0 && (
         <section className="border-border-soft bg-surface overflow-hidden border-y py-20 lg:py-24">
           <div className="mx-auto max-w-6xl px-6 text-center md:px-12 lg:px-16">
-            <p className="text-accent-700 text-sm font-semibold uppercase tracking-[0.18em]">
+            <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
               Looks Smart Brides
             </p>
             <h2 className="font-display mt-3 text-4xl font-medium">
@@ -566,7 +587,7 @@ export default function Home({
         <section className="px-6 py-20 lg:px-10">
           <div className="mx-auto max-w-6xl">
             <div className="text-center">
-              <p className="text-accent-700 text-sm font-semibold uppercase tracking-[0.18em]">
+              <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
                 Client notes
               </p>
               <h2 className="font-display mt-3 text-4xl font-medium">The feeling after.</h2>
@@ -574,18 +595,40 @@ export default function Home({
             <div className="mt-10">
               <ReviewsCarousel reviews={liveTestimonials} />
             </div>
-            <div className="mt-10 text-center">
-              <Button type="button" size="lg" variant="accent" onClick={() => setWriteReviewOpen(true)}>
+            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button
+                type="button"
+                size="lg"
+                variant="accent"
+                onClick={() => setWriteReviewOpen(true)}
+              >
                 Write a Review
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <a href={GOOGLE_REVIEWS_URL} target="_blank" rel="noopener noreferrer">
+                  See more reviews on Google <ExternalLink className="size-4" aria-hidden="true" />
+                </a>
               </Button>
             </div>
           </div>
         </section>
       )}
+      {detailsOffer && (
+        <DealDetailsModal
+          deal={detailsOffer}
+          open={detailsOffer !== null}
+          onOpenChange={(open) => {
+            if (!open) setDetailsOffer(null);
+          }}
+          whatsappUrl={whatsapp.chat_url}
+        />
+      )}
       <WriteReviewModal
         open={writeReviewOpen}
         onOpenChange={setWriteReviewOpen}
-        onReviewSaved={(review) => setLiveTestimonials((current) => [review, ...current])}
+        onReviewSaved={(review) =>
+          setLiveTestimonials((current) => [review, ...current].slice(0, 12))
+        }
       />
 
       {/* 7. WhatsApp support & QR — directly below reviews. The QR is a server-generated SVG data
@@ -642,9 +685,7 @@ export default function Home({
           <div>
             <MapPin className="text-accent-700 size-5" aria-hidden="true" />
             <h2 className="mt-3 text-xl">Find your way here</h2>
-            <p className="text-ink-muted mt-2 text-sm">
-              {site.address ?? 'Lahore, Pakistan'}
-            </p>
+            <p className="text-ink-muted mt-2 text-sm">{site.address ?? 'Lahore, Pakistan'}</p>
           </div>
           <div>
             <Clock3 className="text-accent-700 size-5" aria-hidden="true" />

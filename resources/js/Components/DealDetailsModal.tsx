@@ -116,13 +116,13 @@ export function DealDetailsModal({ deal, open, onOpenChange, whatsappUrl }: Deal
           </div>
         )}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button asChild variant="accent" className="flex-1">
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Button asChild variant="accent" className="shrink-0 sm:flex-1">
             <Link href={deal.claim_url} prefetch>
               Claim Offer Now <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </Button>
-          <Button asChild variant="outline" className="flex-1">
+          <Button asChild variant="outline" className="shrink-0 sm:flex-1">
             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="size-4" aria-hidden="true" /> Book on WhatsApp
             </a>

@@ -286,13 +286,15 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
                   <img
                     src={founder.photo_url}
                     alt={`${founder.name}, ${founder.role}`}
-                    className="aspect-[3/4] w-full rounded-xl object-cover"
+                    width={786}
+                    height={1024}
+                    className="aspect-[3/4] w-full rounded-xl object-cover object-top"
                     loading="lazy"
                     decoding="async"
                   />
                 ) : (
-                  // Monogram, not a stock portrait: captioning someone else's photograph with the
-                  // founder's name would misrepresent a real person (§10 #42).
+                  // Monogram fallback, never a stock portrait: captioning someone else's photograph
+                  // with the founder's name would misrepresent a real person.
                   <div className="flex aspect-[3/4] w-full items-center justify-center rounded-xl bg-gradient-to-br from-accent-100 to-accent-300">
                     <span className="font-display text-accent-700/70 text-7xl" aria-hidden="true">
                       {founder.name.charAt(0)}

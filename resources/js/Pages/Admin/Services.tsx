@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Download, MoreHorizontal, Plus } from 'lucide-react';
+import { Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
 import {
@@ -10,12 +10,6 @@ import {
 import { ServiceFormDialog, type ServiceDialogRow } from '@/Components/admin/ServiceFormDialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/Components/ui/dropdown-menu';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { formatCurrency } from '@/lib/currency';
 
@@ -41,31 +35,32 @@ interface ServicesPageProps {
 
 function ServiceRowActions({ row, onEdit }: { row: ServiceRow; onEdit: (row: ServiceRow) => void }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" aria-label={`Actions for ${row.name}`}>
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => onEdit(row)}>Edit</DropdownMenuItem>
-        <DropdownMenuItem
-          className="text-red-600 hover:bg-red-50 focus:bg-red-50"
-          onSelect={() => {
-            if (confirm(`Delete "${row.name}"?`)) {
-              router.delete(`/admin/services/${row.id}`);
-            }
-          }}
-        >
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      aria-label={`Edit ${row.name}`}
+      onClick={() => onEdit(row)}
+    >
+      <Pencil className="size-3.5" />
+      Edit
+    </Button>
   );
 }
 
 export default function Services({ services, filters, categories, staff }: ServicesPageProps) {
   const [dialogTarget, setDialogTarget] = React.useState<ServiceRow | null | undefined>(undefined);
+
+  function deleteAllMatching() {
+    const scope = filters.search || filters.category_id ? 'matching the current filter' : 'ALL';
+    if (confirm(`Delete ${scope} ${services.total} service(s)? Past bookings keep their history.`)) {
+      router.post('/admin/services/bulk-delete', {
+        all: true,
+        search: filters.search ?? undefined,
+        category_id: filters.category_id ?? undefined,
+      });
+    }
+  }
 
   const columns: DataTableColumn<ServiceRow>[] = [
     {
@@ -116,7 +111,7 @@ export default function Services({ services, filters, categories, staff }: Servi
       id: 'actions',
       header: '',
       alwaysVisible: true,
-      className: 'w-10 text-right',
+      className: 'w-24 text-right',
       cell: (row) => <ServiceRowActions row={row} onEdit={setDialogTarget} />,
     },
   ];
@@ -137,6 +132,16 @@ export default function Services({ services, filters, categories, staff }: Servi
                 Export
               </a>
             </Button>
+            {services.total > 0 && (
+              <Button
+                variant="outline"
+                className="text-red-600 hover:bg-red-50"
+                onClick={deleteAllMatching}
+              >
+                <Trash2 className="size-4" />
+                Delete all
+              </Button>
+            )}
             <Button onClick={() => setDialogTarget(null)}>
               <Plus className="size-4" />
               New service
@@ -149,6 +154,21 @@ export default function Services({ services, filters, categories, staff }: Servi
           meta={services satisfies DataTablePaginationMeta}
           getRowId={(row) => row.id}
           filters={filters}
+          bulkActions={[
+            {
+              label: 'Delete selected',
+              variant: 'destructive',
+              onAction: (selectedRows) => {
+                if (confirm(`Delete ${selectedRows.length} selected service(s)?`)) {
+                  router.post(
+                    '/admin/services/bulk-delete',
+                    { ids: selectedRows.map((row) => row.id) },
+                    { preserveScroll: true },
+                  );
+                }
+              },
+            },
+          ]}
           searchPlaceholder="Search services..."
           emptyTitle="No services yet"
           csvFilename="services.csv"

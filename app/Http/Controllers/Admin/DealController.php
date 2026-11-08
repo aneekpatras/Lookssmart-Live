@@ -67,7 +67,7 @@ class DealController extends Controller
                 $query->where('title', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%");
             }))
             ->orderBy($sort, $direction)
-            ->paginate(15)
+            ->paginate(30)
             ->withQueryString();
 
         return Inertia::render('Admin/Deals', [
@@ -204,5 +204,41 @@ class DealController extends Controller
         $deal->delete();
 
         return back()->with('success', "\"{$deal->title}\" deleted.");
+    }
+
+    /**
+     * Bulk delete: either the explicit `ids` the admin ticked, or `all=1` meaning every deal
+     * matching the list's current search (so "delete all" can't reach past what the admin is
+     * looking at). Soft delete, same as destroy().
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $this->authorize('delete', new Deal);
+
+        $validated = $request->validate([
+            'ids' => ['required_without:all', 'array', 'max:500'],
+            'ids.*' => ['integer'],
+            'all' => ['sometimes', 'boolean'],
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $query = Deal::query();
+
+        if ($request->boolean('all')) {
+            $query->when(! empty($validated['search']), fn ($q) => $q->where(function ($q) use ($validated) {
+                $q->where('title', 'like', "%{$validated['search']}%")
+                    ->orWhere('code', 'like', "%{$validated['search']}%");
+            }));
+        } else {
+            $query->whereIn('id', $validated['ids']);
+        }
+
+        $count = 0;
+        $query->each(function (Deal $deal) use (&$count) {
+            $deal->delete();
+            $count++;
+        });
+
+        return back()->with('success', "{$count} deal(s) deleted.");
     }
 }

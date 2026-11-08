@@ -103,3 +103,21 @@ it('rate limits repeated review submissions from the same IP', function () {
 
     $this->postJson('/reviews', validReviewPayload())->assertStatus(429);
 });
+
+it('saves the visitor\'s own service name as the category when "Other" is chosen', function () {
+    $this->postJson('/reviews', validReviewPayload(['category' => 'Other', 'custom_service' => 'Nails & Nail Art']))
+        ->assertOk()
+        ->assertJsonPath('review.category', 'Nails & Nail Art');
+
+    expect(Review::where('reviewer_category', 'Nails & Nail Art')->exists())->toBeTrue();
+});
+
+it('requires a service name when "Other" is chosen and rejects markup in it', function () {
+    $this->postJson('/reviews', validReviewPayload(['category' => 'Other']))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('custom_service');
+
+    $this->postJson('/reviews', validReviewPayload(['category' => 'Other', 'custom_service' => '<script>alert(1)</script>']))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('custom_service');
+});

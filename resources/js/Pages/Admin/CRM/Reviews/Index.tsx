@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Check, ShieldCheck, Star, Trash2, X } from 'lucide-react';
+import { Check, EyeOff, GripVertical, Plus, ShieldCheck, Star, Trash2, X } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/Components/ui/dialog';
+import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import {
   Select,
@@ -40,7 +41,17 @@ interface ReviewRow {
   booking_code: string | null;
   staff_name: string | null;
   is_verified: boolean;
+  display_name: string;
+  source: string;
   created_at: string | null;
+}
+
+interface HomepageReview {
+  id: number;
+  rating: number;
+  body: string;
+  name: string;
+  source: string;
 }
 
 interface StaffOption {
@@ -50,6 +61,7 @@ interface StaffOption {
 
 interface ReviewsIndexPageProps {
   reviews: ReviewRow[];
+  homepageOrder: HomepageReview[];
   staffOptions: StaffOption[];
   stats: { pending: number; approved: number; rejected: number };
   filters: {
@@ -76,15 +88,29 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-function FiltersBar({ filters, staffOptions }: { filters: ReviewsIndexPageProps['filters']; staffOptions: StaffOption[] }) {
-  function apply(next: Partial<Record<'status' | 'rating' | 'verified' | 'staff_id', string | null>>) {
+function FiltersBar({
+  filters,
+  staffOptions,
+}: {
+  filters: ReviewsIndexPageProps['filters'];
+  staffOptions: StaffOption[];
+}) {
+  function apply(
+    next: Partial<Record<'status' | 'rating' | 'verified' | 'staff_id', string | null>>,
+  ) {
     router.get(
       '/admin/reviews',
       {
         status: next.status !== undefined ? next.status || undefined : filters.status || undefined,
         rating: next.rating !== undefined ? next.rating || undefined : filters.rating || undefined,
-        verified: next.verified !== undefined ? next.verified || undefined : filters.verified === null ? undefined : String(filters.verified),
-        staff_id: next.staff_id !== undefined ? next.staff_id || undefined : filters.staff_id || undefined,
+        verified:
+          next.verified !== undefined
+            ? next.verified || undefined
+            : filters.verified === null
+              ? undefined
+              : String(filters.verified),
+        staff_id:
+          next.staff_id !== undefined ? next.staff_id || undefined : filters.staff_id || undefined,
       },
       { preserveState: true, preserveScroll: true, replace: true },
     );
@@ -94,7 +120,10 @@ function FiltersBar({ filters, staffOptions }: { filters: ReviewsIndexPageProps[
     <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1.5">
         <Label htmlFor="review-status">Status</Label>
-        <Select value={filters.status ?? 'all'} onValueChange={(value) => apply({ status: value === 'all' ? null : value })}>
+        <Select
+          value={filters.status ?? 'all'}
+          onValueChange={(value) => apply({ status: value === 'all' ? null : value })}
+        >
           <SelectTrigger id="review-status" className="w-36">
             <SelectValue />
           </SelectTrigger>
@@ -109,7 +138,10 @@ function FiltersBar({ filters, staffOptions }: { filters: ReviewsIndexPageProps[
 
       <div className="space-y-1.5">
         <Label htmlFor="review-rating">Rating</Label>
-        <Select value={filters.rating ? String(filters.rating) : 'all'} onValueChange={(value) => apply({ rating: value === 'all' ? null : value })}>
+        <Select
+          value={filters.rating ? String(filters.rating) : 'all'}
+          onValueChange={(value) => apply({ rating: value === 'all' ? null : value })}
+        >
           <SelectTrigger id="review-rating" className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -181,11 +213,19 @@ function ReviewDetailDialog({ review, onClose }: { review: ReviewRow; onClose: (
   }
 
   function approve() {
-    router.patch(`/admin/reviews/${review.id}/approve`, {}, { preserveScroll: true, onSuccess: onClose });
+    router.patch(
+      `/admin/reviews/${review.id}/approve`,
+      {},
+      { preserveScroll: true, onSuccess: onClose },
+    );
   }
 
   function reject() {
-    router.patch(`/admin/reviews/${review.id}/reject`, {}, { preserveScroll: true, onSuccess: onClose });
+    router.patch(
+      `/admin/reviews/${review.id}/reject`,
+      {},
+      { preserveScroll: true, onSuccess: onClose },
+    );
   }
 
   function destroy() {
@@ -215,12 +255,15 @@ function ReviewDetailDialog({ review, onClose }: { review: ReviewRow; onClose: (
         </div>
 
         <div className="text-ink-muted text-sm">
-          {review.customer_name ?? 'Guest'}
+          {review.display_name}
+          {review.source === 'google' ? ' · Google' : ''}
           {review.service_name ? ` · ${review.service_name}` : ''}
           {review.staff_name ? ` · with ${review.staff_name}` : ''}
         </div>
 
-        <p className="border-border-soft rounded-lg border p-3 text-sm whitespace-pre-line">{review.body}</p>
+        <p className="border-border-soft rounded-lg border p-3 text-sm whitespace-pre-line">
+          {review.body}
+        </p>
 
         <form onSubmit={submitReply} className="space-y-2">
           <Label htmlFor="admin-reply">Public salon response</Label>
@@ -230,25 +273,41 @@ function ReviewDetailDialog({ review, onClose }: { review: ReviewRow; onClose: (
             value={replyForm.data.admin_reply}
             onChange={(e) => replyForm.setData('admin_reply', e.target.value)}
           />
-          {replyForm.errors.admin_reply && <p className="text-sm text-red-600">{replyForm.errors.admin_reply}</p>}
-          <Button type="submit" size="sm" disabled={replyForm.processing || !replyForm.data.admin_reply}>
+          {replyForm.errors.admin_reply && (
+            <p className="text-sm text-red-600">{replyForm.errors.admin_reply}</p>
+          )}
+          <Button
+            type="submit"
+            size="sm"
+            disabled={replyForm.processing || !replyForm.data.admin_reply}
+          >
             Save response
           </Button>
         </form>
 
         <DialogFooter className="justify-between sm:justify-between">
-          <Button type="button" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={destroy}>
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-red-600 hover:bg-red-50"
+            onClick={destroy}
+          >
             <Trash2 className="size-4" />
             Delete
           </Button>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={reject} disabled={review.status === 'rejected'}>
-              <X className="size-4" />
-              Reject
+            <Button
+              type="button"
+              variant="outline"
+              onClick={reject}
+              disabled={review.status === 'rejected'}
+            >
+              <EyeOff className="size-4" />
+              Hide
             </Button>
             <Button type="button" onClick={approve} disabled={review.status === 'approved'}>
               <Check className="size-4" />
-              Approve
+              Show on homepage
             </Button>
           </div>
         </DialogFooter>
@@ -257,12 +316,259 @@ function ReviewDetailDialog({ review, onClose }: { review: ReviewRow; onClose: (
   );
 }
 
-export default function ReviewsIndex({ reviews, staffOptions, stats, filters }: ReviewsIndexPageProps) {
+function RatingPicker({ value, onChange }: { value: number; onChange: (rating: number) => void }) {
+  return (
+    <div className="flex gap-1" role="group" aria-label="Rating out of 5 stars">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          aria-pressed={value === star}
+          aria-label={`${star} star${star === 1 ? '' : 's'}`}
+          onClick={() => onChange(star)}
+          className="focus-visible:ring-accent-500 rounded p-0.5 focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <Star
+            className={cn(
+              'size-8',
+              star <= value ? 'text-accent-500 fill-current' : 'text-ink-muted/50',
+            )}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Add a review copied from Google: name, star rating, text and (optionally) its date. Goes live at once. */
+function GoogleReviewDialog() {
+  const [open, setOpen] = React.useState(false);
+  const { data, setData, post, processing, errors, reset } = useForm({
+    reviewer_name: '',
+    rating: 0,
+    body: '',
+    published_at: '',
+  });
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    post('/admin/reviews', {
+      preserveScroll: true,
+      onSuccess: () => {
+        setOpen(false);
+        reset();
+      },
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button type="button" onClick={() => setOpen(true)}>
+        <Plus className="size-4" />
+        Add Google review
+      </Button>
+      <DialogContent className="max-w-lg">
+        <form onSubmit={submit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Add a Google review</DialogTitle>
+          </DialogHeader>
+          <p className="text-ink-muted text-sm">
+            Copy the reviewer&apos;s name and text from Google, pick the stars, and save. It appears
+            on the homepage straight away (at the top, until you reorder it).
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="g-name">Reviewer name</Label>
+            <Input
+              id="g-name"
+              value={data.reviewer_name}
+              onChange={(e) => setData('reviewer_name', e.target.value)}
+              maxLength={100}
+              required
+            />
+            {errors.reviewer_name && <p className="text-sm text-red-600">{errors.reviewer_name}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Stars</Label>
+            <RatingPicker value={data.rating} onChange={(rating) => setData('rating', rating)} />
+            {errors.rating && <p className="text-sm text-red-600">{errors.rating}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="g-body">Review text</Label>
+            <Textarea
+              id="g-body"
+              rows={6}
+              value={data.body}
+              onChange={(e) => setData('body', e.target.value)}
+              maxLength={2000}
+              required
+            />
+            {errors.body && <p className="text-sm text-red-600">{errors.body}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="g-date">
+              Review date{' '}
+              <span className="text-ink-muted font-normal">(optional, defaults to today)</span>
+            </Label>
+            <Input
+              id="g-date"
+              type="date"
+              max={new Date().toISOString().slice(0, 10)}
+              value={data.published_at}
+              onChange={(e) => setData('published_at', e.target.value)}
+            />
+            {errors.published_at && <p className="text-sm text-red-600">{errors.published_at}</p>}
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={processing || data.rating === 0}>
+              Add review
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const HOMEPAGE_LIMIT = 12;
+
+/**
+ * The homepage carousel's order, as a drag-and-drop list: the first 3 are the first thing visitors
+ * see on desktop, the first card on mobile. Anything past 12 is not shown on the homepage at all.
+ * Hide removes a review from the homepage (it stays in the table below); Delete removes it for good.
+ */
+function HomepageOrder({ reviews }: { reviews: HomepageReview[] }) {
+  const [items, setItems] = React.useState(reviews);
+  const [draggingId, setDraggingId] = React.useState<number | null>(null);
+  const startOrder = React.useRef<number[]>([]);
+
+  // Follow the server whenever it sends fresh data (after a save, hide, delete or new review).
+  const [syncedFrom, setSyncedFrom] = React.useState(reviews);
+  if (syncedFrom !== reviews) {
+    setSyncedFrom(reviews);
+    setItems(reviews);
+  }
+
+  function onDragStart(id: number) {
+    startOrder.current = items.map((item) => item.id);
+    setDraggingId(id);
+  }
+
+  function onDragOver(event: React.DragEvent, overId: number) {
+    event.preventDefault();
+    if (draggingId === null || draggingId === overId) return;
+
+    setItems((current) => {
+      const from = current.findIndex((item) => item.id === draggingId);
+      const to = current.findIndex((item) => item.id === overId);
+      if (from < 0 || to < 0) return current;
+      const next = [...current];
+      const [moved] = next.splice(from, 1);
+      if (!moved) return current;
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
+  function onDragEnd() {
+    const order = items.map((item) => item.id);
+    setDraggingId(null);
+    if (order.join(',') === startOrder.current.join(',')) return;
+
+    router.post('/admin/reviews/reorder', { order }, { preserveScroll: true });
+  }
+
+  return (
+    <section className="border-border-soft bg-surface space-y-3 rounded-2xl border p-4">
+      <div>
+        <h2 className="font-display text-ink text-lg font-medium">Homepage order</h2>
+        <p className="text-ink-muted text-sm">
+          Drag a review by its handle to move it. The first cards are shown first; only the top{' '}
+          {HOMEPAGE_LIMIT} appear on the homepage. Use Hide to take one off the homepage.
+        </p>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-ink-muted text-sm">
+          No approved reviews yet. Add a Google review to get started.
+        </p>
+      ) : (
+        <ul className="divide-border-soft max-h-[26rem] divide-y overflow-y-auto rounded-lg border">
+          {items.map((review, index) => (
+            <li
+              key={review.id}
+              draggable
+              onDragStart={() => onDragStart(review.id)}
+              onDragOver={(e) => onDragOver(e, review.id)}
+              onDrop={(e) => e.preventDefault()}
+              onDragEnd={onDragEnd}
+              className={cn(
+                'flex cursor-grab items-center gap-3 px-3 py-2.5 active:cursor-grabbing',
+                draggingId === review.id && 'bg-accent-50 opacity-60',
+                index >= HOMEPAGE_LIMIT && 'opacity-50',
+              )}
+            >
+              <GripVertical className="text-ink-muted size-5 shrink-0" aria-hidden="true" />
+              <span className="text-ink-muted w-6 shrink-0 text-center text-xs tabular-nums">
+                {index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-ink truncate text-sm font-medium">{review.name}</span>
+                  {review.source === 'google' && <Badge variant="outline">Google</Badge>}
+                  <Stars rating={review.rating} />
+                  {index < 3 && <Badge variant="accent">Shown first</Badge>}
+                  {index >= HOMEPAGE_LIMIT && <Badge variant="outline">Not on homepage</Badge>}
+                </div>
+                <p className="text-ink-muted line-clamp-2 text-xs">{review.body}</p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Hide ${review.name}'s review from the homepage`}
+                title="Hide from homepage"
+                onClick={() =>
+                  router.patch(`/admin/reviews/${review.id}/reject`, {}, { preserveScroll: true })
+                }
+              >
+                <EyeOff className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Delete ${review.name}'s review`}
+                title="Delete"
+                onClick={() => {
+                  if (confirm(`Delete ${review.name}'s review for good?`)) {
+                    router.delete(`/admin/reviews/${review.id}`, { preserveScroll: true });
+                  }
+                }}
+              >
+                <Trash2 className="size-4 text-red-600" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export default function ReviewsIndex({
+  reviews,
+  homepageOrder,
+  staffOptions,
+  stats,
+  filters,
+}: ReviewsIndexPageProps) {
   const [openReview, setOpenReview] = React.useState<ReviewRow | null>(null);
   const [selected, setSelected] = React.useState<number[]>([]);
 
   function toggleSelect(id: number) {
-    setSelected((current) => (current.includes(id) ? current.filter((i) => i !== id) : [...current, id]));
+    setSelected((current) =>
+      current.includes(id) ? current.filter((i) => i !== id) : [...current, id],
+    );
   }
 
   function bulk(action: string) {
@@ -270,7 +576,13 @@ export default function ReviewsIndex({ reviews, staffOptions, stats, filters }: 
     router.post(
       '/admin/reviews/bulk',
       { ids: selected, action },
-      { preserveScroll: true, onSuccess: () => { toast.success('Reviews updated.'); setSelected([]); } },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          toast.success('Reviews updated.');
+          setSelected([]);
+        },
+      },
     );
   }
 
@@ -278,12 +590,17 @@ export default function ReviewsIndex({ reviews, staffOptions, stats, filters }: 
     <>
       <Head title="Reviews" />
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-ink text-2xl font-medium">Reviews</h1>
-          <p className="text-ink-muted text-sm">
-            {stats.pending} pending · {stats.approved} approved · {stats.rejected} rejected
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-ink text-2xl font-medium">Reviews</h1>
+            <p className="text-ink-muted text-sm">
+              {stats.pending} pending · {stats.approved} approved · {stats.rejected} rejected
+            </p>
+          </div>
+          <GoogleReviewDialog />
         </div>
+
+        <HomepageOrder reviews={homepageOrder} />
 
         <FiltersBar filters={filters} staffOptions={staffOptions} />
 
@@ -327,7 +644,10 @@ export default function ReviewsIndex({ reviews, staffOptions, stats, filters }: 
               {reviews.map((review) => (
                 <tr key={review.id} className="hover:bg-accent-50/40">
                   <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox checked={selected.includes(review.id)} onCheckedChange={() => toggleSelect(review.id)} />
+                    <Checkbox
+                      checked={selected.includes(review.id)}
+                      onCheckedChange={() => toggleSelect(review.id)}
+                    />
                   </td>
                   <td className="cursor-pointer p-3" onClick={() => setOpenReview(review)}>
                     <Stars rating={review.rating} />
@@ -337,7 +657,8 @@ export default function ReviewsIndex({ reviews, staffOptions, stats, filters }: 
                   </td>
                   <td className="cursor-pointer p-3" onClick={() => setOpenReview(review)}>
                     <div className="flex items-center gap-1">
-                      {review.customer_name ?? 'Guest'}
+                      {review.display_name}
+                      {review.source === 'google' && <Badge variant="outline">Google</Badge>}
                       {review.is_verified && <ShieldCheck className="text-accent-600 size-3.5" />}
                     </div>
                   </td>
@@ -354,9 +675,15 @@ export default function ReviewsIndex({ reviews, staffOptions, stats, filters }: 
                         type="button"
                         variant="ghost"
                         size="icon"
-                        aria-label="Approve"
+                        aria-label="Show on homepage"
                         disabled={review.status === 'approved'}
-                        onClick={() => router.patch(`/admin/reviews/${review.id}/approve`, {}, { preserveScroll: true })}
+                        onClick={() =>
+                          router.patch(
+                            `/admin/reviews/${review.id}/approve`,
+                            {},
+                            { preserveScroll: true },
+                          )
+                        }
                       >
                         <Check className="size-4 text-emerald-600" />
                       </Button>
@@ -364,9 +691,15 @@ export default function ReviewsIndex({ reviews, staffOptions, stats, filters }: 
                         type="button"
                         variant="ghost"
                         size="icon"
-                        aria-label="Reject"
+                        aria-label="Hide from homepage"
                         disabled={review.status === 'rejected'}
-                        onClick={() => router.patch(`/admin/reviews/${review.id}/reject`, {}, { preserveScroll: true })}
+                        onClick={() =>
+                          router.patch(
+                            `/admin/reviews/${review.id}/reject`,
+                            {},
+                            { preserveScroll: true },
+                          )
+                        }
                       >
                         <X className="size-4 text-red-600" />
                       </Button>

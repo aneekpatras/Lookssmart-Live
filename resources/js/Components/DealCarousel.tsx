@@ -35,12 +35,41 @@ export function DealCarousel({
 }) {
   const viewportRef = React.useRef<HTMLDivElement>(null);
   const [paused, setPaused] = React.useState(false);
+  const [visible, setVisible] = React.useState(false);
+  const resumeTimer = React.useRef<number | undefined>(undefined);
+  const lastTouchAt = React.useRef(0);
+
+  // Only auto-advance while the carousel is actually on screen.
+  React.useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry?.isIntersecting ?? false),
+      {
+        threshold: 0.25,
+      },
+    );
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
+
+  React.useEffect(() => () => window.clearTimeout(resumeTimer.current), []);
+
+  // Touch has no hover/blur to "un-pause" with, so a touch or swipe only pauses briefly and the
+  // carousel then resumes by itself; mouse hover/focus still pause for as long as they last.
+  function pauseBriefly() {
+    lastTouchAt.current = Date.now();
+    window.clearTimeout(resumeTimer.current);
+    setPaused(true);
+    resumeTimer.current = window.setTimeout(() => setPaused(false), 5000);
+  }
 
   const cardStep = React.useCallback(() => {
     const viewport = viewportRef.current;
     if (!viewport) return 300;
     const firstCard = viewport.querySelector<HTMLElement>('[data-carousel-item]');
-    return firstCard ? firstCard.getBoundingClientRect().width + 20 : 300;
+    const gap = Number.parseFloat(getComputedStyle(viewport).columnGap) || 0;
+    return firstCard ? firstCard.getBoundingClientRect().width + gap : 300;
   }, []);
 
   const advance = React.useCallback(
@@ -56,7 +85,7 @@ export function DealCarousel({
   // settling. Only runs with more than one real card — a single-item section has nothing to scroll
   // to, and a looping single card would just sit still anyway.
   React.useEffect(() => {
-    if (paused || itemCount <= 1) return;
+    if (paused || !visible || itemCount <= 1) return;
 
     const interval = window.setInterval(() => {
       const viewport = viewportRef.current;
@@ -75,20 +104,34 @@ export function DealCarousel({
     }, 3500);
 
     return () => window.clearInterval(interval);
-  }, [paused, itemCount, cardStep]);
+  }, [paused, visible, itemCount, cardStep]);
 
   return (
     <div className="group relative">
       <div
         ref={viewportRef}
-        className="no-scrollbar flex gap-5 overflow-x-auto scroll-smooth"
+        className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth sm:gap-5 [&>div]:flex [&>div]:w-[92%] [&>div]:shrink-0 [&>div]:snap-start sm:[&>div]:w-[340px]"
         role="group"
         aria-label={ariaLabel}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onFocus={() => setPaused(true)}
+        onMouseEnter={() => {
+          // Touch taps also fire emulated mouse events right after touchstart — ignore those.
+          if (Date.now() - lastTouchAt.current < 1000) return;
+          window.clearTimeout(resumeTimer.current);
+          setPaused(true);
+        }}
+        onMouseLeave={() => {
+          window.clearTimeout(resumeTimer.current);
+          setPaused(false);
+        }}
+        onFocus={() => {
+          window.clearTimeout(resumeTimer.current);
+          setPaused(true);
+        }}
         onBlur={() => setPaused(false)}
-        onPointerDown={() => setPaused(true)}
+        onPointerDown={(e) => {
+          if (e.pointerType === 'touch') pauseBriefly();
+        }}
+        onTouchStart={pauseBriefly}
       >
         {children}
       </div>

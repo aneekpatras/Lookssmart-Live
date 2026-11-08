@@ -1,17 +1,17 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Real-browser checks for the bridal marquee. The point is to verify things that only exist at
- * runtime: that the CSS animation is actually applied and running (not silently dropped, which is a
- * real risk under this app's no-`unsafe-inline` CSP), that hover genuinely pauses it, that the
- * duplicated track makes the loop seamless, and that the images really decode.
+ * Real-browser checks for the bridal marquee. It is driven by real `scrollLeft` (not a CSS
+ * animation), so these verify things that only exist at runtime: that it really auto-scrolls, that
+ * hover genuinely pauses it, that a mouse drag moves it, that the track holds three copies so the
+ * loop never shows a gap, and that the images really decode.
  */
 
-/** Framer Motion / Lenis inline-style CSP violations — pre-existing, tracked as §10 #39. */
-const isKnownInlineStyleCspNoise = (text: string) =>
-  /Applying inline style violates the following Content Security Policy/i.test(text);
-
 const track = '.marquee-track';
+const viewportSelector = '.marquee-viewport';
+
+const scrollLeftOf = (page: import('@playwright/test').Page) => () =>
+  page.locator(viewportSelector).evaluate((el) => el.scrollLeft);
 
 test('marquee heading, subtitle and cards render', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -28,83 +28,95 @@ test('marquee heading, subtitle and cards render', async ({ page }) => {
   expect(box!.height).toBeGreaterThan(box!.width);
 });
 
-test('animation is genuinely applied and running, not dropped by CSP', async ({ page }) => {
-  const consoleErrors: string[] = [];
-  page.on('console', (message) => {
-    if (message.type() === 'error' && !isKnownInlineStyleCspNoise(message.text())) {
-      consoleErrors.push(message.text());
-    }
-  });
-
+test('auto-scrolls on its own', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator(`${track} li`).first()).toBeVisible();
+  await page.locator(viewportSelector).scrollIntoViewIfNeeded();
 
-  const state = await page.locator(track).evaluate((el) => {
-    const style = getComputedStyle(el);
-    return {
-      name: style.animationName,
-      duration: style.animationDuration,
-      iteration: style.animationIterationCount,
-      timing: style.animationTimingFunction,
-      playState: style.animationPlayState,
-    };
-  });
-
-  expect(state.name).toBe('marquee-scroll');
-  expect(state.iteration).toBe('infinite');
-  expect(state.timing).toBe('linear');
-  expect(state.playState).toBe('running');
-  // Per-image cadence: 4 seeded bridal photos x ~3s.
-  expect(state.duration).toBe('12s');
-
-  // The transform must actually be advancing, i.e. the animation is really compositing.
-  const readMatrix = () =>
-    page.locator(track).evaluate((el) => getComputedStyle(el).transform);
-  const first = await readMatrix();
-  await expect.poll(readMatrix, { timeout: 10_000 }).not.toBe(first);
-
-  expect(consoleErrors, 'unexpected console errors').toEqual([]);
+  const read = scrollLeftOf(page);
+  const first = await read();
+  await expect.poll(read, { timeout: 10_000 }).not.toBe(first);
 });
 
-test('hovering an image pauses the scroll', async ({ page }) => {
+test('hovering the strip pauses the scroll, and leaving resumes it', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator(`${track} li`).first()).toBeVisible();
 
-  // Hover the stationary viewport, not a card: the cards are actively translating, so a
-  // locator.hover() on one can land in the gap between cards after the box is computed. Playwright's
-  // locator.hover() also handles the scroll-into-view and viewport-relative coordinates correctly —
-  // a manual page.mouse.move() with boundingBox() values does NOT, because boundingBox() is in page
-  // coordinates while mouse.move() expects viewport coordinates (which is what broke this first).
-  const viewport = page.locator('.marquee-viewport');
+  const viewport = page.locator(viewportSelector);
+  await viewport.scrollIntoViewIfNeeded();
   await viewport.hover();
 
-  await expect
-    .poll(async () => page.locator(track).evaluate((el) => getComputedStyle(el).animationPlayState), {
-      timeout: 5_000,
-    })
-    .toBe('paused');
+  const read = scrollLeftOf(page);
+  await page.waitForTimeout(300); // let a frame that was already in flight finish
+  const parked = await read();
+  await page.waitForTimeout(1000);
+  expect(await read()).toBe(parked);
 
-  // Moving away resumes it, so a hover cannot permanently stall the slider.
+  // Moving away resumes it (after a short grace period), so a hover cannot stall the strip for good.
   await page.mouse.move(0, 0);
-  await expect
-    .poll(async () => page.locator(track).evaluate((el) => getComputedStyle(el).animationPlayState), {
-      timeout: 5_000,
-    })
-    .toBe('running');
+  await expect.poll(read, { timeout: 10_000 }).not.toBe(parked);
 });
 
-test('the track is duplicated so the loop has no gap', async ({ page }) => {
+test('a mouse can drag the strip', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator(`${track} li`).first()).toBeVisible();
+
+  const viewport = page.locator(viewportSelector);
+  await viewport.scrollIntoViewIfNeeded();
+  const box = (await viewport.boundingBox())!;
+  const y = box.y + box.height / 2;
+  const x = box.x + box.width / 2;
+
+  await page.mouse.move(x, y);
+  await page.waitForTimeout(300);
+  const before = await scrollLeftOf(page)();
+
+  await page.mouse.down();
+  await page.mouse.move(x - 150, y, { steps: 8 });
+  await page.mouse.up();
+
+  // Dragging left by 150px scrolls the strip right by about the same amount.
+  const after = await scrollLeftOf(page)();
+  expect(after - before).toBeGreaterThan(100);
+});
+
+test('the track holds three copies so the loop has no gap', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 
   // `locator.count()` does NOT auto-wait, so it must not be called before hydration has rendered
-  // the track — doing so returned 0 for the first count and 4 for the second, which looked like a
-  // duplication bug but was purely a timing artefact of the test.
+  // the track.
   await expect(page.locator(`${track} li`).first()).toBeVisible();
 
   const total = await page.locator(`${track} li`).count();
   const announced = await page.locator(`${track} li:not([aria-hidden="true"])`).count();
 
-  // Exactly two passes, and only one is exposed to assistive tech.
-  expect(total).toBe(announced * 2);
+  // Exactly three passes, and only one is exposed to assistive tech.
+  expect(total).toBe(announced * 3);
   expect(announced).toBeGreaterThan(0);
+});
+
+test('never runs out of photos, however far it is dragged', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator(`${track} li`).first()).toBeVisible();
+
+  const viewport = page.locator(viewportSelector);
+  await viewport.scrollIntoViewIfNeeded();
+  const box = (await viewport.boundingBox())!;
+  const y = box.y + box.height / 2;
+
+  for (let i = 0; i < 6; i += 1) {
+    await page.mouse.move(box.x + box.width - 20, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 20, y, { steps: 5 });
+    await page.mouse.up();
+
+    const gap = await viewport.evaluate((el) => {
+      const list = el.querySelector('ul')!;
+      return el.getBoundingClientRect().right - list.getBoundingClientRect().right;
+    });
+    // No empty space after the last photo.
+    expect(gap).toBeLessThanOrEqual(0);
+  }
 });
 
 test('bridal images actually decode', async ({ page }) => {
@@ -118,12 +130,10 @@ test('bridal images actually decode', async ({ page }) => {
     .toBeGreaterThan(0);
 });
 
-test('viewport supports touch drag via native horizontal scrolling', async ({ page }) => {
+test('viewport is a native horizontal scroller (touch swipe and trackpad)', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-  const overflow = await page
-    .locator('.marquee-viewport')
-    .evaluate((el) => getComputedStyle(el).overflowX);
+  const overflow = await page.locator(viewportSelector).evaluate((el) => getComputedStyle(el).overflowX);
 
   expect(overflow).toBe('auto');
 });
@@ -142,7 +152,7 @@ test('renders correctly on a mobile viewport', async ({ page }) => {
   expect(bodyOverflows, 'page should not scroll horizontally on mobile').toBe(false);
 });
 
-test('reduced motion cancels the animation instead of parking the track off-screen', async ({
+test('reduced motion stops the auto-scroll but the strip can still be scrolled by hand', async ({
   page,
 }) => {
   // Emulated over CDP rather than Playwright's `reducedMotion` context option: on
@@ -160,16 +170,12 @@ test('reduced motion cancels the animation instead of parking the track off-scre
     true,
   );
 
-  const state = await page.locator(track).evaluate((el) => {
-    const style = getComputedStyle(el);
-    return { name: style.animationName, transform: style.transform };
-  });
-
-  // The global reduced-motion backstop would otherwise run the animation to completion in 0.01ms
-  // and leave the track parked at translateX(-50%), looking broken.
-  expect(state.name).toBe('none');
-  expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(state.transform);
-
-  // Cards are still visible and still hand-scrollable.
   await expect(page.locator(`${track} li`).first()).toBeVisible();
+  await page.locator(viewportSelector).scrollIntoViewIfNeeded();
+
+  const read = scrollLeftOf(page);
+  await page.waitForTimeout(300);
+  const parked = await read();
+  await page.waitForTimeout(1500);
+  expect(await read()).toBe(parked);
 });

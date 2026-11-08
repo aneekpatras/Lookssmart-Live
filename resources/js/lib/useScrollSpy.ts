@@ -8,7 +8,7 @@ import * as React from 'react';
  * the greatest visible ratio inside that band, rather than "first intersecting", so scrolling past
  * a short section doesn't flicker the highlight onto whichever callback happened to fire last.
  */
-export function useScrollSpy(ids: string[]): string | null {
+export function useScrollSpy(ids: string[], topOffset = 140): string | null {
   const [activeId, setActiveId] = React.useState<string | null>(ids[0] ?? null);
   const key = ids.join(',');
 
@@ -37,12 +37,12 @@ export function useScrollSpy(ids: string[]): string | null {
         }
         if (bestId) setActiveId(bestId);
       },
-      { rootMargin: '-140px 0px -60% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] },
+      { rootMargin: `-${topOffset}px 0px -60% 0px`, threshold: [0, 0.25, 0.5, 0.75, 1] },
     );
 
     for (const el of elements) observer.observe(el);
     return () => observer.disconnect();
-  }, [key]);
+  }, [key, topOffset]);
 
   return activeId;
 }

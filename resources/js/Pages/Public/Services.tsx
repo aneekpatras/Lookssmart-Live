@@ -11,6 +11,7 @@ import { Input } from '@/Components/ui/input';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { addToCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
+import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
 interface ServiceCard {
   id: number;
@@ -33,6 +34,8 @@ interface ServicesProps {
 }
 
 const TOP_ANCHOR = 'services-top';
+/** Cards shown per category before "Show all": 8 fills 4 rows on mobile (2 cols), 9 fills 3 rows on desktop. */
+const INITIAL_VISIBLE = 8;
 
 /** Mirrors ServiceDetail's formatter — "3 hours" reads better than "180 min" on a card. */
 function formatDuration(minutes: number): string {
@@ -49,7 +52,11 @@ function ServiceCardTile({ service }: { service: ServiceCard }) {
 
   return (
     <Card className="border-border-soft bg-surface shadow-soft flex flex-col overflow-hidden">
-      <div className="bg-accent-50 h-[190px] shrink-0">
+      <Link
+        href={`/services/${service.slug}`}
+        aria-label={`View ${service.name}`}
+        className="bg-accent-50 block h-[110px] shrink-0 sm:h-[190px]"
+      >
         {service.image_url ? (
           <img
             src={service.image_url}
@@ -63,24 +70,29 @@ function ServiceCardTile({ service }: { service: ServiceCard }) {
             <Sparkles className="size-8" />
           </div>
         )}
-      </div>
-      <CardContent className="flex flex-1 flex-col p-4">
-        <p className="text-accent-700 text-xs font-semibold uppercase tracking-wider">
+      </Link>
+      <CardContent className="flex flex-1 flex-col p-3 sm:p-4">
+        <p className="text-accent-700 hidden text-xs font-semibold tracking-wider uppercase sm:block">
           {service.category}
         </p>
-        <h2 className="mt-1.5 text-lg font-medium leading-snug">{service.name}</h2>
-        <div className="text-ink-muted mt-auto flex items-center justify-between pt-3 text-sm">
+        <h2 className="line-clamp-2 text-sm leading-snug font-medium sm:mt-1.5 sm:line-clamp-none sm:text-lg">
+          <Link href={`/services/${service.slug}`}>{service.name}</Link>
+        </h2>
+        <div className="text-ink-muted mt-auto flex flex-col gap-0.5 pt-2 text-xs sm:flex-row sm:items-center sm:justify-between sm:pt-3 sm:text-sm">
           <span className="inline-flex items-center gap-1">
-            <Clock3 className="size-4" /> {formatDuration(service.duration_min)}
+            <Clock3 className="size-3.5 sm:size-4" /> {formatDuration(service.duration_min)}
           </span>
           <span className="text-ink font-semibold">{formatCurrency(service.price)}</span>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button asChild variant="outline" size="sm">
+        <div className="mt-2 grid grid-cols-1 gap-1.5 sm:mt-3 sm:grid-cols-2 sm:gap-2">
+          {/* On mobile the image and name already open the detail page, so only "Add" is shown. */}
+          <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
             <Link href={`/services/${service.slug}`}>Details</Link>
           </Button>
           <Button type="button" variant="accent" size="sm" onClick={handleAddToCart}>
-            + Add to Cart
+            <span>
+              + Add<span className="hidden sm:inline"> to Cart</span>
+            </span>
           </Button>
         </div>
       </CardContent>
@@ -98,6 +110,13 @@ function ServiceCardTile({ service }: { service: ServiceCard }) {
  */
 export default function Services({ services, categories, filters }: ServicesProps) {
   const [search, setSearch] = React.useState(filters.search ?? '');
+  const [tagsRef, tagsStyle] = useHeaderHandoff();
+
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+
+  function expand(sectionId: string) {
+    setExpanded((current) => new Set(current).add(sectionId));
+  }
 
   const visibleServices = React.useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -117,25 +136,39 @@ export default function Services({ services, categories, filters }: ServicesProp
   );
 
   const pills = React.useMemo(
-    () => sections.map((section) => ({ id: `services-category-${section.category.id}`, label: section.category.name })),
+    () =>
+      sections.map((section) => ({
+        id: `services-category-${section.category.id}`,
+        label: section.category.name,
+      })),
     [sections],
   );
 
   return (
     <>
-      <SeoHead title="Services" description="Explore hair, skin, and nail services at Looks Smart Beauty Salon." />
-      <section className="bg-ink px-6 py-16 text-ivory lg:px-10">
+      <SeoHead
+        title="Services"
+        description="Explore hair, skin, and nail services at Looks Smart Beauty Salon."
+      />
+      <section className="bg-ink text-ivory px-6 py-12 sm:py-16 lg:px-10">
         <div className="mx-auto max-w-6xl">
-          <p className="text-accent-300 text-sm font-semibold uppercase tracking-[0.18em]">The menu</p>
-          <h1 className="mt-3 text-5xl font-medium sm:text-6xl">Services for your next chapter.</h1>
-          <p className="mt-5 max-w-xl text-ivory/70">Choose a ritual, then let us take care of the details.</p>
+          <p className="text-accent-300 text-sm font-semibold tracking-[0.18em] uppercase">
+            The menu
+          </p>
+          <h1 className="mt-3 text-3xl font-medium sm:text-6xl">Services for your next chapter.</h1>
+          <p className="text-ivory/70 mt-5 max-w-xl">
+            Choose a ritual, then let us take care of the details.
+          </p>
         </div>
       </section>
 
       <section id={TOP_ANCHOR} className="scroll-mt-24 px-6 py-12 lg:px-10">
         <div className="mx-auto max-w-6xl">
           <div className="relative w-full max-w-md">
-            <Search className="text-ink-muted absolute left-3 top-1/2 size-4 -translate-y-1/2" aria-hidden="true" />
+            <Search
+              className="text-ink-muted absolute top-1/2 left-3 size-4 -translate-y-1/2"
+              aria-hidden="true"
+            />
             <Input
               aria-label="Search services"
               value={search}
@@ -146,25 +179,60 @@ export default function Services({ services, categories, filters }: ServicesProp
           </div>
 
           {pills.length > 0 && (
-            <CategoryPillBar
-              pills={pills}
-              topAnchorId={TOP_ANCHOR}
-              ariaLabel="Jump to service category"
-              className="mt-6"
-            />
+            <div
+              ref={tagsRef}
+              className="sticky z-30 mt-6 transition-[top] duration-300"
+              style={tagsStyle}
+            >
+              <CategoryPillBar
+                pills={pills}
+                topAnchorId={TOP_ANCHOR}
+                ariaLabel="Jump to service category"
+                spyOffset={150}
+                onSelect={expand}
+              />
+            </div>
           )}
 
           <div className="mt-10 space-y-14">
-            {sections.map(({ category, items }) => (
-              <div key={category.id} id={`services-category-${category.id}`} className="scroll-mt-40">
-                <h2 className="font-display text-2xl font-medium">{category.name}</h2>
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {items.map((service) => (
-                    <ServiceCardTile key={service.id} service={service} />
-                  ))}
+            {sections.map(({ category, items }) => {
+              const sectionId = `services-category-${category.id}`;
+              // A search result list is already narrowed down, so it is never collapsed.
+              const collapsed =
+                !search.trim() && !expanded.has(sectionId) && items.length > INITIAL_VISIBLE;
+
+              return (
+                <div key={category.id} id={sectionId} className="scroll-mt-40">
+                  <h2 className="font-display text-xl font-medium sm:text-2xl">{category.name}</h2>
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-5 sm:gap-4 lg:grid-cols-3">
+                    {items.map((service, index) => {
+                      // Item 9 is shown on desktop only (3 full rows of 3); mobile/tablet stop at 8.
+                      const hidden = collapsed
+                        ? index > INITIAL_VISIBLE
+                          ? 'hidden'
+                          : index === INITIAL_VISIBLE
+                            ? 'hidden lg:block'
+                            : ''
+                        : '';
+                      return (
+                        <div key={service.id} className={hidden || 'contents'}>
+                          <ServiceCardTile service={service} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {collapsed && (
+                    <div
+                      className={`mt-5 text-center ${items.length === INITIAL_VISIBLE + 1 ? 'lg:hidden' : ''}`}
+                    >
+                      <Button type="button" variant="outline" onClick={() => expand(sectionId)}>
+                        Show all ({items.length})
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {sections.length === 0 && (

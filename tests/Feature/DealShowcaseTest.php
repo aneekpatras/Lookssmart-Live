@@ -212,3 +212,22 @@ it('produces a real booking quote that exactly matches the advertised deal_price
         ->and($quote['discount'])->toBe(3750.0)
         ->and($quote['total'])->toBe((float) $deal->deal_price);
 });
+
+it('hands the booking page only active deals that have bookable services, with their codes', function () {
+    $service = Service::factory()->create(['is_active' => true]);
+
+    $bookable = Deal::factory()->create([...activeWindow(), 'title' => 'Bridal Day', 'code' => 'BRIDE10', 'is_active' => true]);
+    $bookable->services()->sync([$service->id]);
+
+    // No attached services (marketing copy only), and an inactive deal: neither can be booked.
+    Deal::factory()->create([...activeWindow(), 'title' => 'Copy Only', 'is_active' => true]);
+    $inactive = Deal::factory()->create([...activeWindow(), 'title' => 'Off', 'is_active' => false]);
+    $inactive->services()->sync([$service->id]);
+
+    $this->get('/book')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('Public/Book')
+        ->has('deals', 1)
+        ->where('deals.0.title', 'Bridal Day')
+        ->where('deals.0.code', 'BRIDE10')
+        ->where('deals.0.bundled_services.0.id', $service->id));
+});

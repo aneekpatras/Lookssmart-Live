@@ -1,6 +1,15 @@
 import axios, { isAxiosError } from 'axios';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Check, Clock3, LoaderCircle, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  Clock3,
+  LoaderCircle,
+  Plus,
+  Search,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import * as React from 'react';
 
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
@@ -13,6 +22,7 @@ import { Textarea } from '@/Components/ui/textarea';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { clearCart, getCartItems, setCartItems } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
+import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
 interface Service {
   id: number;
@@ -38,13 +48,27 @@ interface Slot {
   ends_at: string;
   is_available: boolean;
 }
+/** An active deal with real bookable services: choosing it selects those services and its promo code. */
+interface BookableDeal {
+  id: number;
+  title: string;
+  subtitle: string | null;
+  original_price: string | null;
+  deal_price: string | null;
+  savings_percent: number | null;
+  included_services: string[];
+  code: string | null;
+  bundled_services: { id: number; name: string; price: string; image_url: string | null }[];
+}
 interface BookProps {
   services: Service[];
   categories: Category[];
+  deals: BookableDeal[];
   authUser: { name: string; email: string } | null;
 }
 
 const SERVICES_TOP_ANCHOR = 'book-services-top';
+const DEALS_SECTION_ID = 'book-deals';
 
 const steps = ['Select services', 'Date, time & details'];
 
@@ -94,7 +118,8 @@ function slotPeriod(iso: string): 'Morning' | 'Afternoon' | 'Evening' {
  * list the controller sends (never a client-derived list from whatever category strings happen to
  * already be present in `services`, which would silently omit a real category with zero services).
  */
-export default function Book({ services, categories, authUser }: BookProps) {
+export default function Book({ services, categories, deals, authUser }: BookProps) {
+  const [tagsRef, tagsStyle] = useHeaderHandoff();
   const [step, setStep] = React.useState(0);
   const [search, setSearch] = React.useState('');
   // Honours every repeated `?service=<id>` param that a "Book now"/"Add to Cart" link on the Home,
@@ -133,7 +158,9 @@ export default function Book({ services, categories, authUser }: BookProps) {
   const [slots, setSlots] = React.useState<Slot[]>([]);
   const [slot, setSlot] = React.useState<Slot | null>(null);
   const [promoCode, setPromoCode] = React.useState(() =>
-    typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('code') ?? '',
+    typeof window === 'undefined'
+      ? ''
+      : (new URLSearchParams(window.location.search).get('code') ?? ''),
   );
   const [holdToken, setHoldToken] = React.useState<string | null>(null);
   // The real staff member the SERVER resolved and locked for the active hold (ad hoc task 30) — the
@@ -189,6 +216,29 @@ export default function Book({ services, categories, authUser }: BookProps) {
     },
     [holdToken, slot, heldStaffId, heldCapacitySeat],
   );
+
+  /** Services of a deal that are really bookable right now (a stale/inactive one is skipped). */
+  function dealServiceIds(deal: BookableDeal): number[] {
+    return deal.bundled_services
+      .map((service) => service.id)
+      .filter((id) => services.some((s) => s.id === id));
+  }
+
+  function isDealSelected(deal: BookableDeal): boolean {
+    const ids = dealServiceIds(deal);
+    return ids.length > 0 && ids.every((id) => selected.includes(id));
+  }
+
+  function toggleDeal(deal: BookableDeal) {
+    const ids = dealServiceIds(deal);
+    if (isDealSelected(deal)) {
+      setSelected((current) => current.filter((id) => !ids.includes(id)));
+      if (deal.code && promoCode === deal.code) setPromoCode('');
+      return;
+    }
+    setSelected((current) => Array.from(new Set([...current, ...ids])));
+    if (deal.code && !promoCode) setPromoCode(deal.code);
+  }
 
   function toggleService(id: number) {
     setSelected((current) =>
@@ -385,7 +435,9 @@ export default function Book({ services, categories, authUser }: BookProps) {
   // than a single-select filter, matching the same pattern now used on Services/Deals.
   const visibleServices = React.useMemo(() => {
     const query = search.trim().toLowerCase();
-    return query ? services.filter((service) => service.name.toLowerCase().includes(query)) : services;
+    return query
+      ? services.filter((service) => service.name.toLowerCase().includes(query))
+      : services;
   }, [services, search]);
 
   const serviceSections = React.useMemo(
@@ -399,13 +451,20 @@ export default function Book({ services, categories, authUser }: BookProps) {
     [categories, visibleServices],
   );
 
+  const visibleDeals = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return query ? deals.filter((deal) => deal.title.toLowerCase().includes(query)) : deals;
+  }, [deals, search]);
+
   const servicePills = React.useMemo(
-    () =>
-      serviceSections.map((section) => ({
+    () => [
+      ...serviceSections.map((section) => ({
         id: `book-category-${section.category.id}`,
         label: section.category.name,
       })),
-    [serviceSections],
+      ...(visibleDeals.length > 0 ? [{ id: DEALS_SECTION_ID, label: 'Deals' }] : []),
+    ],
+    [serviceSections, visibleDeals],
   );
 
   // Groups the returned slots into Morning/Afternoon/Evening sections for the compact picker,
@@ -459,9 +518,11 @@ export default function Book({ services, categories, authUser }: BookProps) {
           bar from covering the tail end of the page's own content — e.g. the Notes field or the
           aside's own Confirm Booking button. `lg:pb-12` restores the section's normal bottom padding
           at the breakpoint where that bar is hidden. */}
-      <section className={`px-6 py-12 lg:px-10 lg:pb-12 ${selectedServices.length > 0 ? 'pb-28' : ''}`}>
+      <section
+        className={`px-6 py-12 lg:px-10 lg:pb-12 ${selectedServices.length > 0 ? 'pb-28' : ''}`}
+      >
         <div className="mx-auto max-w-6xl">
-          <p className="text-accent-700 text-sm font-semibold uppercase tracking-[0.18em]">
+          <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
             Your visit
           </p>
           <h1 className="mt-3 text-5xl font-medium">Book an appointment</h1>
@@ -519,22 +580,35 @@ export default function Book({ services, categories, authUser }: BookProps) {
                     </div>
 
                     {servicePills.length > 0 && (
-                      <CategoryPillBar
-                        pills={servicePills}
-                        topAnchorId={SERVICES_TOP_ANCHOR}
-                        ariaLabel="Filter services by category"
-                        className="mb-6"
-                      />
+                      <div
+                        ref={tagsRef}
+                        className="sticky z-30 mb-6 transition-[top] duration-300"
+                        style={tagsStyle}
+                      >
+                        <CategoryPillBar
+                          pills={servicePills}
+                          topAnchorId={SERVICES_TOP_ANCHOR}
+                          ariaLabel="Filter services by category"
+                          spyOffset={150}
+                        />
+                      </div>
                     )}
 
                     <div className="space-y-10">
                       {serviceSections.map(({ category, items }) => (
-                        <div key={category.id} id={`book-category-${category.id}`} className="scroll-mt-40">
+                        <div
+                          key={category.id}
+                          id={`book-category-${category.id}`}
+                          className="scroll-mt-40"
+                        >
                           <h3 className="text-ink-muted text-xs font-semibold tracking-wider uppercase">
                             {category.name}
                           </h3>
                           {/* 3-column responsive grid (1 on mobile, 2 on tablet, 3 on desktop). */}
-                          <div data-testid="service-grid" className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          <div
+                            data-testid="service-grid"
+                            className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                          >
                             {items.map((service) => {
                               const isSelected = selected.includes(service.id);
                               return (
@@ -582,7 +656,92 @@ export default function Book({ services, categories, authUser }: BookProps) {
                       ))}
                     </div>
 
-                    {serviceSections.length === 0 && (
+                    {visibleDeals.length > 0 && (
+                      <div id={DEALS_SECTION_ID} className="mt-10 scroll-mt-40">
+                        <h3 className="text-ink-muted text-xs font-semibold tracking-wider uppercase">
+                          Deals
+                        </h3>
+                        <div
+                          data-testid="deal-grid"
+                          className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                        >
+                          {visibleDeals.map((deal) => {
+                            const isSelected = isDealSelected(deal);
+                            return (
+                              <div
+                                key={deal.id}
+                                className={`flex flex-col rounded-lg border p-4 transition ${isSelected ? 'border-accent-600 bg-accent-50' : 'border-border-soft'}`}
+                              >
+                                <span className="flex items-center justify-between gap-2">
+                                  <span className="text-accent-700 text-xs uppercase">Deal</span>
+                                  {deal.savings_percent !== null && deal.savings_percent > 0 && (
+                                    <span className="bg-accent-500 text-ivory rounded-full px-2 py-0.5 text-xs font-semibold">
+                                      {deal.savings_percent}% OFF
+                                    </span>
+                                  )}
+                                </span>
+                                <strong className="mt-1 block text-lg leading-snug">
+                                  {deal.title}
+                                </strong>
+                                <ul className="text-ink-muted mt-2 space-y-0.5 text-xs leading-5">
+                                  {deal.included_services.slice(0, 3).map((item) => (
+                                    <li key={item} className="flex gap-1.5">
+                                      <Check
+                                        className="text-accent-600 mt-0.5 size-3.5 shrink-0"
+                                        aria-hidden="true"
+                                      />
+                                      <span className="truncate">{item}</span>
+                                    </li>
+                                  ))}
+                                  {deal.included_services.length > 3 && (
+                                    <li className="pl-5">
+                                      +{deal.included_services.length - 3} more included
+                                    </li>
+                                  )}
+                                </ul>
+                                <span className="mt-auto flex items-baseline justify-between gap-2 pt-3 text-sm">
+                                  {deal.original_price && deal.deal_price ? (
+                                    <>
+                                      <span className="text-ink-muted text-xs line-through">
+                                        {formatCurrency(deal.original_price)}
+                                      </span>
+                                      <span className="text-ink font-semibold">
+                                        {formatCurrency(deal.deal_price)}
+                                      </span>
+                                    </>
+                                  ) : deal.deal_price ? (
+                                    <span className="text-ink ml-auto font-semibold">
+                                      {formatCurrency(deal.deal_price)}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={isSelected ? 'outline' : 'accent'}
+                                  aria-pressed={isSelected}
+                                  aria-label={`${deal.title}: ${isSelected ? 'Added' : 'Add deal'}`}
+                                  onClick={() => toggleDeal(deal)}
+                                  className="mt-3"
+                                >
+                                  {isSelected ? (
+                                    <>
+                                      <Check className="size-4" aria-hidden="true" /> Added
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="size-4" aria-hidden="true" /> Add deal
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {serviceSections.length === 0 && visibleDeals.length === 0 && (
                       <p className="text-ink-muted py-10 text-center text-sm">
                         No services match that search.
                       </p>
@@ -620,7 +779,7 @@ export default function Book({ services, categories, authUser }: BookProps) {
                         {(['Morning', 'Afternoon', 'Evening'] as const).map((period) =>
                           slotsByPeriod[period].length > 0 ? (
                             <div key={period}>
-                              <p className="text-ink-muted text-xs font-semibold uppercase tracking-wider">
+                              <p className="text-ink-muted text-xs font-semibold tracking-wider uppercase">
                                 {period}
                               </p>
                               <div className="mt-2 flex flex-wrap gap-2">
@@ -629,7 +788,9 @@ export default function Book({ services, categories, authUser }: BookProps) {
                                     visibly dimmed button labelled "Not Available", so the customer can
                                     see the salon operates that hour without being able to select it. */}
                                 {slotsByPeriod[period].map((available) => {
-                                  const timeLabel = new Date(available.starts_at).toLocaleTimeString([], {
+                                  const timeLabel = new Date(
+                                    available.starts_at,
+                                  ).toLocaleTimeString([], {
                                     hour: 'numeric',
                                     minute: '2-digit',
                                   });
@@ -641,7 +802,11 @@ export default function Book({ services, categories, authUser }: BookProps) {
                                       key={available.starts_at}
                                       disabled={busy || !available.is_available}
                                       aria-pressed={isChosen}
-                                      aria-label={available.is_available ? timeLabel : `${timeLabel}: Not available`}
+                                      aria-label={
+                                        available.is_available
+                                          ? timeLabel
+                                          : `${timeLabel}: Not available`
+                                      }
                                       onClick={() => void chooseSlot(available)}
                                       className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
                                         !available.is_available
@@ -756,11 +921,11 @@ export default function Book({ services, categories, authUser }: BookProps) {
                 unchanged (ad hoc task 27 fix). */}
             <aside className="border-border-soft bg-surface static order-1 h-fit rounded-lg border p-5 lg:sticky lg:top-28 lg:order-none">
               <div className="flex items-baseline justify-between">
-                <p className="text-accent-700 text-xs font-semibold uppercase tracking-wider">
+                <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
                   Your selection
                 </p>
                 {selectedServices.length > 0 && (
-                  <p className="text-accent-700 text-xs font-semibold uppercase tracking-wider">
+                  <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
                     Price
                   </p>
                 )}
@@ -788,7 +953,7 @@ export default function Book({ services, categories, authUser }: BookProps) {
                       type="button"
                       aria-label={`Remove ${service.name} from your selection`}
                       onClick={() => toggleService(service.id)}
-                      className="text-ink-muted hover:text-red-600 shrink-0 rounded-md p-1"
+                      className="text-ink-muted shrink-0 rounded-md p-1 hover:text-red-600"
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
                     </button>
@@ -868,9 +1033,12 @@ export default function Book({ services, categories, authUser }: BookProps) {
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-ink-muted text-xs">
-                {selectedServices.length} {selectedServices.length === 1 ? 'service' : 'services'} selected
+                {selectedServices.length} {selectedServices.length === 1 ? 'service' : 'services'}{' '}
+                selected
               </p>
-              <p className="text-ink font-semibold tabular-nums">{formatCurrency(String(liveTotal))}</p>
+              <p className="text-ink font-semibold tabular-nums">
+                {formatCurrency(String(liveTotal))}
+              </p>
             </div>
             <Button
               variant="accent"
@@ -879,10 +1047,10 @@ export default function Book({ services, categories, authUser }: BookProps) {
               disabled={step === 0 ? !selected.length : busy || !slot || !form.name || !form.email}
               onClick={() => (step === 0 ? goToCheckout() : void confirmBooking())}
             >
-              {step === 0 ? 'Continue' : (
-                <>
-                  {busy && <LoaderCircle className="animate-spin" />} Confirm Booking
-                </>
+              {step === 0 ? (
+                'Continue'
+              ) : (
+                <>{busy && <LoaderCircle className="animate-spin" />} Confirm Booking</>
               )}
             </Button>
           </div>

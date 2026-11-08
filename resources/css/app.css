@@ -76,25 +76,9 @@
 }
 
 /*
- * Bridal gallery marquee.
- *
- * Implemented entirely in CSS, on purpose: this app's CSP is `style-src 'self' 'nonce-…'` with no
- * `unsafe-inline`, and inline styles are already being blocked on public pages (§10 #39). A
- * JS-driven transform or an inline `--duration` custom property would therefore be at risk of
- * silently not applying, so the animation lives in the stylesheet and everything dynamic is driven
- * by plain DATA ATTRIBUTES, which CSP does not police.
- *
- * The track holds the image list twice; translating exactly -50% lands the duplicate precisely
- * where the original started, so the loop is seamless with no snap-back frame.
+ * Bridal gallery marquee: scrolled by JS (`BridalMarquee.tsx` nudges `scrollLeft` each frame — a DOM
+ * property, so this app's no-`unsafe-inline` CSP does not apply), not animated here.
  */
-@keyframes marquee-scroll {
-    from {
-        transform: translateX(0);
-    }
-    to {
-        transform: translateX(-50%);
-    }
-}
 
 /* Reusable scrollbar-hiding utility for any horizontally-scrollable strip (category pill rows,
    the bridal marquee below) — same technique, extracted so it isn't reimplemented per component. */
@@ -120,16 +104,7 @@
 }
 
 .marquee-track {
-    animation: marquee-scroll var(--marquee-duration, 30s) linear infinite;
     width: max-content;
-}
-
-/* Pause on hover (spec), and while the viewer is actively dragging — `data-paused` is toggled in
-   React so a drag does not fight the animation. */
-.marquee-viewport:hover .marquee-track,
-.marquee-viewport:focus-within .marquee-track,
-.marquee-track[data-paused='true'] {
-    animation-play-state: paused;
 }
 
 /* Reviews Carousel: a subtle fade+lift applied to the currently-visible page of cards each time
@@ -156,21 +131,6 @@
 .reviews-fade {
     animation: reviews-fade-in 0.6s ease-out both;
 }
-
-/* Per-image cadence. `--marquee-duration` = image count x 3s, so each card takes ~3s to traverse
-   regardless of how many the admin has enabled. Enumerated as static rules rather than an inline
-   custom property, for the CSP reason above. Counts beyond this range fall back to the 30s default. */
-.marquee-track[data-count='2'] { --marquee-duration: 6s; }
-.marquee-track[data-count='3'] { --marquee-duration: 9s; }
-.marquee-track[data-count='4'] { --marquee-duration: 12s; }
-.marquee-track[data-count='5'] { --marquee-duration: 15s; }
-.marquee-track[data-count='6'] { --marquee-duration: 18s; }
-.marquee-track[data-count='7'] { --marquee-duration: 21s; }
-.marquee-track[data-count='8'] { --marquee-duration: 24s; }
-.marquee-track[data-count='9'] { --marquee-duration: 27s; }
-.marquee-track[data-count='10'] { --marquee-duration: 30s; }
-.marquee-track[data-count='11'] { --marquee-duration: 33s; }
-.marquee-track[data-count='12'] { --marquee-duration: 36s; }
 
 /* Skeletons only for loads that outlast 300ms: hidden for the first 300ms, then shown. */
 @keyframes skeleton-delay-show {
@@ -206,13 +166,6 @@
         scroll-behavior: auto !important;
     }
 
-    /* The blanket rule above would run the marquee to completion in 0.01ms and leave the track
-       parked at translateX(-50%) — visibly shifted, looking broken. Cancel the animation outright
-       instead and let the viewport be scrolled by hand. */
-    .marquee-track {
-        animation: none !important;
-        transform: none !important;
-    }
 }
 
 /*

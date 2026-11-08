@@ -6,6 +6,7 @@ import { DealCarousel } from '@/Components/DealCarousel';
 import { DealDetailsModal, type DealShowcase } from '@/Components/DealDetailsModal';
 import { SeoHead } from '@/Components/SeoHead';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
 interface DealSection {
   tag: string;
@@ -31,6 +32,7 @@ function tagAnchorId(tag: string): string {
  */
 export default function Deals({ sections, availableTags, whatsapp }: DealsProps) {
   const [detailsDeal, setDetailsDeal] = React.useState<DealShowcase | null>(null);
+  const [tagsRef, tagsStyle] = useHeaderHandoff();
 
   const pills = React.useMemo(
     () => availableTags.map((tag) => ({ id: tagAnchorId(tag), label: tag })),
@@ -44,13 +46,13 @@ export default function Deals({ sections, availableTags, whatsapp }: DealsProps)
         description="Limited-time special offers and curated beauty packages tailored for you."
       />
 
-      <section className="bg-ink px-6 py-16 text-ivory lg:px-10">
+      <section className="bg-ink text-ivory px-6 py-16 lg:px-10">
         <div className="mx-auto max-w-6xl">
-          <p className="text-accent-300 text-sm font-semibold uppercase tracking-[0.18em]">
+          <p className="text-accent-300 text-sm font-semibold tracking-[0.18em] uppercase">
             Special offers
           </p>
           <h1 className="mt-3 text-5xl font-medium sm:text-6xl">Exclusive Deals &amp; Packages</h1>
-          <p className="mt-5 max-w-xl text-ivory/70">
+          <p className="text-ivory/70 mt-5 max-w-xl">
             Limited-time special offers and curated beauty packages tailored for you.
           </p>
         </div>
@@ -59,7 +61,18 @@ export default function Deals({ sections, availableTags, whatsapp }: DealsProps)
       <section id={TOP_ANCHOR} className="scroll-mt-24 px-6 py-12 lg:px-10">
         <div className="mx-auto max-w-6xl">
           {pills.length > 0 && (
-            <CategoryPillBar pills={pills} topAnchorId={TOP_ANCHOR} ariaLabel="Jump to deal category" />
+            <div
+              ref={tagsRef}
+              className="sticky z-30 transition-[top] duration-300"
+              style={tagsStyle}
+            >
+              <CategoryPillBar
+                pills={pills}
+                topAnchorId={TOP_ANCHOR}
+                ariaLabel="Jump to deal category"
+                spyOffset={150}
+              />
+            </div>
           )}
 
           {sections.length === 0 && (
@@ -73,11 +86,17 @@ export default function Deals({ sections, availableTags, whatsapp }: DealsProps)
               <div key={section.tag} id={tagAnchorId(section.tag)} className="scroll-mt-40">
                 <h2 className="font-display text-2xl font-medium">{section.tag}</h2>
                 <div className="mt-5">
-                  <DealCarousel itemCount={section.deals.length} ariaLabel={`${section.tag} carousel`}>
+                  <DealCarousel
+                    itemCount={section.deals.length}
+                    ariaLabel={`${section.tag} carousel`}
+                  >
                     {[section.deals, section.deals.length > 1 ? section.deals : []].map(
                       (pass, passIndex) =>
                         pass.map((deal) => (
-                          <div key={`${passIndex}-${deal.id}`} aria-hidden={passIndex === 1 ? true : undefined}>
+                          <div
+                            key={`${passIndex}-${deal.id}`}
+                            aria-hidden={passIndex === 1 ? true : undefined}
+                          >
                             <DealCard deal={deal} onViewDetails={setDetailsDeal} />
                           </div>
                         )),
