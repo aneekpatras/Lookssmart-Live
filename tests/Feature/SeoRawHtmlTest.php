@@ -1,0 +1,269 @@
+<?php
+
+use App\Models\Deal;
+use App\Models\Post;
+use App\Models\Service;
+use App\Models\ServiceCategory;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
+/*
+ * SEO Phase 1: every public page must carry its title / description / canonical / Open Graph tags and a
+ * single <h1> in the RAW HTML the server returns — i.e. before (and without) any JavaScript running —
+ * because that is all Google's first pass, Bing and link-preview bots (WhatsApp, Facebook) ever see.
+ * These tests read `getContent()` (the literal response body), never the Inertia page object.
+ */
+
+function rawHtml($response): string
+{
+    return $response->getContent();
+}
+
+/** Counts occurrences of a literal fragment — used to prove nothing is emitted twice. */
+function occurrences(string $html, string $needle): int
+{
+    return substr_count($html, $needle);
+}
+
+dataset('staticPublicPages', [
+    'home' => ['/'],
+    'services' => ['/services'],
+    'deals' => ['/deals'],
+    'gallery' => ['/gallery'],
+    'blog' => ['/blog'],
+    'about' => ['/about'],
+    'contact' => ['/contact'],
+    'book' => ['/book'],
+    'privacy policy' => ['/privacy-policy'],
+]);
+
+it('puts title, description, canonical, Open Graph and one h1 in the raw HTML of every public page', function (string $path) {
+    $html = rawHtml($this->get($path)->assertOk());
+
+    expect($html)
+        ->toMatch('/<title>[^<]{5,}<\/title>/')
+        ->toMatch('/<meta name="description" content="[^"]{20,}" data-inertia="description">/')
+        ->toMatch('/<link rel="canonical" href="https?:\/\/[^"]+" data-inertia="canonical">/')
+        ->toContain('property="og:title"')
+        ->toContain('property="og:description"')
+        ->toContain('property="og:url"')
+        ->toContain('property="og:type"')
+        ->toContain('property="og:site_name"')
+        ->toContain('name="twitter:card"');
+
+    // Exactly one of each — a second copy would mean the server and browser tags collided.
+    expect(occurrences($html, 'name="description"'))->toBe(1)
+        ->and(occurrences($html, 'rel="canonical"'))->toBe(1)
+        ->and(occurrences($html, '<h1'))->toBe(1)
+        ->and(occurrences($html, '<title>'))->toBe(1);
+})->with('staticPublicPages');
+
+it('writes a crawlable fallback with real links and removes nothing the app needs', function () {
+    $html = rawHtml($this->get('/')->assertOk());
+
+    expect($html)
+        ->toContain('<main id="seo-fallback">')
+        ->toContain('<h1>Looks Smart Beauty Salon</h1>')
+        ->toContain('href="' . route('services.index') . '"')
+        ->toContain('href="' . route('book') . '"')
+        // The Inertia page payload + mount point must still be there.
+        ->toContain('data-page="app"')
+        ->toContain('<div id="app"></div>');
+});
+
+it('uses the service SEO fields and DB price on a service detail page, and canonicalises it', function () {
+    $category = ServiceCategory::factory()->create(['name' => 'Hair Styling & Treatments']);
+    $service = Service::factory()->create([
+        'service_category_id' => $category->id,
+        'name' => 'Balayage - Long',
+        'slug' => 'balayage-long',
+        'seo_title' => 'Balayage Hair Colour',
+        'seo_description' => 'Hand-painted balayage highlights for a sun-kissed, low-maintenance look at our Lahore salon.',
+        'base_price' => 20000,
+        'duration_min' => 150,
+    ]);
+
+    $html = rawHtml($this->get('/services/balayage-long?utm_source=x')->assertOk());
+
+    expect($html)
+        ->toContain('<title>Balayage Hair Colour - ')
+        ->toContain('content="Hand-painted balayage highlights for a sun-kissed, low-maintenance look at our Lahore salon."')
+        // Canonical ignores tracking query strings.
+        ->toContain('<link rel="canonical" href="' . route('services.show', $service->slug) . '" data-inertia="canonical">')
+        ->toContain('<h1>Balayage - Long</h1>')
+        // Price comes from the database row, formatted — never typed into code.
+        ->toContain('Price: PKR 20,000')
+        ->toContain('Duration: 150 minutes');
+});
+
+it('builds a natural fallback description for services whose description is empty, short or generic', function (?string $description) {
+    $category = ServiceCategory::factory()->create(['name' => 'Skin & Facial Care']);
+    Service::factory()->create([
+        'service_category_id' => $category->id,
+        'name' => 'Hydra Facial',
+        'slug' => 'hydra-facial',
+        'description' => $description,
+        'seo_description' => null,
+    ]);
+
+    $html = rawHtml($this->get('/services/hydra-facial')->assertOk());
+
+    expect($html)->toMatch('/<meta name="description" content="Hydra Facial \(Skin &amp; Facial Care\) at [^"]*Central Park Housing Scheme, Lahore\./');
+
+    // The fallback exists only at render time — the stored row is untouched.
+    expect(Service::where('slug', 'hydra-facial')->value('description'))->toBe($description);
+})->with([
+    'null' => [null],
+    'empty string' => [''],
+    'too short' => ['Nice.'],
+    'generic placeholder' => ['Book Hydra Facial at Looks Smart Beauty Salon.'],
+]);
+
+it('keeps a service description that is long enough as-is (with HTML stripped)', function () {
+    $category = ServiceCategory::factory()->create();
+    Service::factory()->create([
+        'service_category_id' => $category->id,
+        'slug' => 'face-polisher',
+        'name' => 'Face Polisher',
+        'description' => '<p>A gentle exfoliating polish that lifts away dull surface cells and leaves skin smoother.</p>',
+        'seo_description' => null,
+    ]);
+
+    $html = rawHtml($this->get('/services/face-polisher')->assertOk());
+
+    expect($html)->toContain('content="A gentle exfoliating polish that lifts away dull surface cells and leaves skin smoother."');
+});
+
+it('escapes hostile characters in names so titles and meta attributes cannot be broken out of', function () {
+    $category = ServiceCategory::factory()->create();
+    Service::factory()->create([
+        'service_category_id' => $category->id,
+        'slug' => 'tricky-name',
+        'name' => 'Glow "Special" <script>alert(1)</script>',
+        'description' => null,
+        'seo_description' => null,
+    ]);
+
+    $html = rawHtml($this->get('/services/tricky-name')->assertOk());
+
+    expect($html)->not->toContain('<script>alert(1)</script>')
+        ->toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+});
+
+it('uses the post SEO fields, article type and a fallback description on a blog post', function () {
+    $seo = Post::factory()->create([
+        'title' => 'Bridal Makeup in Lahore',
+        'slug' => 'bridal-makeup-in-lahore',
+        'seo_title' => 'Bridal Makeup in Lahore: A Complete Guide',
+        'seo_description' => 'Everything a bride needs to know before booking her bridal makeup artist in Lahore.',
+    ]);
+    $bare = Post::factory()->create([
+        'title' => 'Skin Care Basics',
+        'slug' => 'skin-care-basics',
+        'seo_description' => null,
+        'excerpt' => null,
+        'body' => '<p>Hi</p>',
+    ]);
+
+    $withSeo = rawHtml($this->get('/blog/' . $seo->slug)->assertOk());
+    expect($withSeo)
+        ->toContain('<title>Bridal Makeup in Lahore: A Complete Guide - ')
+        ->toContain('content="Everything a bride needs to know before booking her bridal makeup artist in Lahore."')
+        ->toContain('property="og:type" content="article"')
+        ->toContain('<h1>Bridal Makeup in Lahore</h1>')
+        ->toContain('<link rel="canonical" href="' . route('blog.show', $seo->slug) . '" data-inertia="canonical">');
+
+    $fallback = rawHtml($this->get('/blog/' . $bare->slug)->assertOk());
+    expect($fallback)->toMatch('/<meta name="description" content="Skin Care Basics — beauty advice from the team at [^"]*Central Park Housing Scheme, Lahore\./');
+});
+
+it('keeps search and category filtered listing pages out of the index but canonical to the base URL', function (string $url, string $base) {
+    ServiceCategory::factory()->create();
+
+    $html = rawHtml($this->get($url)->assertOk());
+
+    expect($html)
+        ->toContain('<meta name="robots" content="noindex,follow" data-inertia="robots">')
+        ->toContain('<link rel="canonical" href="' . url($base) . '" data-inertia="canonical">');
+})->with([
+    'services search' => ['/services?search=facial', '/services'],
+    'services category' => ['/services?category=1', '/services'],
+    'blog search' => ['/blog?search=hair', '/blog'],
+]);
+
+it('does not mark the plain listing pages noindex', function (string $path) {
+    expect(rawHtml($this->get($path)->assertOk()))->not->toContain('name="robots"');
+})->with(['/services', '/blog', '/']);
+
+it('lists deal names in the deals page fallback', function () {
+    // Explicit window: the factory's random `ends_at` can land in the past, which makes the deal inactive.
+    Deal::factory()->create([
+        'title' => 'Bridal Glow Package',
+        'category_tag' => 'Bridal',
+        'is_active' => true,
+        'starts_at' => now()->subDay(),
+        'ends_at' => now()->addMonth(),
+    ]);
+
+    expect(rawHtml($this->get('/deals')->assertOk()))->toContain('Bridal Glow Package');
+});
+
+it('hands the browser the exact same head data under the seoMeta prop (so tags are swapped, not duplicated)', function () {
+    $category = ServiceCategory::factory()->create();
+    Service::factory()->create([
+        'service_category_id' => $category->id,
+        'slug' => 'face-polisher',
+        'name' => 'Face Polisher',
+        'seo_description' => null,
+        'description' => null,
+    ]);
+
+    $response = $this->get('/services/face-polisher')->assertOk();
+    $raw = rawHtml($response);
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('Public/ServiceDetail')
+        ->where('seoMeta.title', 'Face Polisher')
+        ->where('seoMeta.canonical', route('services.show', 'face-polisher'))
+        ->has('seoMeta.meta')
+        ->missing('seoMeta.links')
+        ->missing('seoMeta.intro'));
+
+    // And the description in the prop is the one the server wrote into the raw HTML.
+    $description = $response->viewData('page')['props']['seoMeta']['meta'][0]['content'];
+    expect($raw)->toContain('content="' . e($description) . '"');
+});
+
+it('leaves non-public pages (login, admin) without server-rendered SEO tags', function () {
+    $html = rawHtml($this->get('/login')->assertOk());
+
+    expect($html)->not->toContain('id="seo-fallback"')
+        ->not->toContain('property="og:title"');
+});
+
+it('adds an honest lastmod to the services and blog hubs in the sitemap', function () {
+    $category = ServiceCategory::factory()->create();
+    Service::factory()->create(['service_category_id' => $category->id, 'slug' => 'a-service']);
+    Post::factory()->create(['slug' => 'a-post']);
+
+    $xml = simplexml_load_string($this->get('/sitemap.xml')->assertOk()->getContent());
+    $lastmods = [];
+
+    foreach ($xml->url as $node) {
+        $lastmods[(string) $node->loc] = (string) ($node->lastmod ?? '');
+    }
+
+    expect($lastmods[route('services.index')])->not->toBe('')
+        ->and($lastmods[route('blog.index')])->not->toBe('')
+        ->and($lastmods[route('about')])->toBe('');
+});
+
+it('blocks sign-in and token screens in robots.txt', function () {
+    $body = $this->get('/robots.txt')->assertOk()->getContent();
+
+    expect($body)->toContain('Disallow: /login')
+        ->toContain('Disallow: /reset-password')
+        ->toContain('Disallow: /admin')
+        ->toContain('Sitemap: ' . route('sitemap'));
+});

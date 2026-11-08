@@ -29,6 +29,7 @@ use DOMDocument;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -40,6 +41,24 @@ class PublicWebsiteController extends Controller
     use ProtectsPublicForms;
 
     public function __construct(private readonly SeoService $seo) {}
+
+    /**
+     * Attaches a page's server-rendered head (built by `SeoService`) to its Inertia response, twice:
+     * - as Blade view data, so `resources/views/app.blade.php` writes the title / description /
+     *   canonical / Open Graph tags and a crawlable `<h1>` straight into the raw HTML — no JavaScript
+     *   (and no Node/SSR server, which shared hosting cannot run) needed for crawlers or link-preview
+     *   bots (WhatsApp, Facebook) to see them;
+     * - as the `seoMeta` prop (only the parts the browser needs), so `SeoHead.tsx` re-emits the
+     *   identical tags under the same keys and Inertia's head manager swaps them 1:1 — no duplicates.
+     *
+     * @param array<string, mixed> $seo
+     */
+    private function withSeo(Response $response, array $seo): Response
+    {
+        return $response
+            ->with('seoMeta', Arr::only($seo, ['title', 'canonical', 'meta']))
+            ->withViewData(['seoMeta' => $seo]);
+    }
 
     /**
      * The homepage's "Our Specialized Services" section is filterable by category, so it needs
@@ -59,7 +78,7 @@ class PublicWebsiteController extends Controller
             ->map(fn ($group) => $group->take(8))
             ->flatten();
 
-        return Inertia::render('Public/Home', [
+        return $this->withSeo(Inertia::render('Public/Home', [
             'featuredServices' => $services->map(fn (Service $service) => $this->serviceData($service)),
             'categories' => ServiceCategory::active()->ordered()->get(['id', 'name']),
             // Admin-curated bridal slider images, falling back to `public/images/` when nothing has
@@ -70,7 +89,7 @@ class PublicWebsiteController extends Controller
             'offers' => $this->offers(),
             'testimonials' => $this->testimonials(),
             'jsonLdSchema' => $this->seo->localBusiness(),
-        ]);
+        ]), $this->seo->home($services));
     }
 
     /**
@@ -145,11 +164,11 @@ class PublicWebsiteController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Public/Services', [
+        return $this->withSeo(Inertia::render('Public/Services', [
             'services' => $services->map(fn (Service $service) => $this->serviceData($service)),
             'categories' => ServiceCategory::active()->ordered()->get(['id', 'name']),
             'filters' => ['search' => $search ?: null, 'category' => $category ?: null],
-        ]);
+        ]), $this->seo->servicesIndex($services, $search ?: null, $category ?: null));
     }
 
     public function detail(string $slug): Response
@@ -160,7 +179,7 @@ class PublicWebsiteController extends Controller
             ->with(['category:id,name,stock_image_url', 'prices', 'reviews' => fn ($query) => $query->approved()])
             ->firstOrFail();
 
-        $related = Service::query()
+        $relatedModels = Service::query()
             ->active()
             // Eager-loaded because serviceData() reads the category's stock image for the card
             // fallback — without this the 3 related cards would each fire their own query.
@@ -169,18 +188,20 @@ class PublicWebsiteController extends Controller
             ->whereKeyNot($service->id)
             ->orderBy('sort')
             ->limit(3)
-            ->get()
-            ->map(fn (Service $item) => $this->serviceData($item));
+            ->get();
 
-        return Inertia::render('Public/ServiceDetail', [
-            'service' => $this->serviceData($service, true),
+        $related = $relatedModels->map(fn (Service $item) => $this->serviceData($item));
+        $serviceData = $this->serviceData($service, true);
+
+        return $this->withSeo(Inertia::render('Public/ServiceDetail', [
+            'service' => $serviceData,
             // Treatment procedure, benefits/suitability and aftercare, resolved by treatment family
             // rather than per service — see ServiceGuide for why that is deliberate.
             'guide' => ServiceGuide::for($service),
             'relatedServices' => $related,
             'testimonials' => $service->reviews->map(fn (Review $review) => $this->reviewData($review)),
             'jsonLdSchema' => $this->seo->service($service),
-        ]);
+        ]), $this->seo->serviceDetail($service, $relatedModels, $serviceData['price'], $serviceData['image_url']));
     }
 
     /**
@@ -194,7 +215,7 @@ class PublicWebsiteController extends Controller
      */
     public function booking(): Response
     {
-        return Inertia::render('Public/Book', [
+        return $this->withSeo(Inertia::render('Public/Book', [
             'services' => Service::active()->with(['category:id,name,stock_image_url', 'prices'])->orderBy('sort')->orderBy('name')->get()->map(fn (Service $service) => $this->serviceData($service)),
             'categories' => ServiceCategory::active()->ordered()->get(['id', 'name']),
             // Active deals that actually have bookable services attached: picking one on the "Deals"
@@ -208,7 +229,7 @@ class PublicWebsiteController extends Controller
                 ->map(fn (Deal $deal) => [...$this->dealShowcaseData($deal), 'code' => $deal->code])
                 ->values(),
             'authUser' => auth()->user()?->only(['name', 'email']),
-        ]);
+        ]), $this->seo->booking());
     }
 
     /**
@@ -255,9 +276,9 @@ class PublicWebsiteController extends Controller
             ]);
         }
 
-        return Inertia::render('Public/Gallery', [
+        return $this->withSeo(Inertia::render('Public/Gallery', [
             'sections' => $sections->values()->all(),
-        ]);
+        ]), $this->seo->gallery());
     }
 
     /** @return array<string, mixed> */
@@ -312,7 +333,7 @@ class PublicWebsiteController extends Controller
      */
     public function about(): Response
     {
-        return Inertia::render('Public/About', [
+        return $this->withSeo(Inertia::render('Public/About', [
             'quickStats' => [
                 ['value' => '10+', 'label' => 'Years of Excellence'],
                 ['value' => '50+', 'label' => 'Certified Professionals'],
@@ -328,7 +349,7 @@ class PublicWebsiteController extends Controller
                 'whatsapp_url' => $this->whatsappContact()['chat_url'],
                 'hours' => BusinessHour::orderBy('weekday')->get(['weekday', 'open_time', 'close_time', 'is_closed']),
             ],
-        ]);
+        ]), $this->seo->about());
     }
 
     /**
@@ -397,7 +418,7 @@ class PublicWebsiteController extends Controller
         $latitude = Setting::get('business.latitude');
         $longitude = Setting::get('business.longitude');
 
-        return Inertia::render('Public/Contact', [
+        return $this->withSeo(Inertia::render('Public/Contact', [
             'business' => [
                 'name' => Setting::get('business.name'),
                 'phone' => Setting::get('business.phone'),
@@ -424,12 +445,12 @@ class PublicWebsiteController extends Controller
                 ->get()
                 ->map(fn (Post $post) => $this->postListData($post))
                 ->all(),
-        ]);
+        ]), $this->seo->contact());
     }
 
     public function privacyPolicy(): Response
     {
-        return Inertia::render('Public/PrivacyPolicy', [
+        return $this->withSeo(Inertia::render('Public/PrivacyPolicy', [
             'business' => [
                 'name' => Setting::get('business.name') ?: config('app.name'),
                 'phone' => Setting::get('business.phone'),
@@ -437,7 +458,7 @@ class PublicWebsiteController extends Controller
                 'address' => Setting::get('business.address'),
             ],
             'effectiveDate' => 'January 2026',
-        ]);
+        ]), $this->seo->privacy());
     }
 
     public function submitContact(SubmitLeadRequest $request): RedirectResponse
@@ -570,7 +591,7 @@ class PublicWebsiteController extends Controller
         $posts = $query->paginate($perPage);
         $listedPosts = $posts->map(fn (Post $post) => $this->postListData($post))->all();
 
-        return Inertia::render('Public/Blog', [
+        return $this->withSeo(Inertia::render('Public/Blog', [
             // The grid excludes the featured post so it is never shown twice on the same page.
             'featuredPost' => $showFeatured ? ($listedPosts[0] ?? null) : null,
             'posts' => $showFeatured ? array_slice($listedPosts, 1) : $listedPosts,
@@ -601,7 +622,7 @@ class PublicWebsiteController extends Controller
                 ]),
             'quickServiceLinks' => $this->quickServiceLinks(),
             'whatsapp' => $this->whatsappContact(),
-        ]);
+        ]), $this->seo->blogIndex($posts->getCollection(), $search ?: null, $category ?: null, $posts->currentPage()));
     }
 
     /**
@@ -670,7 +691,7 @@ class PublicWebsiteController extends Controller
         // Generate JSON-LD schema
         $jsonLd = $this->seo->blogPosting($post, $wordCount, $readingTimeMinutes);
 
-        return Inertia::render('Public/BlogDetail', [
+        return $this->withSeo(Inertia::render('Public/BlogDetail', [
             'post' => [
                 'id' => $post->id,
                 'title' => $post->title,
@@ -701,7 +722,7 @@ class PublicWebsiteController extends Controller
             'location' => [
                 'address' => Setting::get('business.address'),
             ],
-        ]);
+        ]), $this->seo->blogPost($post, $relatedPosts, $this->postCoverUrl($post)));
     }
 
     /** @return array<array<string, mixed>> */
@@ -955,13 +976,13 @@ class PublicWebsiteController extends Controller
             $sections->prepend(['tag' => 'Top Deals', 'deals' => $topDeals]);
         }
 
-        return Inertia::render('Public/Deals', [
+        return $this->withSeo(Inertia::render('Public/Deals', [
             'sections' => $sections,
             // Only tabs with at least one deal behind them — a tab that filters to nothing is worse
             // than not offering the filter at all.
             'availableTags' => $sections->pluck('tag')->all(),
             'whatsapp' => $this->whatsappContact(),
-        ]);
+        ]), $this->seo->deals($deals->pluck('title')->filter()->values()->all()));
     }
 
     /**

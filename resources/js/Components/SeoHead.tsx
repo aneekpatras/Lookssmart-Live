@@ -1,7 +1,21 @@
 import { Head, usePage } from '@inertiajs/react';
 
+/**
+ * The head the SERVER already wrote into the raw HTML for this page (`SeoService::page()` →
+ * `app.blade.php`). The controller passes the same data down as the `seoMeta` prop so this component
+ * can re-emit the identical tags under the identical keys: Inertia's head manager then finds each
+ * server-written `data-inertia="<key>"` tag, sees it is unchanged and leaves it alone, instead of
+ * appending a second copy (or, worse, removing a server tag the client didn't re-render).
+ */
+interface ServerSeoMeta {
+  title: string;
+  canonical: string;
+  meta: { attr: 'name' | 'property'; key: string; content: string }[];
+}
+
 interface SharedSeoProps {
   [key: string]: unknown;
+  seoMeta?: ServerSeoMeta;
   seo?: {
     siteName?: string;
     defaultImage?: string | null;
@@ -58,24 +72,48 @@ export function SeoHead({ title, description, image, type = 'website', jsonLd }:
   const gtmId = props.seo?.gtmId;
   const ga4Id = props.seo?.ga4Id;
   const gscVerification = props.seo?.gscVerification;
+  const serverMeta = props.seoMeta;
 
+  // NOTE: no React fragments inside <Head> — Inertia's Head flattens arrays but treats a Fragment as
+  // one opaque element and would serialise it as a literal "<Symbol(react.fragment)>" tag. Every
+  // child below is therefore a real element or a plain array of them.
+  //
+  // `head-key` is Inertia's own (hyphenated, non-DOM) prop for naming a head tag; it is stripped before
+  // the tag is serialised and becomes `data-inertia="<key>"`. eslint-plugin-react doesn't know it.
+  /* eslint-disable react/no-unknown-property */
   return (
-    <Head title={title}>
-      {description && <meta name="description" content={description} />}
-      {url && <link rel="canonical" href={url} />}
+    <Head title={serverMeta?.title ?? title}>
+      {serverMeta ? (
+        <link rel="canonical" href={serverMeta.canonical} head-key="canonical" />
+      ) : (
+        url && <link rel="canonical" href={url} />
+      )}
+      {serverMeta
+        ? serverMeta.meta.map((tag) =>
+            tag.attr === 'property' ? (
+              <meta key={tag.key} property={tag.key} content={tag.content} head-key={tag.key} />
+            ) : (
+              <meta key={tag.key} name={tag.key} content={tag.content} head-key={tag.key} />
+            ),
+          )
+        : null}
+      {/* Pages that don't (yet) receive `seoMeta` keep the previous client-only behaviour. */}
+      {!serverMeta && description && <meta name="description" content={description} />}
       {gscVerification && <meta name="google-site-verification" content={gscVerification} />}
 
-      <meta property="og:site_name" content={siteName} />
-      <meta property="og:type" content={type} />
-      <meta property="og:title" content={brandedTitle} />
-      {description && <meta property="og:description" content={description} />}
-      {url && <meta property="og:url" content={url} />}
-      {resolvedImage && <meta property="og:image" content={resolvedImage} />}
+      {!serverMeta && <meta property="og:site_name" content={siteName} />}
+      {!serverMeta && <meta property="og:type" content={type} />}
+      {!serverMeta && <meta property="og:title" content={brandedTitle} />}
+      {!serverMeta && description && <meta property="og:description" content={description} />}
+      {!serverMeta && url && <meta property="og:url" content={url} />}
+      {!serverMeta && resolvedImage && <meta property="og:image" content={resolvedImage} />}
 
-      <meta name="twitter:card" content={resolvedImage ? 'summary_large_image' : 'summary'} />
-      <meta name="twitter:title" content={brandedTitle} />
-      {description && <meta name="twitter:description" content={description} />}
-      {resolvedImage && <meta name="twitter:image" content={resolvedImage} />}
+      {!serverMeta && (
+        <meta name="twitter:card" content={resolvedImage ? 'summary_large_image' : 'summary'} />
+      )}
+      {!serverMeta && <meta name="twitter:title" content={brandedTitle} />}
+      {!serverMeta && description && <meta name="twitter:description" content={description} />}
+      {!serverMeta && resolvedImage && <meta name="twitter:image" content={resolvedImage} />}
 
       {schemas.map((schema, index) => (
         <script key={index} type="application/ld+json">
@@ -90,13 +128,14 @@ export function SeoHead({ title, description, image, type = 'website', jsonLd }:
       )}
 
       {ga4Id && (
-        <>
-          <script async nonce={nonce} src={`https://www.googletagmanager.com/gtag/js?id=${ga4Id}`} />
-          <script nonce={nonce}>
-            {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${ga4Id}');`}
-          </script>
-        </>
+        <script async nonce={nonce} src={`https://www.googletagmanager.com/gtag/js?id=${ga4Id}`} />
+      )}
+      {ga4Id && (
+        <script nonce={nonce}>
+          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${ga4Id}');`}
+        </script>
       )}
     </Head>
   );
+  /* eslint-enable react/no-unknown-property */
 }

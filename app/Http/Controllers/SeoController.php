@@ -8,6 +8,7 @@ use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -26,12 +27,29 @@ class SeoController extends Controller
 {
     public function sitemap(Request $request): ResponseContract
     {
+        // SEO Phase 1: the two hub pages get an honest <lastmod> derived from the newest row behind
+        // them (a service/post added or edited in the admin panel bumps it automatically). Static
+        // pages deliberately get none — there is no real modification date to report for them.
+        $latestService = Service::active()->max('updated_at');
+        $latestPost = Post::published()->max('updated_at');
+
+        $servicesUrl = Url::create(route('services.index'))->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)->setPriority(0.9);
+        $blogUrl = Url::create(route('blog.index'))->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)->setPriority(0.7);
+
+        if ($latestService) {
+            $servicesUrl->setLastModificationDate(Carbon::parse($latestService));
+        }
+
+        if ($latestPost) {
+            $blogUrl->setLastModificationDate(Carbon::parse($latestPost));
+        }
+
         $sitemap = Sitemap::create()
             ->add(Url::create(route('home'))->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)->setPriority(1.0))
-            ->add(Url::create(route('services.index'))->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)->setPriority(0.9))
+            ->add($servicesUrl)
             ->add(Url::create(route('book'))->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)->setPriority(0.7))
             ->add(Url::create(route('deals.index'))->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)->setPriority(0.7))
-            ->add(Url::create(route('blog.index'))->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)->setPriority(0.7))
+            ->add($blogUrl)
             ->add(Url::create(route('gallery.index'))->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)->setPriority(0.6))
             ->add(Url::create(route('about'))->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)->setPriority(0.5))
             ->add(Url::create(route('contact'))->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)->setPriority(0.5))
@@ -64,6 +82,18 @@ class SeoController extends Controller
             'Disallow: /my-account',
             'Disallow: /customer',
             'Disallow: /api',
+            // SEO Phase 1: sign-in / account / token-bearing screens have no search value and should
+            // never be crawled (the stateful ones are also not linked from any public page).
+            'Disallow: /login',
+            'Disallow: /register',
+            'Disallow: /forgot-password',
+            'Disallow: /reset-password',
+            'Disallow: /two-factor-challenge',
+            'Disallow: /email/verify',
+            'Disallow: /user/',
+            'Disallow: /my-bookings',
+            'Disallow: /notifications/',
+            'Disallow: /csp-report',
             '',
             'Sitemap: ' . route('sitemap'),
         ];

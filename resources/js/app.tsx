@@ -28,6 +28,13 @@ createInertiaApp({
       import.meta.glob<ResolvedComponent>('./Pages/**/*.tsx', { import: 'default' }),
     ),
   setup({ el, App, props }) {
+    // The server writes a plain, crawlable copy of the page's <h1>/intro/links into the raw HTML
+    // (`#seo-fallback`, see resources/views/app.blade.php) for crawlers and no-JS visitors. Once the
+    // real app is about to mount it has done its job — remove it so it never shows alongside the app.
+    if (typeof document !== 'undefined') {
+      document.getElementById('seo-fallback')?.remove();
+    }
+
     const app = (
       <ErrorBoundary>
         <App {...props} />
