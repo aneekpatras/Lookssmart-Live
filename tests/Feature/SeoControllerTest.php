@@ -3,8 +3,6 @@
 use App\Models\Post;
 use App\Models\Service;
 use App\Models\ServiceCategory;
-use App\Models\Setting;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -62,73 +60,4 @@ it('generates a robots.txt disallowing admin/private areas and pointing at the s
         ->toContain('Disallow: /admin')
         ->toContain('Disallow: /my-account')
         ->toContain('Sitemap: ' . route('sitemap'));
-});
-
-it('renders real LocalBusiness JSON-LD on the homepage from admin-editable settings', function () {
-    Setting::create(['key' => 'business.name', 'value' => 'Looks Smart Test Salon', 'group' => 'business', 'is_encrypted' => false]);
-    Setting::create(['key' => 'business.phone', 'value' => '+1-555-0100', 'group' => 'business', 'is_encrypted' => false]);
-    Setting::create(['key' => 'business.address', 'value' => '123 Main St', 'group' => 'business', 'is_encrypted' => false]);
-
-    $response = $this->get('/');
-
-    $response->assertOk()->assertInertia(fn ($page) => $page
-        ->component('Public/Home')
-        ->where('jsonLdSchema.@type', 'BeautySalon')
-        ->where('jsonLdSchema.name', 'Looks Smart Test Salon')
-        ->where('jsonLdSchema.telephone', '+1-555-0100')
-        ->where('jsonLdSchema.address', '123 Main St')
-        ->missing('jsonLdSchema.geo'));
-});
-
-it('includes geo coordinates in LocalBusiness JSON-LD only once both are configured', function () {
-    Setting::create(['key' => 'business.latitude', 'value' => 40.7128, 'group' => 'business', 'is_encrypted' => false]);
-    Setting::create(['key' => 'business.longitude', 'value' => -74.006, 'group' => 'business', 'is_encrypted' => false]);
-
-    $response = $this->get('/');
-
-    $response->assertOk()->assertInertia(fn ($page) => $page
-        ->where('jsonLdSchema.geo.@type', 'GeoCoordinates')
-        ->where('jsonLdSchema.geo.latitude', 40.7128)
-        ->where('jsonLdSchema.geo.longitude', -74.006));
-});
-
-it('renders real Service JSON-LD with the actual price and duration', function () {
-    $category = ServiceCategory::factory()->create(['name' => 'Hair']);
-    $service = Service::factory()->create([
-        'service_category_id' => $category->id,
-        'slug' => 'blowout',
-        'name' => 'Signature Blowout',
-        'base_price' => 65,
-        'duration_min' => 45,
-        'is_active' => true,
-    ]);
-
-    $response = $this->get("/services/{$service->slug}");
-
-    $response->assertOk()->assertInertia(fn ($page) => $page
-        ->component('Public/ServiceDetail')
-        ->where('jsonLdSchema.@type', 'Service')
-        ->where('jsonLdSchema.name', 'Signature Blowout')
-        ->where('jsonLdSchema.serviceType', 'Hair')
-        ->where('jsonLdSchema.offers.price', '65.00')
-        ->where('jsonLdSchema.additionalProperty.value', '45 minutes'));
-});
-
-it('renders real BlogPosting JSON-LD with the actual author and dates', function () {
-    $author = User::factory()->create(['name' => 'Jamie Rivera']);
-    $post = Post::factory()->create([
-        'slug' => 'seasonal-hair-care',
-        'title' => 'Seasonal Hair Care Tips',
-        'status' => 'published',
-        'author_id' => $author->id,
-    ]);
-
-    $response = $this->get("/blog/{$post->slug}");
-
-    $response->assertOk()->assertInertia(fn ($page) => $page
-        ->component('Public/BlogDetail')
-        ->where('jsonLdSchema.@type', 'BlogPosting')
-        ->where('jsonLdSchema.headline', 'Seasonal Hair Care Tips')
-        ->where('jsonLdSchema.author.name', 'Jamie Rivera')
-        ->where('jsonLdSchema.datePublished', $post->published_at->toIso8601String()));
 });

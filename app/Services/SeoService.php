@@ -32,6 +32,27 @@ class SeoService
 
     private const LOCALE = 'en_PK';
 
+    /*
+     * Business facts the owner confirmed for the structured data. They are fallbacks only: phone,
+     * coordinates and socials are read from admin Settings first, so editing Settings still wins.
+     * The postal address has no Settings equivalent (Settings holds one free-text line), so these
+     * parts are the single source for schema; keep `business.address` in Settings worded the same
+     * so footer, contact page and schema all match the Google Business Profile.
+     */
+    private const STREET_ADDRESS = 'B Block, Main Boulevard, near UBL Bank, Central Park Housing Scheme';
+
+    private const LOCALITY = 'Lahore';
+
+    private const REGION = 'Punjab';
+
+    private const COUNTRY = 'PK';
+
+    private const DEFAULT_PHONE = '+92 305 9833859';
+
+    private const DEFAULT_LATITUDE = 31.317056;
+
+    private const DEFAULT_LONGITUDE = 74.389306;
+
     /** Branded 1200x630 default link-preview image (path relative to `public/`). */
     private const DEFAULT_SHARE_IMAGE = 'images/og-default.jpg';
 
@@ -52,7 +73,7 @@ class SeoService
      */
 
     /**
-     * @param array{image?: ?string, type?: string, robots?: ?string, intro?: ?string, links?: list<array{label: string, url: string}>} $options
+     * @param array{image?: ?string, imageAlt?: ?string, jsonLd?: list<array<string, mixed>>, type?: string, robots?: ?string, intro?: ?string, links?: list<array{label: string, url: string}>} $options
      * @return array{title: string, fullTitle: string, description: string, canonical: string, h1: string, intro: ?string, robots: ?string, meta: list<array{attr: string, key: string, content: string}>, links: list<array{label: string, url: string}>, nav: list<array{label: string, url: string}>}
      */
     public function page(string $title, ?string $description, string $canonical, string $h1, array $options = []): array
@@ -118,6 +139,7 @@ class SeoService
             'robots' => $robots,
             'meta' => $meta,
             'links' => $options['links'] ?? [],
+            'jsonLd' => $options['jsonLd'] ?? [],
             'nav' => $this->navLinks(),
         ];
     }
@@ -133,6 +155,7 @@ class SeoService
             [
                 'intro' => 'A modern sanctuary for premium skin, hair, and bridal artistry in Lahore.',
                 'links' => $this->serviceLinks($services->take(12)),
+                'jsonLd' => [$this->localBusiness()],
             ],
         );
     }
@@ -177,6 +200,10 @@ class SeoService
             [
                 'image' => $image,
                 'imageAlt' => $service->name,
+                'jsonLd' => [
+                    $this->service($service, $price, $image),
+                    $this->breadcrumbs([['Home', route('home')], ['Services', route('services.index')], [$service->name, route('services.show', $service->slug)]]),
+                ],
                 'intro' => trim($this->endSentence($description) . ' ' . implode(' · ', $facts)),
                 'links' => [
                     ['label' => 'Book an Appointment', 'url' => route('book')],
@@ -249,7 +276,7 @@ class SeoService
      * @param Collection<int, array<string, mixed>> $related already-mapped related posts (title/slug)
      * @return array<string, mixed>
      */
-    public function blogPost(Post $post, Collection $related, ?string $cover): array
+    public function blogPost(Post $post, Collection $related, ?string $cover, int $wordCount, int $readingTimeMinutes): array
     {
         return $this->page(
             $post->seo_title ?: $post->title,
@@ -260,6 +287,10 @@ class SeoService
                 'type' => 'article',
                 'image' => $cover,
                 'imageAlt' => $post->title,
+                'jsonLd' => [
+                    $this->blogPosting($post, $wordCount, $readingTimeMinutes, $cover),
+                    $this->breadcrumbs([['Home', route('home')], ['Blog', route('blog.index')], [$post->title, route('blog.show', $post->slug)]]),
+                ],
                 'intro' => $this->postDescription($post),
                 'links' => [
                     ['label' => 'All articles', 'url' => route('blog.index')],
@@ -501,86 +532,141 @@ class SeoService
         return (Setting::get('business.currency') ?: 'PKR') . ' ' . number_format((float) $price, 0);
     }
 
+    /** The one BeautySalon node, identified by a stable @id so other schemas can point at it. */
+    private function salonId(): string
+    {
+        return route('home') . '#salon';
+    }
+
     /** @return array<string, mixed> */
     public function localBusiness(): array
     {
         $latitude = Setting::get('business.latitude');
         $longitude = Setting::get('business.longitude');
-        $hasGeo = $latitude !== null && $latitude !== '' && $longitude !== null && $longitude !== '';
-
-        $sameAs = array_values(array_filter([
-            Setting::get('business.social_facebook'),
-            Setting::get('business.social_instagram'),
-        ]));
+        $hasGeo = is_numeric($latitude) && is_numeric($longitude);
 
         return array_filter([
             '@context' => 'https://schema.org',
             '@type' => 'BeautySalon',
+            '@id' => $this->salonId(),
             'name' => $this->businessName(),
-            'image' => $this->defaultImageUrl(),
-            'url' => config('app.url'),
-            'telephone' => Setting::get('business.phone'),
-            'email' => Setting::get('business.email'),
-            'address' => Setting::get('business.address'),
-            'geo' => $hasGeo ? [
+            'url' => route('home'),
+            'logo' => $this->defaultImageUrl(),
+            'image' => $this->defaultShareImage(),
+            'telephone' => $this->phone(),
+            'email' => Setting::get('business.email') ?: null,
+            'address' => $this->postalAddress(),
+            'geo' => [
                 '@type' => 'GeoCoordinates',
-                'latitude' => (float) $latitude,
-                'longitude' => (float) $longitude,
-            ] : null,
+                'latitude' => $hasGeo ? (float) $latitude : self::DEFAULT_LATITUDE,
+                'longitude' => $hasGeo ? (float) $longitude : self::DEFAULT_LONGITUDE,
+            ],
             'openingHoursSpecification' => $this->openingHours() ?: null,
-            'sameAs' => $sameAs ?: null,
-        ]);
+            'areaServed' => ['@type' => 'Place', 'name' => self::AREA],
+            'sameAs' => $this->sameAs() ?: null,
+        ], fn ($value) => $value !== null && $value !== '');
     }
 
-    /** @return array<string, mixed> */
-    public function service(Service $service): array
+    /**
+     * Service schema. `offers` exists ONLY when the database has a real price for this service
+     * (`$price` is the already-resolved standard price list entry / base price) — never guessed.
+     *
+     * @return array<string, mixed>
+     */
+    public function service(Service $service, ?string $price = null, ?string $image = null): array
     {
+        $hasPrice = $price !== null && is_numeric($price) && (float) $price > 0;
+
         return array_filter([
             '@context' => 'https://schema.org',
             '@type' => 'Service',
-            'serviceType' => $service->category?->name,
             'name' => $service->name,
-            'description' => $service->seo_description ?: $service->description,
-            'provider' => $this->organizationRef(),
-            'offers' => array_filter([
+            'serviceType' => $service->category?->name,
+            'description' => $this->serviceDescription($service),
+            'url' => route('services.show', $service->slug),
+            'image' => $this->shareImage($image)['url'] ?? null,
+            'provider' => $this->salonRef(),
+            'areaServed' => ['@type' => 'Place', 'name' => self::AREA],
+            'offers' => $hasPrice ? [
                 '@type' => 'Offer',
-                'price' => number_format((float) $service->base_price, 2, '.', ''),
+                'price' => number_format((float) $price, 2, '.', ''),
                 'priceCurrency' => Setting::get('business.currency') ?: 'PKR',
-                'availability' => 'https://schema.org/InStock',
                 'url' => route('services.show', $service->slug),
-            ]),
-            'additionalProperty' => [
+            ] : null,
+            'additionalProperty' => $service->duration_min ? [
                 '@type' => 'PropertyValue',
                 'name' => 'Duration',
                 'value' => "{$service->duration_min} minutes",
-            ],
-        ]);
+            ] : null,
+        ], fn ($value) => $value !== null && $value !== '');
     }
 
     /** @return array<string, mixed> */
-    public function blogPosting(Post $post, int $wordCount, int $readingTimeMinutes): array
+    public function blogPosting(Post $post, int $wordCount, int $readingTimeMinutes, ?string $cover = null): array
     {
         return array_filter([
             '@context' => 'https://schema.org',
             '@type' => 'BlogPosting',
-            'headline' => $post->seo_title ?: $post->title,
-            'description' => $post->seo_description ?: $post->excerpt,
-            'image' => $post->cover_image_path ? asset("storage/{$post->cover_image_path}") : $this->defaultImageUrl(),
-            'author' => [
-                '@type' => 'Person',
-                'name' => $post->author?->name ?? 'Admin',
-            ],
+            'headline' => Str::limit($post->seo_title ?: $post->title, 110, '', true),
+            'description' => $this->postDescription($post),
+            'image' => $this->shareImage($cover)['url'] ?? null,
+            'author' => $this->salonRef(),
+            'publisher' => $this->salonRef(true),
             'datePublished' => $post->published_at?->toIso8601String(),
-            'dateModified' => $post->updated_at->toIso8601String(),
-            'publisher' => $this->organizationRef(),
+            'dateModified' => $post->updated_at?->toIso8601String(),
             'mainEntityOfPage' => [
                 '@type' => 'WebPage',
                 '@id' => route('blog.show', $post->slug),
             ],
+            'url' => route('blog.show', $post->slug),
             'wordCount' => $wordCount,
             'timeRequired' => "PT{$readingTimeMinutes}M",
-            'articleSection' => $post->category?->name ?? 'Blog',
-        ], fn ($value) => $value !== null);
+            'articleSection' => $post->category?->name,
+        ], fn ($value) => $value !== null && $value !== '');
+    }
+
+    /**
+     * @param list<array{0: string, 1: string}> $trail [name, absolute url] from Home down to the page
+     * @return array<string, mixed>
+     */
+    public function breadcrumbs(array $trail): array
+    {
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => array_map(fn (array $crumb, int $index) => [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'name' => $crumb[0],
+                'item' => $crumb[1],
+            ], $trail, array_keys($trail)),
+        ];
+    }
+
+    private function phone(): string
+    {
+        return (string) (Setting::get('business.phone') ?: self::DEFAULT_PHONE);
+    }
+
+    /** @return array<string, string> */
+    private function postalAddress(): array
+    {
+        return [
+            '@type' => 'PostalAddress',
+            'streetAddress' => self::STREET_ADDRESS,
+            'addressLocality' => self::LOCALITY,
+            'addressRegion' => self::REGION,
+            'addressCountry' => self::COUNTRY,
+        ];
+    }
+
+    /** @return list<string> */
+    private function sameAs(): array
+    {
+        return array_values(array_filter(
+            [Setting::get('business.social_facebook'), Setting::get('business.social_instagram')],
+            fn ($url) => is_string($url) && preg_match('#^https?://#i', $url),
+        ));
     }
 
     public function businessName(): string
@@ -620,29 +706,46 @@ class SeoService
         return is_file(public_path(self::DEFAULT_SHARE_IMAGE)) ? url(self::DEFAULT_SHARE_IMAGE) : null;
     }
 
-    /** @return array<int, array<string, string>> */
+    /**
+     * Opening hours from the `business_hours` table. Days that share the same window are merged into
+     * one specification (`dayOfWeek` as a list), which is how Google expects "Mon-Sun 10:00-21:00".
+     *
+     * @return list<array<string, mixed>>
+     */
     private function openingHours(): array
     {
-        return BusinessHour::where('is_closed', false)
-            ->orderBy('weekday')
-            ->get()
-            ->map(fn (BusinessHour $hour) => [
-                '@type' => 'OpeningHoursSpecification',
-                'dayOfWeek' => 'https://schema.org/' . (self::DAY_NAMES[$hour->weekday] ?? 'Monday'),
-                'opens' => substr((string) $hour->open_time, 0, 5),
-                'closes' => substr((string) $hour->close_time, 0, 5),
-            ])
-            ->all();
+        $windows = [];
+
+        foreach (BusinessHour::where('is_closed', false)->orderBy('weekday')->get() as $hour) {
+            $opens = substr((string) $hour->open_time, 0, 5);
+            $closes = substr((string) $hour->close_time, 0, 5);
+            $windows["{$opens}-{$closes}"]['days'][] = 'https://schema.org/' . (self::DAY_NAMES[$hour->weekday] ?? 'Monday');
+            $windows["{$opens}-{$closes}"]['opens'] = $opens;
+            $windows["{$opens}-{$closes}"]['closes'] = $closes;
+        }
+
+        return array_values(array_map(fn (array $window) => [
+            '@type' => 'OpeningHoursSpecification',
+            'dayOfWeek' => count($window['days']) === 1 ? $window['days'][0] : $window['days'],
+            'opens' => $window['opens'],
+            'closes' => $window['closes'],
+        ], $windows));
     }
 
-    /** @return array<string, mixed> */
-    private function organizationRef(): array
+    /**
+     * A reference to the homepage's BeautySalon node. `@id` ties it to that node; name/url are repeated
+     * so the block is still meaningful on its own when a validator reads one page in isolation.
+     *
+     * @return array<string, mixed>
+     */
+    private function salonRef(bool $asPublisher = false): array
     {
         return array_filter([
-            '@type' => 'Organization',
+            '@type' => $asPublisher ? 'Organization' : 'BeautySalon',
+            '@id' => $this->salonId(),
             'name' => $this->businessName(),
-            'url' => config('app.url'),
-            'logo' => $this->defaultImageUrl(),
+            'url' => route('home'),
+            'logo' => $asPublisher ? $this->defaultImageUrl() : null,
         ]);
     }
 }

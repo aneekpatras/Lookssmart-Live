@@ -29,6 +29,13 @@
     @foreach ($seoMeta['meta'] as $seoTag)
     <meta {{ $seoTag['attr'] }}="{{ $seoTag['key'] }}" content="{{ $seoTag['content'] }}" data-inertia="{{ $seoTag['key'] }}">
     @endforeach
+    {{-- SEO Phase 3: structured data (JSON-LD) in the RAW HTML — one <script> per schema type, built by
+    SeoService from the database. JSON_HEX_* escapes < > & ' so database text can never close the
+    script tag. The old client-side injection (SeoHead.tsx) no longer receives any schema, so each
+    type appears exactly once per page. --}}
+    @foreach (($seoMeta['jsonLd'] ?? []) as $seoSchema)
+    <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">{!! json_encode($seoSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) !!}</script>
+    @endforeach
     @endisset
 
     <link rel="preconnect" href="https://fonts.googleapis.com">

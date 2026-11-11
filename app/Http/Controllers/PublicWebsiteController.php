@@ -88,7 +88,6 @@ class PublicWebsiteController extends Controller
             'whatsapp' => $this->whatsappSupport(),
             'offers' => $this->offers(),
             'testimonials' => $this->testimonials(),
-            'jsonLdSchema' => $this->seo->localBusiness(),
         ]), $this->seo->home($services));
     }
 
@@ -200,7 +199,6 @@ class PublicWebsiteController extends Controller
             'guide' => ServiceGuide::for($service),
             'relatedServices' => $related,
             'testimonials' => $service->reviews->map(fn (Review $review) => $this->reviewData($review)),
-            'jsonLdSchema' => $this->seo->service($service),
         ]), $this->seo->serviceDetail($service, $relatedModels, $serviceData['price'], $this->serviceShareImageUrl($service)));
     }
 
@@ -688,9 +686,6 @@ class PublicWebsiteController extends Controller
             ->load(['category:id,name', 'author:id,name'])
             ->map(fn (Post $p) => $this->postListData($p));
 
-        // Generate JSON-LD schema
-        $jsonLd = $this->seo->blogPosting($post, $wordCount, $readingTimeMinutes);
-
         return $this->withSeo(Inertia::render('Public/BlogDetail', [
             'post' => [
                 'id' => $post->id,
@@ -716,13 +711,12 @@ class PublicWebsiteController extends Controller
             'readingTimeMinutes' => $readingTimeMinutes,
             'wordCount' => $wordCount,
             'tableOfContents' => $toc,
-            'jsonLdSchema' => $jsonLd,
             'relatedPosts' => $relatedPosts->all(),
             'whatsapp' => $this->whatsappContact(),
             'location' => [
                 'address' => Setting::get('business.address'),
             ],
-        ]), $this->seo->blogPost($post, $relatedPosts, $this->postCoverUrl($post)));
+        ]), $this->seo->blogPost($post, $relatedPosts, $this->postCoverUrl($post), $wordCount, (int) $readingTimeMinutes));
     }
 
     /** @return array<array<string, mixed>> */
