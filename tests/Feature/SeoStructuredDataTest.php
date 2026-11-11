@@ -58,7 +58,7 @@ it('puts one BeautySalon block with address, geo, hours, area and socials in the
             'addressRegion' => 'Punjab',
             'addressCountry' => 'PK',
         ])
-        ->and($salon['address']['streetAddress'])->toContain('Central Park Housing Scheme')
+        ->and($salon['address']['streetAddress'])->toBe('46-B, Commercial Central Park Housing Scheme, Main Ferozpur Road')
         ->and($salon['geo'])->toMatchArray(['@type' => 'GeoCoordinates', 'latitude' => 31.317056, 'longitude' => 74.389306])
         ->and($salon['areaServed']['name'])->toBe('Central Park Housing Scheme, Lahore')
         // Seven identical days collapse into ONE specification, hours straight from the table.

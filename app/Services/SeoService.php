@@ -36,10 +36,10 @@ class SeoService
      * Business facts the owner confirmed for the structured data. They are fallbacks only: phone,
      * coordinates and socials are read from admin Settings first, so editing Settings still wins.
      * The postal address has no Settings equivalent (Settings holds one free-text line), so these
-     * parts are the single source for schema; keep `business.address` in Settings worded the same
+     * parts are the single source for schema; `business.address` in Settings (seeded) is the same address plus ", Lahore"; keep it that way
      * so footer, contact page and schema all match the Google Business Profile.
      */
-    private const STREET_ADDRESS = 'B Block, Main Boulevard, near UBL Bank, Central Park Housing Scheme';
+    private const STREET_ADDRESS = '46-B, Commercial Central Park Housing Scheme, Main Ferozpur Road';
 
     private const LOCALITY = 'Lahore';
 
