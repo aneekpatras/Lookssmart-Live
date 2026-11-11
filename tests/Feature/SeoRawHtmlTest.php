@@ -267,3 +267,80 @@ it('blocks sign-in and token screens in robots.txt', function () {
         ->toContain('Disallow: /admin')
         ->toContain('Sitemap: ' . route('sitemap'));
 });
+
+/*
+ * SEO Phase 2: link-preview (Open Graph / Twitter) image tags, in the raw HTML. The default branded image is
+ * `public/images/og-default.jpg`; if the real one is not on disk yet a 1200x630 stand-in is created for the
+ * test and removed again, so the suite never leaves files behind or depends on the artwork existing.
+ */
+function withDefaultShareImage(Closure $test): void
+{
+    $path = public_path('images/og-default.jpg');
+    $created = ! is_file($path);
+
+    if ($created) {
+        $image = imagecreatetruecolor(1200, 630);
+        imagejpeg($image, $path, 80);
+        imagedestroy($image);
+    }
+
+    try {
+        $test();
+    } finally {
+        if ($created) {
+            @unlink($path);
+        }
+    }
+}
+
+function metaContent(string $html, string $key): ?string
+{
+    return preg_match('/<meta (?:property|name)="' . preg_quote($key, '/') . '" content="([^"]*)"/', $html, $m) ? html_entity_decode($m[1]) : null;
+}
+
+it('writes an absolute og:image with width, height and alt (plus twitter equivalents) on every public page', function (string $path) {
+    withDefaultShareImage(function () use ($path) {
+        $html = rawHtml($this->get($path)->assertOk());
+
+        expect(metaContent($html, 'og:image'))->toMatch('#^https?://[^/]+/images/og-default\.jpg$#')
+            ->and(metaContent($html, 'og:image:width'))->toBe('1200')
+            ->and(metaContent($html, 'og:image:height'))->toBe('630')
+            ->and(metaContent($html, 'og:image:alt'))->not->toBeEmpty()
+            ->and(metaContent($html, 'og:locale'))->toBe('en_PK')
+            ->and(metaContent($html, 'twitter:card'))->toBe('summary_large_image')
+            ->and(metaContent($html, 'twitter:image'))->toBe(metaContent($html, 'og:image'))
+            ->and(metaContent($html, 'twitter:title'))->not->toBeEmpty()
+            ->and(metaContent($html, 'twitter:description'))->not->toBeEmpty();
+
+        foreach (['og:image', 'og:image:width', 'og:image:height', 'og:image:alt', 'twitter:image'] as $key) {
+            expect(preg_match_all('/(?:property|name)="' . preg_quote($key, '/') . '"/', $html))->toBe(1);
+        }
+    });
+})->with('staticPublicPages');
+
+it('uses the service own image for og:image and falls back to the branded default without one', function () {
+    withDefaultShareImage(function () {
+        $category = ServiceCategory::factory()->create(['stock_image_url' => 'https://example.com/category-stock.jpg']);
+        Service::factory()->create(['service_category_id' => $category->id, 'slug' => 'with-photo', 'name' => 'With Photo', 'stock_image_url' => 'https://example.com/own.jpg']);
+        Service::factory()->create(['service_category_id' => $category->id, 'slug' => 'no-photo', 'name' => 'No Photo', 'stock_image_url' => null]);
+
+        $own = rawHtml($this->get('/services/with-photo')->assertOk());
+        expect(metaContent($own, 'og:image'))->toBe('https://example.com/own.jpg')
+            ->and(metaContent($own, 'og:image:alt'))->toBe('With Photo')
+            // Size is never guessed for an external file.
+            ->and($own)->not->toContain('og:image:width');
+
+        $default = rawHtml($this->get('/services/no-photo')->assertOk());
+        expect(metaContent($default, 'og:image'))->toEndWith('/images/og-default.jpg')
+            ->and(metaContent($default, 'og:image:width'))->toBe('1200');
+    });
+});
+
+it('turns a relative blog cover path into an absolute og:image', function () {
+    Post::factory()->create(['slug' => 'with-cover', 'cover_image_path' => null, 'cover_image_url' => '/images/bride 1.jpg']);
+
+    $html = rawHtml($this->get('/blog/with-cover')->assertOk());
+
+    expect(metaContent($html, 'og:image'))->toMatch('#^https?://[^/]+/images/bride%201\.jpg$#')
+        ->and(metaContent($html, 'og:image:alt'))->not->toBeEmpty();
+});

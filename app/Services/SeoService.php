@@ -32,6 +32,9 @@ class SeoService
 
     private const LOCALE = 'en_PK';
 
+    /** Branded 1200x630 default link-preview image (path relative to `public/`). */
+    private const DEFAULT_SHARE_IMAGE = 'images/og-default.jpg';
+
     private const DESCRIPTION_MAX = 158;
 
     /** A description shorter than this (after stripping tags) is treated as "not really there". */
@@ -57,7 +60,8 @@ class SeoService
         $siteName = $this->businessName();
         $fullTitle = str_contains($title, $siteName) ? $title : "{$title} - {$siteName}";
         $description = $this->limit($this->plainText($description) ?: $this->defaultDescription());
-        $image = $this->absoluteUrl($options['image'] ?? null) ?? $this->defaultImageUrl();
+        $image = $this->shareImage($options['image'] ?? null);
+        $imageAlt = $options['imageAlt'] ?? ($siteName . ' - ' . self::AREA);
         $robots = $options['robots'] ?? null;
 
         $meta = [
@@ -79,7 +83,17 @@ class SeoService
         );
 
         if ($image) {
-            $meta[] = ['attr' => 'property', 'key' => 'og:image', 'content' => $image];
+            $meta[] = ['attr' => 'property', 'key' => 'og:image', 'content' => $image['url']];
+
+            // Width/height are only written when they are really known (a local file we can measure) —
+            // never guessed for an external URL. They let WhatsApp/Facebook render the large card on the
+            // very first share instead of waiting to download the image.
+            if ($image['width'] && $image['height']) {
+                $meta[] = ['attr' => 'property', 'key' => 'og:image:width', 'content' => (string) $image['width']];
+                $meta[] = ['attr' => 'property', 'key' => 'og:image:height', 'content' => (string) $image['height']];
+            }
+
+            $meta[] = ['attr' => 'property', 'key' => 'og:image:alt', 'content' => $imageAlt];
         }
 
         array_push(
@@ -90,7 +104,8 @@ class SeoService
         );
 
         if ($image) {
-            $meta[] = ['attr' => 'name', 'key' => 'twitter:image', 'content' => $image];
+            $meta[] = ['attr' => 'name', 'key' => 'twitter:image', 'content' => $image['url']];
+            $meta[] = ['attr' => 'name', 'key' => 'twitter:image:alt', 'content' => $imageAlt];
         }
 
         return [
@@ -161,6 +176,7 @@ class SeoService
             $service->name,
             [
                 'image' => $image,
+                'imageAlt' => $service->name,
                 'intro' => trim($this->endSentence($description) . ' ' . implode(' · ', $facts)),
                 'links' => [
                     ['label' => 'Book an Appointment', 'url' => route('book')],
@@ -243,6 +259,7 @@ class SeoService
             [
                 'type' => 'article',
                 'image' => $cover,
+                'imageAlt' => $post->title,
                 'intro' => $this->postDescription($post),
                 'links' => [
                     ['label' => 'All articles', 'url' => route('blog.index')],
@@ -407,7 +424,72 @@ class SeoService
             return null;
         }
 
-        return str_starts_with($url, 'http') ? $url : url($url);
+        return str_replace(' ', '%20', str_starts_with($url, 'http') ? $url : url($url));
+    }
+
+    /**
+     * The share image (og:image / twitter:image) for a page: the record's own image when it has one,
+     * otherwise the salon's default branded image. Always an absolute URL, with its pixel size when
+     * the file is local and can be measured.
+     *
+     * @return array{url: string, width: ?int, height: ?int}|null
+     */
+    private function shareImage(?string $candidate): ?array
+    {
+        $url = $this->absoluteUrl($candidate);
+
+        if ($url !== null) {
+            return ['url' => $url, ...$this->imageSize($url)];
+        }
+
+        $default = $this->defaultShareImage();
+
+        return $default ? ['url' => $default, ...$this->imageSize($default)] : null;
+    }
+
+    /** @return array{width: ?int, height: ?int} */
+    private function imageSize(string $url): array
+    {
+        static $cache = [];
+
+        if (array_key_exists($url, $cache)) {
+            return $cache[$url];
+        }
+
+        $size = ['width' => null, 'height' => null];
+        $path = $this->localPath($url);
+
+        if ($path !== null && ($info = @getimagesize($path)) !== false) {
+            $size = ['width' => (int) $info[0], 'height' => (int) $info[1]];
+        }
+
+        return $cache[$url] = $size;
+    }
+
+    /** Maps one of this site's own image URLs back to its file on disk (null for external URLs). */
+    private function localPath(string $url): ?string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if (! is_string($path) || ($host !== null && $host !== parse_url(url('/'), PHP_URL_HOST))) {
+            return null;
+        }
+
+        $path = rawurldecode($path);
+
+        foreach ([
+            '/storage/' => storage_path('app/public/'),
+            '/images/' => public_path('images/'),
+        ] as $prefix => $directory) {
+            if (str_starts_with($path, $prefix) && ! str_contains($path, '..')) {
+                $file = $directory . substr($path, strlen($prefix));
+
+                return is_file($file) ? $file : null;
+            }
+        }
+
+        return null;
     }
 
     private function formatPrice(?string $price): ?string
@@ -506,11 +588,36 @@ class SeoService
         return Setting::get('business.name') ?: config('app.name');
     }
 
+    /**
+     * The admin-uploaded logo (Settings > business.logo_path), as an absolute URL — used for JSON-LD
+     * `logo`/`image`, where a small or transparent logo is fine.
+     */
     public function defaultImageUrl(): ?string
     {
         $path = Setting::get('business.logo_path');
 
         return is_string($path) && $path !== '' ? asset("storage/{$path}") : null;
+    }
+
+    /**
+     * The salon's default link-preview image. The admin logo is tried first, but only when it is a big
+     * enough JPG/PNG/WebP to make a proper card (a tiny, SVG or transparent-icon upload makes a poor
+     * preview); otherwise the branded 1200x630 `public/images/og-default.jpg` is used. Null only when
+     * neither exists, in which case the page simply carries no og:image.
+     */
+    public function defaultShareImage(): ?string
+    {
+        $logo = $this->defaultImageUrl();
+
+        if ($logo !== null) {
+            $size = $this->imageSize($logo);
+
+            if (($size['width'] ?? 0) >= 600 && ($size['height'] ?? 0) >= 315) {
+                return $logo;
+            }
+        }
+
+        return is_file(public_path(self::DEFAULT_SHARE_IMAGE)) ? url(self::DEFAULT_SHARE_IMAGE) : null;
     }
 
     /** @return array<int, array<string, string>> */

@@ -201,7 +201,7 @@ class PublicWebsiteController extends Controller
             'relatedServices' => $related,
             'testimonials' => $service->reviews->map(fn (Review $review) => $this->reviewData($review)),
             'jsonLdSchema' => $this->seo->service($service),
-        ]), $this->seo->serviceDetail($service, $relatedModels, $serviceData['price'], $serviceData['image_url']));
+        ]), $this->seo->serviceDetail($service, $relatedModels, $serviceData['price'], $this->serviceShareImageUrl($service)));
     }
 
     /**
@@ -815,6 +815,23 @@ class PublicWebsiteController extends Controller
     }
 
     /** @return array<string, mixed> */
+    /**
+     * The service's OWN picture for link previews (og:image), or null so SeoService falls back to the
+     * branded default. Deliberately NOT the category's generic stock photo. Prefers the 960x540 'card'
+     * conversion (16:9, light, close to the 1.91:1 card shape) over the full-size original upload,
+     * which may be many megabytes and is too heavy for WhatsApp/Facebook to fetch reliably.
+     */
+    private function serviceShareImageUrl(Service $service): ?string
+    {
+        $media = $service->getFirstMedia('image');
+
+        if ($media) {
+            return $media->hasGeneratedConversion('card') ? $media->getUrl('card') : $media->getUrl();
+        }
+
+        return $service->stock_image_url ?: null;
+    }
+
     /**
      * Original upload for the detail banner; the sharper 'card' conversion for cards, falling back
      * to 'thumb' for images uploaded before 'card' existed (until media-library:regenerate is run).
