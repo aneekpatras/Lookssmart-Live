@@ -4,6 +4,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import ReactDOMServer from 'react-dom/server';
 
 import { ErrorBoundary } from '@/Components/ErrorBoundary';
+import { formatTitle } from '@/lib/title';
 
 const appName = 'Looks Smart Beauty Salon';
 
@@ -11,7 +12,7 @@ createServer((page) =>
   createInertiaApp({
     page,
     render: ReactDOMServer.renderToString,
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    title: (title) => formatTitle(title, appName),
     resolve: (name): Promise<ResolvedComponent> =>
       resolvePageComponent<ResolvedComponent>(
         `./Pages/${name}.tsx`,

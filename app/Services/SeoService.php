@@ -49,6 +49,12 @@ class SeoService
 
     private const DEFAULT_PHONE = '+92 305 9833859';
 
+    /** Plain-language directions shown in the homepage "Find us" block (owner-supplied). */
+    private const DIRECTIONS = 'B Block, Main Boulevard, near UBL Bank, Central Park Housing Scheme, near Gate No. 1 (the main gate)';
+
+    /** A <title> longer than this loses its tail in Google's results, so the brand suffix only fits under it. */
+    private const TITLE_MAX = 60;
+
     private const DEFAULT_LATITUDE = 31.317056;
 
     private const DEFAULT_LONGITUDE = 74.389306;
@@ -79,7 +85,7 @@ class SeoService
     public function page(string $title, ?string $description, string $canonical, string $h1, array $options = []): array
     {
         $siteName = $this->businessName();
-        $fullTitle = str_contains($title, $siteName) ? $title : "{$title} - {$siteName}";
+        $fullTitle = $this->brandTitle($title, $siteName);
         $description = $this->limit($this->plainText($description) ?: $this->defaultDescription());
         $image = $this->shareImage($options['image'] ?? null);
         $imageAlt = $options['imageAlt'] ?? ($siteName . ' - ' . self::AREA);
@@ -148,12 +154,13 @@ class SeoService
     public function home(Collection $services): array
     {
         return $this->page(
-            'Thoughtful beauty, beautifully done',
-            'Hair, skin, and nail care in a calm, considered salon space.',
+            // Admin-written defaults (Settings > SEO) win; the generated text is only the fallback.
+            Setting::get('seo.default_title') ?: $this->businessName() . ' | Central Park, Lahore',
+            Setting::get('seo.default_description') ?: 'Looks Smart Beauty Salon, 46-B Commercial Central Park Housing Scheme, Main Ferozpur Road, Lahore. Beauty parlour: dulhan makeup, hair, skin, spa. Book online.',
             route('home'),
-            'Looks Smart Beauty Salon',
+            'Beauty Salon in Central Park Housing Scheme, Lahore',
             [
-                'intro' => 'A modern sanctuary for premium skin, hair, and bridal artistry in Lahore.',
+                'intro' => 'A modern sanctuary for premium skin, hair, and bridal artistry in Lahore. Find us at ' . $this->fullAddress() . ' — ' . self::DIRECTIONS . '. Beauty parlour services including dulhan makeup and bridal parlour packages.',
                 'links' => $this->serviceLinks($services->take(12)),
                 'jsonLd' => [$this->localBusiness()],
             ],
@@ -164,8 +171,8 @@ class SeoService
     public function servicesIndex(Collection $services, ?string $search, ?int $category): array
     {
         return $this->page(
-            'Services',
-            'Explore hair, skin, and nail services at Looks Smart Beauty Salon.',
+            'Beauty & Bridal Services in Central Park, Lahore',
+            'Bridal parlour and beauty services in Lahore: bridal makeup, hair treatments, facials, waxing and spa at Looks Smart Beauty Salon, Central Park Housing Scheme.',
             route('services.index'),
             'Services for your next chapter.',
             [
@@ -193,10 +200,11 @@ class SeoService
         ]);
 
         return $this->page(
-            $service->seo_title ?: $service->name,
+            // An admin-written SEO title always wins; "{name} in Lahore" is only the fallback.
+            $service->seo_title ?: $this->serviceHeading($service),
             $description,
             route('services.show', $service->slug),
-            $service->name,
+            $this->serviceHeading($service),
             [
                 'image' => $image,
                 'imageAlt' => $service->name,
@@ -214,12 +222,43 @@ class SeoService
         );
     }
 
+    /** "{Service name} in Lahore" — the page's H1 and fallback title (not repeated when the name already says Lahore). */
+    public function serviceHeading(Service $service): string
+    {
+        return stripos($service->name, 'lahore') !== false ? $service->name : "{$service->name} in Lahore";
+    }
+
+    /** The salon's full postal address on one line (matches Settings `business.address`). */
+    public function fullAddress(): string
+    {
+        return self::STREET_ADDRESS . ', ' . self::LOCALITY;
+    }
+
+    /**
+     * Content for the homepage "Find us" block: the owner's plain-language directions and a Google Maps
+     * directions link built from the real coordinates (Settings, else the owner-confirmed pin).
+     *
+     * @return array{directions: string, mapsUrl: string, address: string}
+     */
+    public function findUs(): array
+    {
+        $latitude = Setting::get('business.latitude');
+        $longitude = Setting::get('business.longitude');
+        $hasGeo = is_numeric($latitude) && is_numeric($longitude);
+
+        return [
+            'address' => (string) (Setting::get('business.address') ?: $this->fullAddress()),
+            'directions' => self::DIRECTIONS,
+            'mapsUrl' => 'https://www.google.com/maps/dir/?api=1&destination=' . ($hasGeo ? (float) $latitude : self::DEFAULT_LATITUDE) . ',' . ($hasGeo ? (float) $longitude : self::DEFAULT_LONGITUDE),
+        ];
+    }
+
     /** @return array<string, mixed> */
     public function booking(): array
     {
         return $this->page(
-            'Book an Appointment',
-            'Choose your service, time, and details at Looks Smart Beauty Salon.',
+            'Book a Salon Appointment in Lahore',
+            'Book your appointment online at Looks Smart Beauty Salon, Central Park Housing Scheme, Main Ferozpur Road, Lahore. Choose your services and a time.',
             route('book'),
             'Book an appointment',
             ['intro' => 'Pick your services and a time that suits you — online booking for Looks Smart Beauty Salon, ' . self::AREA . '.'],
@@ -230,8 +269,8 @@ class SeoService
     public function deals(array $dealTitles): array
     {
         return $this->page(
-            'Deals & Offers',
-            'Limited-time special offers and curated beauty packages tailored for you.',
+            'Salon Deals & Bridal Packages in Lahore',
+            'Current salon deals and bridal packages at Looks Smart Beauty Salon, Central Park Housing Scheme, Lahore. See what is on offer and book online.',
             route('deals.index'),
             'Exclusive Deals & Packages',
             [
@@ -245,8 +284,8 @@ class SeoService
     public function gallery(): array
     {
         return $this->page(
-            'Gallery',
-            'Real results from our hair, skin, bridal, and beauty work at Looks Smart.',
+            'Bridal & Salon Gallery, Central Park Lahore',
+            'See real bridal makeup, hair, skin and beauty results from Looks Smart Beauty Salon, Central Park Housing Scheme, Main Ferozpur Road, Lahore.',
             route('gallery.index'),
             'Our Salon Gallery',
             ['intro' => 'Real results from our hair, skin, bridal, and beauty work.'],
@@ -257,8 +296,8 @@ class SeoService
     public function blogIndex(Collection $posts, ?string $search, ?int $category, int $page): array
     {
         return $this->page(
-            'Beauty, Skin & Confidence',
-            "Expert advice from Lahore's leading beauty salon and skin clinic.",
+            'Beauty & Bridal Tips from a Lahore Salon',
+            'Beauty, bridal makeup, hair and skin care advice from the team at Looks Smart Beauty Salon, Central Park Housing Scheme, Main Ferozpur Road, Lahore.',
             $page > 1 && ! $search && ! $category ? route('blog.index', ['page' => $page]) : route('blog.index'),
             'Beauty, Skin & Confidence',
             [
@@ -308,8 +347,8 @@ class SeoService
     public function about(): array
     {
         return $this->page(
-            'About Us',
-            'Crafting premium beauty, hair, and skin experiences in Lahore — meet the team and philosophy behind Looks Smart Beauty Salon.',
+            'About Our Beauty Salon in Central Park, Lahore',
+            'Meet Looks Smart Beauty Salon, a beauty parlour on Main Ferozpur Road in Central Park Housing Scheme, Lahore. Our story, our team and how to find us.',
             route('about'),
             'About Looks Smart Beauty Salon',
             ['intro' => 'Premium beauty, hair, and skin care in ' . self::AREA . '.'],
@@ -320,8 +359,8 @@ class SeoService
     public function contact(): array
     {
         return $this->page(
-            'Contact Us',
-            'Talk to Looks Smart Beauty Salon — book an appointment, ask about a treatment, or plan a bridal visit.',
+            'Contact & Directions, Central Park Lahore',
+            'Visit Looks Smart Beauty Salon at ' . $this->fullAddress() . ', near Gate No. 1. Call ' . $this->phone() . ' to book.',
             route('contact'),
             'Talk to Looks Smart — anytime, any way you like',
             [
@@ -357,7 +396,7 @@ class SeoService
             }
         }
 
-        $tail = " at {$this->businessName()}, " . self::AREA . '. Book your appointment online.';
+        $tail = " at {$this->businessName()}, Central Park Housing Scheme, Main Ferozpur Road, Lahore. Book your appointment online.";
         $category = $service->category?->name;
         $withCategory = "{$service->name} ({$category}){$tail}";
 
@@ -409,6 +448,22 @@ class SeoService
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * "{title} | Looks Smart Beauty Salon" when that fits in 60 characters; otherwise the title on its
+     * own (a long keyword title is worth more than a brand tail Google would cut off anyway). A title
+     * that already names the salon is left alone.
+     */
+    private function brandTitle(string $title, string $siteName): string
+    {
+        if (str_contains($title, $siteName)) {
+            return $title;
+        }
+
+        $branded = "{$title} | {$siteName}";
+
+        return mb_strlen($branded) <= self::TITLE_MAX ? $branded : $title;
     }
 
     private function defaultDescription(): string

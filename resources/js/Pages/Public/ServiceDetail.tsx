@@ -19,6 +19,8 @@ interface Service {
   rating: number | null;
   review_count: number;
   image_url: string | null;
+  /** Server-built H1 ("{name} in Lahore"); absent on related-service cards. */
+  heading?: string;
 }
 
 interface Review {
@@ -96,7 +98,15 @@ export default function ServiceDetail({
             <p className="text-accent-300 text-sm font-semibold uppercase tracking-[0.18em]">
               {service.category}
             </p>
-            <h1 className="text-ivory mt-2 text-4xl font-medium sm:text-5xl">{service.name}</h1>
+            <h1
+              className={`text-ivory mt-2 font-medium text-balance break-words ${
+                (service.heading ?? service.name).length > 42
+                  ? 'text-3xl sm:text-4xl lg:text-5xl'
+                  : 'text-4xl sm:text-5xl'
+              }`}
+            >
+              {service.heading ?? service.name}
+            </h1>
           </div>
         </div>
       </section>

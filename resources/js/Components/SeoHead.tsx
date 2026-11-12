@@ -1,5 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 
+import { EXACT_TITLE_PREFIX } from '@/lib/title';
+
 /**
  * The head the SERVER already wrote into the raw HTML for this page (`SeoService::page()` →
  * `app.blade.php`). The controller passes the same data down as the `seoMeta` prop so this component
@@ -9,6 +11,7 @@ import { Head, usePage } from '@inertiajs/react';
  */
 interface ServerSeoMeta {
   title: string;
+  fullTitle?: string;
   canonical: string;
   meta: { attr: 'name' | 'property'; key: string; content: string }[];
 }
@@ -82,7 +85,7 @@ export function SeoHead({ title, description, image, type = 'website', jsonLd }:
   // the tag is serialised and becomes `data-inertia="<key>"`. eslint-plugin-react doesn't know it.
   /* eslint-disable react/no-unknown-property */
   return (
-    <Head title={serverMeta?.title ?? title}>
+    <Head title={serverMeta ? `${EXACT_TITLE_PREFIX}${serverMeta.fullTitle ?? serverMeta.title}` : title}>
       {serverMeta ? (
         <link rel="canonical" href={serverMeta.canonical} head-key="canonical" />
       ) : (

@@ -56,7 +56,7 @@ class PublicWebsiteController extends Controller
     private function withSeo(Response $response, array $seo): Response
     {
         return $response
-            ->with('seoMeta', Arr::only($seo, ['title', 'canonical', 'meta']))
+            ->with('seoMeta', Arr::only($seo, ['title', 'fullTitle', 'canonical', 'meta']))
             ->withViewData(['seoMeta' => $seo]);
     }
 
@@ -79,6 +79,7 @@ class PublicWebsiteController extends Controller
             ->flatten();
 
         return $this->withSeo(Inertia::render('Public/Home', [
+            'findUs' => $this->seo->findUs(),
             'featuredServices' => $services->map(fn (Service $service) => $this->serviceData($service)),
             'categories' => ServiceCategory::active()->ordered()->get(['id', 'name']),
             // Admin-curated bridal slider images, falling back to `public/images/` when nothing has
@@ -191,6 +192,8 @@ class PublicWebsiteController extends Controller
 
         $related = $relatedModels->map(fn (Service $item) => $this->serviceData($item));
         $serviceData = $this->serviceData($service, true);
+        // Visible page heading, kept identical to the server-rendered H1 ("{name} in Lahore").
+        $serviceData['heading'] = $this->seo->serviceHeading($service);
 
         return $this->withSeo(Inertia::render('Public/ServiceDetail', [
             'service' => $serviceData,

@@ -61,6 +61,7 @@ interface WhatsAppSupport {
 }
 
 interface HomeProps {
+  findUs: { address: string; directions: string; mapsUrl: string };
   featuredServices: ServiceCard[];
   categories: { id: number; name: string }[];
   featured_gallery_images: MarqueeImage[];
@@ -298,6 +299,7 @@ export default function Home({
   offers,
   testimonials,
   jsonLdSchema,
+  findUs,
 }: HomeProps) {
   const { site } = usePage<SharedProps>().props;
   const [activeCategory, setActiveCategory] = React.useState<string>('all');
@@ -685,7 +687,18 @@ export default function Home({
           <div>
             <MapPin className="text-accent-700 size-5" aria-hidden="true" />
             <h2 className="mt-3 text-xl">Find your way here</h2>
-            <p className="text-ink-muted mt-2 text-sm">{site.address ?? 'Lahore, Pakistan'}</p>
+            <p className="text-ink-muted mt-2 text-sm">{site.address ?? findUs.address}</p>
+            {/* Plain-language directions + a real Google Maps link (SeoService::findUs — the owner's
+                wording and verified map pin), in the page HTML so people and crawlers both see it. */}
+            <p className="text-ink-muted mt-2 text-sm">{findUs.directions}.</p>
+            <a
+              href={findUs.mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent-700 hover:text-accent-600 mt-3 inline-flex items-center gap-1.5 text-sm font-medium"
+            >
+              Get directions on Google Maps <ExternalLink className="size-4" aria-hidden="true" />
+            </a>
           </div>
           <div>
             <Clock3 className="text-accent-700 size-5" aria-hidden="true" />

@@ -4,6 +4,7 @@ use App\Models\Deal;
 use App\Models\Post;
 use App\Models\Service;
 use App\Models\ServiceCategory;
+use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -64,7 +65,7 @@ it('writes a crawlable fallback with real links and removes nothing the app need
 
     expect($html)
         ->toContain('<main id="seo-fallback">')
-        ->toContain('<h1>Looks Smart Beauty Salon</h1>')
+        ->toContain('<h1>Beauty Salon in Central Park Housing Scheme, Lahore</h1>')
         ->toContain('href="' . route('services.index') . '"')
         ->toContain('href="' . route('book') . '"')
         // The Inertia page payload + mount point must still be there.
@@ -87,11 +88,11 @@ it('uses the service SEO fields and DB price on a service detail page, and canon
     $html = rawHtml($this->get('/services/balayage-long?utm_source=x')->assertOk());
 
     expect($html)
-        ->toContain('<title>Balayage Hair Colour - ')
+        ->toContain('<title>Balayage Hair Colour | ')
         ->toContain('content="Hand-painted balayage highlights for a sun-kissed, low-maintenance look at our Lahore salon."')
         // Canonical ignores tracking query strings.
         ->toContain('<link rel="canonical" href="' . route('services.show', $service->slug) . '" data-inertia="canonical">')
-        ->toContain('<h1>Balayage - Long</h1>')
+        ->toContain('<h1>Balayage - Long in Lahore</h1>')
         // Price comes from the database row, formatted — never typed into code.
         ->toContain('Price: PKR 20,000')
         ->toContain('Duration: 150 minutes');
@@ -109,7 +110,7 @@ it('builds a natural fallback description for services whose description is empt
 
     $html = rawHtml($this->get('/services/hydra-facial')->assertOk());
 
-    expect($html)->toMatch('/<meta name="description" content="Hydra Facial \(Skin &amp; Facial Care\) at [^"]*Central Park Housing Scheme, Lahore\./');
+    expect($html)->toMatch('/<meta name="description" content="Hydra Facial \(Skin &amp; Facial Care\) at [^"]*Central Park Housing Scheme, Main Ferozpur Road, Lahore\./');
 
     // The fallback exists only at render time — the stored row is untouched.
     expect(Service::where('slug', 'hydra-facial')->value('description'))->toBe($description);
@@ -168,7 +169,8 @@ it('uses the post SEO fields, article type and a fallback description on a blog 
 
     $withSeo = rawHtml($this->get('/blog/' . $seo->slug)->assertOk());
     expect($withSeo)
-        ->toContain('<title>Bridal Makeup in Lahore: A Complete Guide - ')
+        // Brand suffix is dropped when it would push the title past 60 characters.
+        ->toContain('<title>Bridal Makeup in Lahore: A Complete Guide</title>')
         ->toContain('content="Everything a bride needs to know before booking her bridal makeup artist in Lahore."')
         ->toContain('property="og:type" content="article"')
         ->toContain('<h1>Bridal Makeup in Lahore</h1>')
@@ -224,7 +226,7 @@ it('hands the browser the exact same head data under the seoMeta prop (so tags a
 
     $response->assertInertia(fn ($page) => $page
         ->component('Public/ServiceDetail')
-        ->where('seoMeta.title', 'Face Polisher')
+        ->where('seoMeta.title', 'Face Polisher in Lahore')
         ->where('seoMeta.canonical', route('services.show', 'face-polisher'))
         ->has('seoMeta.meta')
         ->missing('seoMeta.links')
@@ -343,4 +345,124 @@ it('turns a relative blog cover path into an absolute og:image', function () {
 
     expect(metaContent($html, 'og:image'))->toMatch('#^https?://[^/]+/images/bride%201\.jpg$#')
         ->and(metaContent($html, 'og:image:alt'))->not->toBeEmpty();
+});
+
+/*
+ * SEO Phase 4: keyword-aware titles, descriptions and H1s, built at render time (database rows are never
+ * touched), with admin-written SEO fields always winning.
+ */
+
+function pageTitle(string $html): string
+{
+    preg_match('/<title>([^<]*)<\/title>/', $html, $m);
+
+    return html_entity_decode($m[1] ?? '');
+}
+
+it('gives every public page a unique title and meta description of a sensible length', function () {
+    $titles = [];
+    $descriptions = [];
+
+    foreach (['/', '/services', '/deals', '/gallery', '/blog', '/about', '/contact', '/book'] as $path) {
+        $html = rawHtml($this->get($path)->assertOk());
+        $title = pageTitle($html);
+        $description = metaContent($html, 'description');
+
+        expect(mb_strlen($title))->toBeGreaterThanOrEqual(25)->toBeLessThanOrEqual(60, "{$path} title is too long: {$title}")
+            ->and(mb_strlen($description))->toBeGreaterThanOrEqual(120)->toBeLessThanOrEqual(160, "{$path} description length")
+            ->and(metaContent($html, 'og:title'))->toBe($title);
+
+        $titles[] = $title;
+        $descriptions[] = $description;
+    }
+
+    expect(array_unique($titles))->toHaveCount(count($titles))
+        ->and(array_unique($descriptions))->toHaveCount(count($descriptions));
+});
+
+it('puts the hyper-local keywords on the right pages without stuffing', function () {
+    $home = rawHtml($this->get('/')->assertOk());
+
+    expect(pageTitle($home))->toBe('Looks Smart Beauty Salon | Central Park, Lahore')
+        ->and($home)->toContain('<h1>Beauty Salon in Central Park Housing Scheme, Lahore</h1>')
+        ->and(metaContent($home, 'description'))->toContain('46-B Commercial Central Park Housing Scheme, Main Ferozpur Road, Lahore')
+        // Roman Urdu terms live only in descriptions, never in a title.
+        ->and(pageTitle($home))->not->toMatch('/parlour|dulhan/i');
+
+    foreach (['/', '/about', '/services'] as $path) {
+        expect(metaContent(rawHtml($this->get($path)->assertOk()), 'description'))->toMatch('/parlour|dulhan/i');
+    }
+
+    foreach (['/contact', '/gallery', '/deals', '/book', '/blog'] as $path) {
+        expect(metaContent(rawHtml($this->get($path)->assertOk()), 'description'))->not->toMatch('/parlour|dulhan/i');
+    }
+});
+
+it('does not name any nearby area or city that the owner has not confirmed', function () {
+    foreach (['/', '/services', '/about', '/contact'] as $path) {
+        expect(rawHtml($this->get($path)->assertOk()))->not->toMatch('/Kahna|Kasur|Okara|Sheikhupura/i');
+    }
+});
+
+it('writes "{name} in Lahore" as the fallback title and H1 of a service, within 60 characters when it fits the brand', function () {
+    $category = ServiceCategory::factory()->create();
+    Service::factory()->create(['service_category_id' => $category->id, 'slug' => 'hair-botox', 'name' => 'Hair Botox Treatment', 'seo_title' => null]);
+    Service::factory()->create(['service_category_id' => $category->id, 'slug' => 'barat-makeup', 'name' => 'Barat / Walima Bridal Makeup', 'seo_title' => null]);
+    Service::factory()->create(['service_category_id' => $category->id, 'slug' => 'lahore-facial', 'name' => 'Lahore Glow Facial', 'seo_title' => null]);
+
+    $short = rawHtml($this->get('/services/hair-botox')->assertOk());
+    expect(pageTitle($short))->toBe('Hair Botox Treatment in Lahore | Looks Smart Beauty Salon')
+        ->and($short)->toContain('<h1>Hair Botox Treatment in Lahore</h1>');
+
+    // Too long to carry the brand: the keyword title stays whole instead.
+    expect(pageTitle(rawHtml($this->get('/services/barat-makeup')->assertOk())))->toBe('Barat / Walima Bridal Makeup in Lahore');
+
+    // "Lahore" is not repeated when the name already says it.
+    expect(rawHtml($this->get('/services/lahore-facial')->assertOk()))->toContain('<h1>Lahore Glow Facial</h1>');
+});
+
+it('lets an admin-written service SEO title and description win over the generated ones', function () {
+    $category = ServiceCategory::factory()->create();
+    Service::factory()->create([
+        'service_category_id' => $category->id,
+        'slug' => 'admin-written',
+        'name' => 'Some Service',
+        'seo_title' => 'Custom Admin Title',
+        'seo_description' => 'This description was written by the admin in the panel and must be used exactly as written.',
+    ]);
+
+    $html = rawHtml($this->get('/services/admin-written')->assertOk());
+
+    expect(pageTitle($html))->toBe('Custom Admin Title | Looks Smart Beauty Salon')
+        ->and(metaContent($html, 'description'))->toBe('This description was written by the admin in the panel and must be used exactly as written.');
+});
+
+it('lets the admin default title and description (Settings > SEO) win on the homepage', function () {
+    Setting::create(['key' => 'seo.default_title', 'value' => 'Admin Home Title', 'group' => 'seo', 'is_encrypted' => false]);
+    Setting::create(['key' => 'seo.default_description', 'value' => 'An admin-written homepage description that is long enough to be a real meta description.', 'group' => 'seo', 'is_encrypted' => false]);
+
+    $html = rawHtml($this->get('/')->assertOk());
+
+    expect(pageTitle($html))->toBe('Admin Home Title | Looks Smart Beauty Salon')
+        ->and(metaContent($html, 'description'))->toStartWith('An admin-written homepage description');
+});
+
+it('hands the browser the exact final title so the client never re-titles the page', function () {
+    $category = ServiceCategory::factory()->create();
+    Service::factory()->create(['service_category_id' => $category->id, 'slug' => 'face-polisher', 'name' => 'Face Polisher', 'seo_title' => null]);
+
+    $response = $this->get('/services/face-polisher')->assertOk();
+    $response->assertInertia(fn ($page) => $page->where('seoMeta.fullTitle', 'Face Polisher in Lahore | Looks Smart Beauty Salon'));
+    expect(pageTitle(rawHtml($response)))->toBe('Face Polisher in Lahore | Looks Smart Beauty Salon');
+});
+
+it('gives the homepage a Find us block with directions and a Maps link in the page payload and raw fallback', function () {
+    $response = $this->get('/')->assertOk();
+    $raw = rawHtml($response);
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('findUs.directions', fn ($value) => str_contains($value, 'near UBL Bank') && str_contains($value, 'Gate No. 1') && str_contains($value, 'B Block, Main Boulevard'))
+        ->where('findUs.mapsUrl', 'https://www.google.com/maps/dir/?api=1&destination=31.317056,74.389306'));
+
+    expect($raw)->toContain('near UBL Bank')->toContain('Gate No. 1')->toContain('46-B, Commercial Central Park Housing Scheme, Main Ferozpur Road, Lahore');
 });
