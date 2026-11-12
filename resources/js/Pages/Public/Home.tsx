@@ -614,12 +614,8 @@ export default function Home({
               aria-hidden="true"
             />
             <p className="text-ivory/70 mx-auto mt-6 max-w-xl leading-7">
-              Twelve years of careful hair, skin and bridal artistry in Central Park, Lahore, where
-              every service gets the time and attention it deserves.
-            </p>
-            <p className="text-ivory/70 mx-auto mt-4 max-w-xl leading-7">
-              From Central Park and Ferozpur Road to every corner of Lahore, brides and women who
-              care about the details trust Looks Smart for the days that matter most.
+              Our signature bridal look has been a Lahore bride’s choice for 12 years, and many of
+              those brides now bring their friends and family back for hair.
             </p>
           </div>
 
