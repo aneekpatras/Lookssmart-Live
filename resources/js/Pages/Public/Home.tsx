@@ -7,6 +7,7 @@ import {
   Heart,
   MapPin,
   MessageCircle,
+  Phone,
   Plus,
   ShieldCheck,
   Sparkles,
@@ -60,12 +61,46 @@ interface WhatsAppSupport {
   qr_data_uri: string;
 }
 
+interface OpeningHour {
+  weekday: number; // 0 = Sunday … 6 = Saturday
+  open_time: string | null;
+  close_time: string | null;
+  is_closed: boolean;
+}
+
+/** True when `now` (read in Asia/Karachi, whatever the visitor's own time zone) falls inside that day's hours. */
+function isOpenNow(rows: OpeningHour[], now: Date): boolean | null {
+  if (rows.length === 0) return null;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday'));
+  const minutes = Number(get('hour')) * 60 + Number(get('minute'));
+  const toMinutes = (time: string) => {
+    const [h, m] = time.split(':');
+    return Number(h) * 60 + Number(m);
+  };
+
+  const today = rows.find((row) => row.weekday === weekday);
+  if (!today || today.is_closed || !today.open_time || !today.close_time) return false;
+  const open = toMinutes(today.open_time);
+  const close = toMinutes(today.close_time);
+
+  return close > open ? minutes >= open && minutes < close : minutes >= open || minutes < close;
+}
+
 interface HomeProps {
   findUs: { address: string; directions: string; mapsUrl: string };
   featuredServices: ServiceCard[];
   categories: { id: number; name: string }[];
   featured_gallery_images: MarqueeImage[];
   legacyStats: LegacyStat[];
+  openingHours: OpeningHour[];
   whatsapp: WhatsAppSupport;
   testimonials: ReviewShowcase[];
   offers: Offer[];
@@ -91,6 +126,7 @@ interface SharedProps {
   [key: string]: unknown;
   site: {
     address: string | null;
+    phone: string | null;
     hours: { days: string; hours: string }[];
   };
 }
@@ -345,8 +381,19 @@ export default function Home({
   testimonials,
   jsonLdSchema,
   findUs,
+  openingHours,
 }: HomeProps) {
   const { site } = usePage<SharedProps>().props;
+  // Computed after mount (and refreshed each minute) so it reflects the real clock, not the server's.
+  const [openNow, setOpenNow] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    const update = () => setOpenNow(isOpenNow(openingHours, new Date()));
+    update();
+    const timer = window.setInterval(update, 60_000);
+    return () => window.clearInterval(timer);
+  }, [openingHours]);
+  const phoneDisplay = site.phone ?? whatsapp.display_phone;
+  const phoneDigits = phoneDisplay.replace(/[^\d+]/g, '');
   const [activeCategory, setActiveCategory] = React.useState<string>('all');
   const [writeReviewOpen, setWriteReviewOpen] = React.useState(false);
   const [detailsOffer, setDetailsOffer] = React.useState<Offer | null>(null);
@@ -567,8 +614,12 @@ export default function Home({
               aria-hidden="true"
             />
             <p className="text-ivory/70 mx-auto mt-6 max-w-xl leading-7">
-              Twelve years of precision styling and signature bridal artistry, setting the standard
-              for considered beauty care in Lahore.
+              Twelve years of careful hair, skin and bridal artistry in Central Park, Lahore, where
+              every service gets the time and attention it deserves.
+            </p>
+            <p className="text-ivory/70 mx-auto mt-4 max-w-xl leading-7">
+              From Central Park and Ferozpur Road to every corner of Lahore, brides and women who
+              care about the details trust Looks Smart for the days that matter most.
             </p>
           </div>
 
@@ -722,52 +773,114 @@ export default function Home({
           </div>
         </div>
       </section>
-      {/* Address and hours read from the shared `site` prop (admin-editable Settings + the real
-          business_hours rows). These were previously hardcoded as "123 Beauty Lane" and
-          "Monday–Saturday 9:00 am–7:00 pm" — placeholder text that survived the content sync
-          because that task only reworked the footer, and which contradicted both the real address
-          and the salon's actual seven-day 10:00–21:00 hours. */}
-      <section className="border-border-soft bg-surface border-y px-6 py-16 lg:px-10">
-        <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-3">
-          <div>
-            <MapPin className="text-accent-700 size-5" aria-hidden="true" />
-            <h2 className="mt-3 text-xl">Find your way here</h2>
-            <p className="text-ink-muted mt-2 text-sm">{site.address ?? findUs.address}</p>
-            {/* Plain-language directions + a real Google Maps link (SeoService::findUs — the owner's
-                wording and verified map pin), in the page HTML so people and crawlers both see it. */}
-            <p className="text-ink-muted mt-2 text-sm">{findUs.directions}.</p>
-            <a
-              href={findUs.mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent-700 hover:text-accent-600 mt-3 inline-flex items-center gap-1.5 text-sm font-medium"
-            >
-              Get directions on Google Maps <ExternalLink className="size-4" aria-hidden="true" />
-            </a>
-          </div>
-          <div>
-            <Clock3 className="text-accent-700 size-5" aria-hidden="true" />
-            <h2 className="mt-3 text-xl">Make time for you</h2>
-            <div className="text-ink-muted mt-2 space-y-1 text-sm">
-              {site.hours.length > 0 ? (
-                site.hours.map((entry) => (
-                  <p key={entry.days}>
-                    {entry.days}
-                    <br />
-                    {entry.hours}
-                  </p>
-                ))
-              ) : (
-                <p>Please contact us for our current opening hours.</p>
-              )}
+      {/* 7. Visit us — address, hours, phone and an embedded map. Address/hours/phone come from the shared
+          `site` prop (admin Settings + business_hours rows); the directions wording and Maps link from
+          SeoService::findUs, so the same text Google reads is what visitors see. */}
+      <section className="border-border-soft bg-surface border-y px-6 py-16 lg:px-10 lg:py-24">
+        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-12 lg:gap-14">
+          <div className="order-2 lg:order-1 lg:col-span-5">
+            <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
+              Visit us
+            </p>
+            <h2 className="font-display mt-4 text-3xl font-medium text-balance sm:text-4xl">
+              Come visit us in Central Park, Lahore
+            </h2>
+            <p className="text-ink-muted mt-4 leading-7">
+              Find us on the Main Boulevard, beside UBL Bank and close to Gate No. 1. Book online or
+              message us on WhatsApp and we will confirm your slot.
+            </p>
+
+            <div className="divide-border-soft border-border-soft mt-8 divide-y border-y">
+              <div className="flex gap-4 py-5">
+                <MapPin className="text-accent-700 mt-1 size-5 shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
+                  <h3 className="font-display text-lg font-medium">Find your way here</h3>
+                  <a
+                    href={findUs.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-ink-muted hover:text-accent-700 focus-visible:ring-accent-500 mt-1 block rounded text-sm leading-6 focus-visible:ring-2 focus-visible:outline-none"
+                  >
+                    {site.address ?? findUs.address}
+                  </a>
+                  <p className="text-ink-muted mt-1 text-sm leading-6">{findUs.directions}.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 py-5">
+                <Clock3 className="text-accent-700 mt-1 size-5 shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h3 className="font-display text-lg font-medium">Make time for you</h3>
+                    {openNow !== null && (
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          openNow ? 'bg-accent-500/15 text-accent-700' : 'bg-ink/10 text-ink-muted'
+                        }`}
+                      >
+                        {openNow ? 'Open now' : 'Closed now'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-ink-muted mt-1 space-y-1 text-sm leading-6">
+                    {site.hours.length > 0 ? (
+                      site.hours.map((entry) => (
+                        <p key={entry.days}>
+                          {entry.days}: {entry.hours}
+                        </p>
+                      ))
+                    ) : (
+                      <p>Please contact us for our current opening hours.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 py-5">
+                <Phone className="text-accent-700 mt-1 size-5 shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
+                  <h3 className="font-display text-lg font-medium">Call us</h3>
+                  <a
+                    href={`tel:${phoneDigits}`}
+                    className="text-ink-muted hover:text-accent-700 focus-visible:ring-accent-500 mt-1 inline-block rounded text-sm focus-visible:ring-2 focus-visible:outline-none"
+                  >
+                    {phoneDisplay}
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button asChild variant="accent">
+                <a href={whatsapp.chat_url} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle aria-hidden="true" /> Message on WhatsApp
+                </a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href={findUs.mapsUrl} target="_blank" rel="noopener noreferrer">
+                  Get directions <ExternalLink aria-hidden="true" />
+                </a>
+              </Button>
             </div>
           </div>
-          <div>
-            <Sparkles className="text-accent-700 size-5" aria-hidden="true" />
-            <h2 className="mt-3 text-xl">A beautiful finish</h2>
-            <p className="text-ink-muted mt-2 text-sm">
-              Thoughtful service, skilled hands, and time that feels like yours.
-            </p>
+
+          <div className="relative order-1 lg:order-2 lg:col-span-7">
+            <div className="shadow-soft border-border-soft bg-accent-50 h-[340px] overflow-hidden rounded-2xl rounded-tr-[4rem] border sm:h-[420px] lg:h-full lg:min-h-[520px]">
+              <iframe
+                title="Map showing Looks Smart Beauty Salon in Central Park Housing Scheme, Lahore"
+                src="https://www.google.com/maps?q=31.317056,74.389306&output=embed"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="size-full border-0"
+              />
+            </div>
+            <div className="bg-ivory/95 shadow-soft border-border-soft absolute right-3 bottom-3 left-3 rounded-xl border p-4 sm:right-auto sm:bottom-5 sm:left-5 sm:max-w-xs">
+              <p className="font-display text-base font-semibold">Getting here</p>
+              <p className="text-ink-muted mt-1 text-sm leading-6">
+                Enter from Gate No. 1 (the main gate). We are in B Block, right on the Main
+                Boulevard, next to UBL Bank.
+              </p>
+            </div>
           </div>
         </div>
       </section>

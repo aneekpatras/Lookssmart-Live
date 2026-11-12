@@ -577,7 +577,9 @@ it('lists the 192 and 512 PNG icons in the web manifest', function () {
 
 it('adds the hero photo to the BeautySalon image list without a second block', function () {
     $html = rawHtml($this->get('/')->assertOk());
-    $salons = array_values(array_filter(ldBlocks($html), fn ($b) => ($b['@type'] ?? null) === 'BeautySalon'));
+    preg_match_all('#<script type="application/ld\+json"[^>]*>(.*?)</script>#s', $html, $matches);
+    $blocks = array_map(fn (string $json) => json_decode($json, true, 512, JSON_THROW_ON_ERROR), $matches[1]);
+    $salons = array_values(array_filter($blocks, fn ($b) => ($b['@type'] ?? null) === 'BeautySalon'));
 
     expect($salons)->toHaveCount(1)
         ->and((array) $salons[0]['image'])->toContain(url('images/hero-poster.jpg'));

@@ -34,7 +34,7 @@ const COPIES = 3;
  * pixel-identical before and after, so the jump is invisible in either direction. Only the first copy
  * is exposed to assistive tech.
  *
- * Auto-scroll pauses on hover, while touching/dragging, and for a moment after any manual scroll, and
+ * Auto-scroll pauses on a real mouse move over it, while touching/dragging, and for a moment after any manual scroll, and
  * does not run at all under `prefers-reduced-motion` (the strip can still be scrolled by hand).
  */
 export function BridalMarquee({ images }: BridalMarqueeProps) {
@@ -130,11 +130,21 @@ export function BridalMarquee({ images }: BridalMarqueeProps) {
     }
     viewport.addEventListener('scroll', onScroll, { passive: true });
 
+    // Scrolling the PAGE (wheel, keys, scrollbar) must never leave the strip paused just because the
+    // pointer happens to rest over it: any page scroll or wheel clears the hover pause.
+    function clearHover() {
+      hovering.current = false;
+    }
+    window.addEventListener('scroll', clearHover, { passive: true });
+    window.addEventListener('wheel', clearHover, { passive: true });
+
     return () => {
       cancelAnimationFrame(frame);
       window.clearTimeout(idleTimer);
       observer.disconnect();
       viewport.removeEventListener('scroll', onScroll);
+      window.removeEventListener('scroll', clearHover);
+      window.removeEventListener('wheel', clearHover);
     };
   }, [images.length]);
 
@@ -160,6 +170,12 @@ export function BridalMarquee({ images }: BridalMarqueeProps) {
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    // Hover-pause starts only on a REAL mouse movement inside the strip. `pointerenter` also fires when
+    // the page scrolls the strip under a stationary pointer, and browsers emit a synthetic move with
+    // zero movement then, so those are ignored.
+    if (event.pointerType === 'mouse' && (event.movementX !== 0 || event.movementY !== 0)) {
+      hovering.current = true;
+    }
     const start = dragStart.current;
     if (!start) return;
     event.currentTarget.scrollLeft = start.scrollLeft - (event.clientX - start.x);
@@ -181,17 +197,18 @@ export function BridalMarquee({ images }: BridalMarqueeProps) {
       className={`marquee-viewport relative ${grabbing ? 'cursor-grabbing' : 'cursor-grab'}`}
       // Pointer events (mouse only): a touch tap also fires emulated mouse events that never get a
       // matching "leave", which would leave the strip paused for good on a phone.
-      onPointerEnter={(event) => {
-        if (event.pointerType === 'mouse') hovering.current = true;
-      }}
       onPointerLeave={(event) => {
         if (event.pointerType === 'mouse') hovering.current = false;
       }}
       onTouchStart={holdNow}
       onTouchEnd={releaseSoon}
       onTouchCancel={releaseSoon}
-      onWheel={() => {
-        resumeAt.current = performance.now() + RESUME_AFTER_MS;
+      onWheel={(event) => {
+        hovering.current = false; // a wheel scroll resumes the strip straight away
+        // Only a sideways wheel/trackpad swipe is the visitor steering the strip itself.
+        if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+          resumeAt.current = performance.now() + RESUME_AFTER_MS;
+        }
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

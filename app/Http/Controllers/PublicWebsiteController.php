@@ -86,6 +86,8 @@ class PublicWebsiteController extends Controller
             // been ticked yet — see App\Support\FeaturedGalleryImages.
             'featured_gallery_images' => FeaturedGalleryImages::resolve(),
             'legacyStats' => $this->legacyStats(),
+            // Raw weekly hours so the "Open now" badge is computed from the table, never hardcoded.
+            'openingHours' => BusinessHour::orderBy('weekday')->get(['weekday', 'open_time', 'close_time', 'is_closed']),
             'whatsapp' => $this->whatsappSupport(),
             'offers' => $this->offers(),
             'testimonials' => $this->testimonials(),
