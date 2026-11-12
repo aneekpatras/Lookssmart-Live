@@ -57,15 +57,25 @@
     <link rel="preload" as="image" type="image/webp" href="/images/hero-poster.webp" media="(min-width: 768px)" fetchpriority="high">
     @endif
     @if (isset($seoMeta) && empty($__inertiaSsrResponse))
-    {{-- Boot screen + visually-hidden crawlable copy. Styles carry the CSP nonce (no 'unsafe-inline'). --}}
+    {{-- Boot layer + visually-hidden crawlable copy. Styles carry the CSP nonce (no 'unsafe-inline'), and
+    nothing below uses a style="" attribute (the CSP would block it) — everything is a class/id rule.
+    Home: the layer IS the hero poster (same box, crop, overlay and base colour as the React hero in
+    Home.tsx), so the first thing painted is the real photo and React takes over without a jump.
+    Every other public page: a plain page-coloured layer, no logo, no image. The site is light-only
+    (dark mode is admin-only and toggled after mount), so that colour is --color-ivory (#faf7f2). --}}
     <style nonce="{{ $cspNonce ?? '' }}">
-        #boot-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#2a2420;opacity:1;transition:opacity .45s ease;animation:boot-failsafe .01s linear 8s forwards}
-        #boot-screen img{width:88px;height:88px;animation:boot-pulse 2.4s ease-in-out infinite}
+        #boot-screen{position:fixed;inset:0;z-index:9999;background:#faf7f2;opacity:1;transition:opacity .45s ease;animation:boot-failsafe .01s linear 8s forwards}
         #boot-screen.is-done{opacity:0;pointer-events:none}
-        @keyframes boot-pulse{0%,100%{opacity:.55;transform:scale(.97)}50%{opacity:1;transform:scale(1)}}
-        /* If the app never mounts (JS blocked or failed), the screen still goes away by itself. */
+        @if (request()->routeIs('home'))
+        /* Same box as the React hero section: PublicLayout's <main> has pt-24 (96px, room for the floating header), and the
+           hero is min-h-[88svh]. The espresso base colour sits behind the image only; the strip above and below stays page-coloured. */
+        #boot-screen .boot-hero-box{position:absolute;top:96px;left:0;width:100%;height:88vh;height:88svh;overflow:hidden;background:#2a2420}
+        #boot-screen picture{display:block;position:absolute;inset:0}
+        #boot-screen img{display:block;position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 50%}
+        #boot-screen .boot-hero-overlay{position:absolute;inset:0;background:radial-gradient(circle at 75% 22%,rgba(201,166,107,.28),transparent 45%),linear-gradient(180deg,rgba(23,19,17,.72) 0%,rgba(23,19,17,.58) 45%,rgba(23,19,17,.86) 100%)}
+        @endif
+        /* If the app never mounts (JS blocked or failed), the layer still goes away by itself. */
         @keyframes boot-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
-        @media (prefers-reduced-motion:reduce){#boot-screen img{animation:none}}
         /* The standard sr-only pattern (NOT display:none): invisible to sight, still read by crawlers and screen readers. */
         #seo-fallback{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0}
     </style>
@@ -91,7 +101,23 @@
         <noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ $gtmId }}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     @endif
     @if (isset($seoMeta) && empty($__inertiaSsrResponse))
-    <div id="boot-screen" aria-hidden="true"><img src="/favicon.svg" alt="" width="88" height="88"></div>
+    @if (request()->routeIs('home'))
+    {{-- Same sources/breakpoint (768px) as <HeroBackground> in Home.tsx and as the <link rel="preload"> above. The
+    alt text matches the React hero's; the layer is aria-hidden so it is never announced twice. No lazy loading. --}}
+    <div id="boot-screen" class="boot-hero" aria-hidden="true">
+        <div class="boot-hero-box">
+            <picture>
+                <source media="(max-width: 767px)" srcset="/images/hero-poster-mobile.webp" type="image/webp">
+                <source media="(max-width: 767px)" srcset="/images/hero-poster-mobile.jpg" type="image/jpeg">
+                <source srcset="/images/hero-poster.webp" type="image/webp">
+                <img src="/images/hero-poster.jpg" alt="Inside Looks Smart Beauty Salon, Central Park Housing Scheme, Lahore" width="1600" height="900" fetchpriority="high" decoding="async">
+            </picture>
+            <div class="boot-hero-overlay"></div>
+        </div>
+    </div>
+    @else
+    <div id="boot-screen" aria-hidden="true"></div>
+    @endif
     @endif
     @inertia
     {{--

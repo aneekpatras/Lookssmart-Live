@@ -485,14 +485,60 @@ it('keeps the crawlable H1 in the raw HTML but visually hidden with sr-only, nev
         ->not->toContain('display:none')->not->toContain('visibility:hidden');
 });
 
-it('shows a branded boot screen with a CSS failsafe, styled with the CSP nonce', function () {
+it('paints the hero poster itself in the raw HTML of the homepage, with no logo boot screen', function () {
     $html = rawHtml($this->get('/')->assertOk());
 
-    expect($html)->toContain('id="boot-screen"')
-        ->toContain('src="/favicon.svg"')
-        ->toContain('background:#2a2420')
+    // The boot layer on the homepage IS the poster: same <picture> sources and 768px breakpoint as the React hero.
+    expect($html)->toContain('id="boot-screen" class="boot-hero"')
+        ->toContain('<source media="(max-width: 767px)" srcset="/images/hero-poster-mobile.webp" type="image/webp">')
+        ->toContain('<source media="(max-width: 767px)" srcset="/images/hero-poster-mobile.jpg" type="image/jpeg">')
+        ->toContain('<source srcset="/images/hero-poster.webp" type="image/webp">')
+        ->toContain('width="1600" height="900" fetchpriority="high"')
+        ->toMatch('#<picture>.*<img src="/images/hero-poster\.jpg"[^>]*>.*</picture>#s')
+        // Same crop, same dark overlay and the espresso base colour as Home.tsx's hero.
+        ->toContain('object-fit:cover')
+        ->toContain('rgba(23,19,17,.72)')
+        ->toContain('#boot-screen .boot-hero-box{position:absolute;top:96px;left:0;width:100%;height:88vh;height:88svh;overflow:hidden;background:#2a2420}')
+        // Never lazy; the CSP nonce is on the style block and no inline style="" attribute exists.
+        ->not->toContain('loading="lazy"')
+        ->toMatch('/<style nonce="[^"]+">\s*#boot-screen/')
+        ->not->toMatch('/<(?:div|img|picture)[^>]*\sstyle="/')
+        // The 8-second failsafe stays.
         ->toContain('animation:boot-failsafe')
-        ->toMatch('/<style nonce="[^"]+">\s*#boot-screen/');
+        ->toContain('<noscript><style nonce=');
+
+    // The logo boot screen is gone completely: no favicon image, no pulse animation, no 88px emblem.
+    expect($html)->not->toContain('src="/favicon.svg"')
+        ->not->toContain('boot-pulse')
+        ->not->toContain('width="88"')
+        ->not->toContain('#boot-screen img{width:88px');
+});
+
+it('gives every other public page a plain page-coloured boot layer with no logo and no image', function (string $path) {
+    $html = rawHtml($this->get($path)->assertOk());
+
+    expect($html)->toContain('<div id="boot-screen" aria-hidden="true"></div>')
+        ->not->toContain('class="boot-hero"')
+        ->not->toContain('boot-hero')
+        ->not->toContain('<picture>')
+        ->not->toContain('src="/favicon.svg"')
+        ->not->toContain('hero-poster')
+        // The site is light-only, so the layer uses the page's own background (--color-ivory).
+        ->toContain('#boot-screen{position:fixed;inset:0;z-index:9999;background:#faf7f2');
+})->with(['/services', '/deals', '/gallery', '/blog', '/about', '/contact', '/book', '/privacy-policy']);
+
+it('keeps #seo-fallback in the homepage raw HTML, after the app mount point, and never display:none', function () {
+    $html = rawHtml($this->get('/')->assertOk());
+
+    expect($html)->toContain('<main id="seo-fallback">')
+        ->toContain('<h1>Beauty Salon in Central Park Housing Scheme, Lahore</h1>');
+
+    // The fallback sits after the poster layer and the app root, and is hidden only with the sr-only rule.
+    expect(strpos($html, '<main id="seo-fallback">'))->toBeGreaterThan(strpos($html, 'id="boot-screen"'))
+        ->and(strpos($html, '<main id="seo-fallback">'))->toBeGreaterThan(strpos($html, '<div id="app"></div>'));
+
+    expect($html)->not->toMatch('/#seo-fallback[^{]*\{[^}]*display\s*:\s*none/')
+        ->not->toMatch('/<main id="seo-fallback"[^>]*(?:hidden|style=)/');
 });
 
 it('declares the full favicon set and preloads the right hero poster on the homepage', function () {

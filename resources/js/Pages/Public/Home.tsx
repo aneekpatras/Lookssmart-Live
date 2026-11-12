@@ -142,7 +142,9 @@ function formatDuration(minutes: number): string {
  */
 function HeroBackground() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const posterRef = React.useRef<HTMLImageElement>(null);
   const [allowVideo, setAllowVideo] = React.useState(false);
+  const [posterReady, setPosterReady] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
 
   React.useEffect(() => {
@@ -155,15 +157,41 @@ function HeroBackground() {
     return () => query.removeEventListener('change', apply);
   }, []);
 
+  // The video is only requested once the poster has loaded and had a frame to paint in, so it can
+  // never compete with the poster for bandwidth or delay it. A poster that fails to load must not
+  // block the video forever, hence the error branch.
+  React.useEffect(() => {
+    const poster = posterRef.current;
+    if (!poster) return;
+
+    let frame = 0;
+    const ready = () => {
+      frame = requestAnimationFrame(() => setPosterReady(true));
+    };
+
+    if (poster.complete) {
+      ready();
+    } else {
+      poster.addEventListener('load', ready, { once: true });
+      poster.addEventListener('error', ready, { once: true });
+    }
+
+    return () => {
+      cancelAnimationFrame(frame);
+      poster.removeEventListener('load', ready);
+      poster.removeEventListener('error', ready);
+    };
+  }, []);
+
   React.useEffect(() => {
     const video = videoRef.current;
-    if (!video || !allowVideo) return;
+    if (!video || !allowVideo || !posterReady) return;
 
     video.muted = true; // See (2) — required before play() for autoplay to be permitted.
     void video.play().catch(() => {
       // See (3): autoplay refused. The poster frame stays visible, so nothing more is needed.
     });
-  }, [allowVideo]);
+  }, [allowVideo, posterReady]);
 
   // The poster is always rendered, as the base layer: it paints first (high priority, never lazy,
   // fixed size so nothing shifts) and the video, when allowed, plays on top of it. Keeping one
@@ -183,6 +211,8 @@ function HeroBackground() {
         />
         <source srcSet="/images/hero-poster.webp" type="image/webp" />
         <img
+          ref={posterRef}
+          data-hero-poster
           src={HERO_POSTER}
           alt={HERO_POSTER_ALT}
           width={1600}
@@ -192,7 +222,7 @@ function HeroBackground() {
           className="absolute inset-0 -z-20 size-full object-cover"
         />
       </picture>
-      {allowVideo && !failed && (
+      {allowVideo && posterReady && !failed && (
         <video
           ref={videoRef}
           className="absolute inset-0 -z-20 size-full object-cover"

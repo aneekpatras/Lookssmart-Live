@@ -21,6 +21,60 @@ if (import.meta.env.VITE_SENTRY_DSN && import.meta.env.VITE_APP_ENV === 'product
   });
 }
 
+// Longest we hold the boot layer for; stays under the 8s CSS failsafe in resources/views/app.blade.php.
+const BOOT_MAX_WAIT_MS = 6000;
+
+/**
+ * Removes the raw-HTML boot layer (`#boot-screen`, see resources/views/app.blade.php) once the app has
+ * really painted: the page component has mounted (Inertia resolves it asynchronously, so `render()`
+ * alone is not enough) and, on the homepage, the React hero poster has loaded AND decoded. The layer on
+ * the homepage is the same poster image, so waiting for React's own copy means the photo never
+ * disappears and re-appears. Then two frames later it fades out. If the app never mounts, the CSS
+ * failsafe hides the layer by itself.
+ */
+function dismissBootLayer(): void {
+  const boot = document.getElementById('boot-screen');
+  if (!boot) return;
+
+  const startedAt = performance.now();
+  const hasPoster = boot.querySelector('picture') !== null;
+
+  const fadeOut = () =>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        boot.classList.add('is-done');
+        window.setTimeout(() => boot.remove(), 600);
+      }),
+    );
+
+  const check = () => {
+    const mounted = document.getElementById('app')?.firstElementChild != null;
+    const timedOut = performance.now() - startedAt > BOOT_MAX_WAIT_MS;
+
+    if (!mounted && !timedOut) {
+      requestAnimationFrame(check);
+      return;
+    }
+
+    if (hasPoster && !timedOut) {
+      const poster = document.querySelector<HTMLImageElement>('#app [data-hero-poster]');
+
+      if (!poster || !poster.complete || poster.naturalWidth === 0) {
+        requestAnimationFrame(check);
+        return;
+      }
+
+      // Decoded, not just downloaded — otherwise the first frame could still paint without it.
+      void (poster.decode?.() ?? Promise.resolve()).catch(() => undefined).then(fadeOut);
+      return;
+    }
+
+    fadeOut();
+  };
+
+  requestAnimationFrame(check);
+}
+
 createInertiaApp({
   title: (title) => formatTitle(title, appName),
   resolve: (name): Promise<ResolvedComponent> =>
@@ -49,17 +103,7 @@ createInertiaApp({
 
     createRoot(el).render(app);
 
-    // Fade out the branded boot screen (resources/views/app.blade.php) once the first frame of the app
-    // has been painted. If this never runs (JS failure) a CSS failsafe hides it on its own.
-    const boot = document.getElementById('boot-screen');
-    if (boot) {
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          boot.classList.add('is-done');
-          window.setTimeout(() => boot.remove(), 600);
-        }),
-      );
-    }
+    dismissBootLayer();
   },
   progress: {
     color: '#c9a66b',
