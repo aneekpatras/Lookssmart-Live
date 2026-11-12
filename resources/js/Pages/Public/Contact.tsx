@@ -183,7 +183,7 @@ export default function Contact({ business, businessHours, latestPosts }: Contac
     {
       icon: MapPin,
       title: 'Visit salon',
-      body: business.address ?? 'Central Park Housing Scheme, Lahore, Pakistan.',
+      body: business.address ?? '46-B, Commercial Central Park Housing Scheme, Main Ferozpur Road, Lahore',
       action: 'Get directions',
       href: directionsHref,
       external: true,

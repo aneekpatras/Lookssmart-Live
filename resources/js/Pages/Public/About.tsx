@@ -339,7 +339,7 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
           <div className="text-center">
             <SectionBadge>Visit us</SectionBadge>
             <h2 className="font-display text-ink mt-4 text-3xl font-medium sm:text-4xl">
-              Find Looks Smart Salon
+              Find Looks Smart Beauty Salon
             </h2>
           </div>
 
