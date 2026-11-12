@@ -280,6 +280,35 @@ class SeoService
         );
     }
 
+    /**
+     * A single deal's page. Built from the same showcase payload the cards use, so the title, text and
+     * image are always the deal's own (admin-written) content.
+     *
+     * @param array<string, mixed> $deal
+     * @return array<string, mixed>
+     */
+    public function dealDetail(array $deal): array
+    {
+        $title = (string) $deal['title'];
+        $description = $deal['subtitle'] ?: $deal['description'] ?: "{$title} at {$this->businessName()}, Central Park Housing Scheme, Lahore. Claim this offer and book online.";
+
+        return $this->page(
+            $title,
+            (string) $description,
+            route('deals.show', $deal['slug']),
+            $title,
+            [
+                'image' => $deal['image_url'] ?? null,
+                'imageAlt' => $title,
+                'intro' => $this->plainText((string) ($deal['description'] ?? '')) ?: null,
+                'links' => [
+                    ['label' => 'All deals', 'url' => route('deals.index')],
+                    ['label' => 'Book an Appointment', 'url' => route('book')],
+                ],
+            ],
+        );
+    }
+
     /** @return array<string, mixed> */
     public function gallery(): array
     {

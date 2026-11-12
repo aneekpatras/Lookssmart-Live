@@ -37,6 +37,7 @@ Route::get('/about', [PublicWebsiteController::class, 'about'])->name('about');
 Route::get('/services', [PublicWebsiteController::class, 'services'])->name('services.index');
 Route::get('/services/{slug}', [PublicWebsiteController::class, 'detail'])->name('services.show');
 Route::get('/deals', [PublicWebsiteController::class, 'deals'])->name('deals.index');
+Route::get('/deals/{slug}', [PublicWebsiteController::class, 'dealShow'])->name('deals.show');
 Route::get('/blog', [PublicWebsiteController::class, 'blog'])->name('blog.index');
 Route::get('/blog/{slug}', [PublicWebsiteController::class, 'blogShow'])->name('blog.show');
 Route::get('/contact', [PublicWebsiteController::class, 'contact'])->name('contact');

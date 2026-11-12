@@ -21,6 +21,7 @@ interface SettingsGroups {
   payments: Record<string, SettingValue>;
   integrations: Record<string, SettingValue>;
   seo: Record<string, SettingValue>;
+  deals_bar: Record<string, SettingValue>;
   security: Record<string, SettingValue>;
 }
 
@@ -42,6 +43,7 @@ const TABS = [
   { id: 'booking', label: 'Booking Rules' },
   { id: 'payments', label: 'Payments & Taxes' },
   { id: 'integrations', label: 'Integrations' },
+  { id: 'deals-bar', label: 'Deals Bar' },
   { id: 'seo-security', label: 'SEO & Security' },
 ] as const;
 
@@ -497,6 +499,45 @@ function IntegrationsTab({ integrations }: { integrations: Record<string, Settin
   );
 }
 
+function DealsBarTab({ bar }: { bar: Record<string, SettingValue> }) {
+  return (
+    <GroupForm
+      group="deals_bar"
+      title="Homepage deals bar"
+      description="The full-width strip above the offers on the homepage. It only shows while switched on, with a headline, and (if you set an end date) before that date. The countdown uses the end date in the salon's time zone."
+      fields={{
+        enabled: bar['deals_bar.enabled'] === true ? 'true' : 'false',
+        badge: toFieldValue(bar['deals_bar.badge']),
+        headline: toFieldValue(bar['deals_bar.headline']),
+        subtext: toFieldValue(bar['deals_bar.subtext']),
+        ends_at: toFieldValue(bar['deals_bar.ends_at']),
+        button_label: toFieldValue(bar['deals_bar.button_label']),
+      }}
+    >
+      {(data, setField, fieldError) => (
+        <>
+          <ToggleField
+            id="deals_bar.enabled"
+            label="Show the deals bar on the homepage"
+            checked={data.enabled === 'true'}
+            onChange={(v) => setField('enabled', v ? 'true' : 'false')}
+          />
+          <TextField id="deals_bar.badge" label="Small label (default: Limited-time offer)" value={data.badge ?? ''} onChange={(v) => setField('badge', v)} error={fieldError('badge')} />
+          <TextField id="deals_bar.headline" label="Deal text (headline)" value={data.headline ?? ''} onChange={(v) => setField('headline', v)} error={fieldError('headline')} placeholder="e.g. Bridal packages from Rs. 52,000" />
+          <TextField id="deals_bar.subtext" label="Supporting line (optional)" value={data.subtext ?? ''} onChange={(v) => setField('subtext', v)} error={fieldError('subtext')} />
+          <div className="space-y-1.5">
+            <Label htmlFor="deals_bar.ends_at">Countdown ends (optional)</Label>
+            <Input id="deals_bar.ends_at" type="datetime-local" value={data.ends_at ?? ''} onChange={(e) => setField('ends_at', e.target.value)} aria-invalid={!!fieldError('ends_at')} />
+            <p className="text-ink-muted text-xs">Leave empty for no countdown. The bar hides itself once this time has passed.</p>
+            {fieldError('ends_at') && <p className="text-sm text-red-600">{fieldError('ends_at')}</p>}
+          </div>
+          <TextField id="deals_bar.button_label" label="Button text (default: View all deals)" value={data.button_label ?? ''} onChange={(v) => setField('button_label', v)} error={fieldError('button_label')} />
+        </>
+      )}
+    </GroupForm>
+  );
+}
+
 function SeoSecurityTab({ seo, security }: { seo: Record<string, SettingValue>; security: Record<string, SettingValue> }) {
   return (
     <div className="space-y-6">
@@ -590,6 +631,7 @@ export default function SettingsIndex({ settings, businessHours }: SettingsIndex
           {tab === 'booking' && <BookingTab booking={settings.booking} />}
           {tab === 'payments' && <PaymentsTab payments={settings.payments} />}
           {tab === 'integrations' && <IntegrationsTab integrations={settings.integrations} />}
+          {tab === 'deals-bar' && <DealsBarTab bar={settings.deals_bar} />}
           {tab === 'seo-security' && <SeoSecurityTab seo={settings.seo} security={settings.security} />}
         </div>
       </div>

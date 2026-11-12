@@ -69,6 +69,15 @@ class SettingService
         'seo.default_title' => ['group' => 'seo', 'type' => 'string'],
         'seo.default_description' => ['group' => 'seo', 'type' => 'string'],
 
+        // Homepage "deals bar" (the full-width strip above the offers): text, optional end date for the
+        // countdown, and the button label. Hidden unless enabled AND it has a headline.
+        'deals_bar.enabled' => ['group' => 'deals_bar', 'type' => 'bool'],
+        'deals_bar.badge' => ['group' => 'deals_bar', 'type' => 'string'],
+        'deals_bar.headline' => ['group' => 'deals_bar', 'type' => 'string'],
+        'deals_bar.subtext' => ['group' => 'deals_bar', 'type' => 'string'],
+        'deals_bar.ends_at' => ['group' => 'deals_bar', 'type' => 'string'],
+        'deals_bar.button_label' => ['group' => 'deals_bar', 'type' => 'string'],
+
         'security.admin_ip_allowlist' => ['group' => 'security', 'type' => 'string'],
         'security.session_lifetime_minutes' => ['group' => 'security', 'type' => 'int'],
     ];

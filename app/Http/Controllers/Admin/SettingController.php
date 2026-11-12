@@ -16,7 +16,7 @@ use Inertia\Response;
 
 class SettingController extends Controller
 {
-    private const GROUPS = ['business', 'booking', 'payments', 'integrations', 'seo', 'security'];
+    private const GROUPS = ['business', 'booking', 'payments', 'integrations', 'seo', 'deals_bar', 'security'];
 
     public function index(): Response
     {
@@ -90,6 +90,11 @@ class SettingController extends Controller
             }
 
             if ($valid && $key === 'integrations.google_tag_manager_id' && ! $blank && ! preg_match('/^GTM-[A-Z0-9]{5,}$/', $value)) {
+                $valid = false;
+            }
+
+            // The countdown end is a datetime-local value ("2026-12-31T20:00") or empty.
+            if ($valid && $key === 'deals_bar.ends_at' && ! $blank && strtotime((string) $value) === false) {
                 $valid = false;
             }
 

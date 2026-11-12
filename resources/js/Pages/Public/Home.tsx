@@ -23,7 +23,8 @@ import { ReviewsCarousel, type ReviewShowcase } from '@/Components/ReviewsCarous
 import { SeoHead } from '@/Components/SeoHead';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
-import { DealDetailsModal, type DealShowcase } from '@/Components/DealDetailsModal';
+import type { DealShowcase } from '@/Components/DealDetailsModal';
+import { DealsBar, DealsMarquee, type DealsBarData } from '@/Components/DealsShowcase';
 import { WriteReviewModal } from '@/Components/WriteReviewModal';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { addToCart } from '@/lib/cart';
@@ -113,6 +114,7 @@ interface HomeProps {
   whatsapp: WhatsAppSupport;
   testimonials: ReviewShowcase[];
   offers: Offer[];
+  dealsBar: DealsBarData | null;
   jsonLdSchema: Record<string, unknown>;
 }
 
@@ -287,96 +289,6 @@ function HeroBackground() {
   );
 }
 
-/**
- * Compact homepage deal card: title + a discount-% badge (omitted when neither a real
- * `savings_percent` nor a percent-type `value` exists — never a fabricated number), a price
- * breakdown (strikethrough original + bold deal price when an admin has set both, falling back to
- * the plain "X% off"/"Rs. X off" line otherwise), a copyable promo-code tag, and a single Claim
- * Offer CTA straight into the booking flow.
- */
-function OfferCard({ offer, onOpen }: { offer: Offer; onOpen: (offer: Offer) => void }) {
-  const badgePercent =
-    offer.savings_percent ?? (offer.type === 'percent' ? Number(offer.value) : null);
-
-  function copyCode(code: string) {
-    void navigator.clipboard.writeText(code).then(() => toast.success(`Code "${code}" copied`));
-  }
-
-  function handleAddToCart() {
-    addToCart(
-      {
-        kind: 'deal',
-        dealId: offer.id,
-        label: offer.title,
-        bundledServices: offer.bundled_services,
-        originalPrice: offer.original_price,
-        dealPrice: offer.deal_price,
-      },
-      toast,
-    );
-  }
-
-  return (
-    // Clicking anywhere on the card opens the Details popup. The title is the one real button (so
-    // keyboard and screen-reader users get it too); its ::after stretches over the whole card, and the
-    // inner controls (code chip, Add to Cart, Claim Offer) sit above that with `relative z-10`.
-    <div className="border-accent-300 bg-surface hover:border-accent-500 relative flex cursor-pointer flex-col rounded-lg border p-5 transition-colors">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="font-display text-lg leading-snug font-medium">
-          <button
-            type="button"
-            onClick={() => onOpen(offer)}
-            className="focus-visible:ring-accent-500 rounded text-left after:absolute after:inset-0 after:content-[''] focus-visible:ring-2 focus-visible:outline-none"
-          >
-            {offer.title}
-          </button>
-        </h3>
-        {badgePercent !== null && badgePercent > 0 && (
-          <span className="bg-accent-500 text-ivory shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold">
-            {badgePercent}% OFF
-          </span>
-        )}
-      </div>
-
-      {offer.original_price && offer.deal_price ? (
-        <p className="mt-3 flex items-baseline gap-2">
-          <span className="text-ink-muted text-sm line-through">
-            {formatCurrency(offer.original_price)}
-          </span>
-          <span className="text-ink font-display text-xl font-medium">
-            {formatCurrency(offer.deal_price)}
-          </span>
-        </p>
-      ) : (
-        <p className="text-ink-muted mt-3 text-sm">
-          {offer.type === 'percent' ? `${offer.value}% off` : `${formatCurrency(offer.value)} off`}
-        </p>
-      )}
-
-      {offer.code && (
-        <button
-          type="button"
-          onClick={() => copyCode(offer.code!)}
-          className="border-accent-400 bg-accent-50 text-accent-700 relative z-10 mt-3 w-fit rounded-full border px-2.5 py-1 text-xs font-semibold"
-        >
-          Code: {offer.code}
-        </button>
-      )}
-
-      <div className="relative z-10 mt-4 grid grid-cols-2 gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={handleAddToCart}>
-          <Plus className="size-4" aria-hidden="true" /> Add to Cart
-        </Button>
-        <Button asChild size="sm" variant="accent">
-          <Link href={offer.claim_url} prefetch>
-            Claim Offer
-          </Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /** The salon's Google Business profile — "See more reviews on Google" opens it in a new tab. */
 const GOOGLE_REVIEWS_URL = 'https://share.google/TFzPVGK9Km33WBazJ';
 
@@ -391,6 +303,7 @@ export default function Home({
   jsonLdSchema,
   findUs,
   openingHours,
+  dealsBar,
 }: HomeProps) {
   const { site } = usePage<SharedProps>().props;
   // Computed after mount (and refreshed each minute) so it reflects the real clock, not the server's.
@@ -408,7 +321,6 @@ export default function Home({
   const phoneDigits = phoneDisplay.replace(/[^\d+]/g, '');
   const [activeCategory, setActiveCategory] = React.useState<string>('all');
   const [writeReviewOpen, setWriteReviewOpen] = React.useState(false);
-  const [detailsOffer, setDetailsOffer] = React.useState<Offer | null>(null);
   // Seeded from the server prop; a newly submitted review is prepended so it shows at once
   // (the server also puts it first, so a reload agrees).
   const [liveTestimonials, setLiveTestimonials] = React.useState<ReviewShowcase[]>(testimonials);
@@ -586,25 +498,29 @@ export default function Home({
           </div>
         </div>
       </section>
-      {/* 3. Deals / Current Offers — a compact, capped-at-6 grid; the full catalog lives at /deals. */}
+      {/* 3. Deals — an admin-controlled bar (Settings > Deals Bar), then the offers as an auto-scrolling
+          strip of cards at the gallery card size (one row on desktop, two opposing rows on phones and
+          tablets). A card opens that deal's own page; the full catalog lives at /deals. */}
+      {dealsBar && <DealsBar bar={dealsBar} />}
       {offers.length > 0 && (
-        <section className="border-border-soft bg-accent-50 border-y px-6 py-16 lg:px-10">
-          <div className="mx-auto max-w-6xl">
+        <section className="border-border-soft bg-accent-50 overflow-hidden border-y py-16 lg:py-20">
+          <div className="mx-auto max-w-6xl px-6 text-center lg:px-10">
             <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
               Current offers
             </p>
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-              {offers.map((offer) => (
-                <OfferCard key={offer.id} offer={offer} onOpen={setDetailsOffer} />
-              ))}
-            </div>
-            <div className="mt-8 text-center">
-              <Button asChild variant="outline">
-                <Link href="/deals">
-                  View All Deals <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </div>
+            <h2 className="font-display mt-3 text-3xl font-medium text-balance sm:text-4xl">
+              Packages and deals you can claim today
+            </h2>
+          </div>
+          <div className="mt-10 px-6 md:px-12 lg:px-16">
+            <DealsMarquee deals={offers} />
+          </div>
+          <div className="mt-10 px-6 text-center">
+            <Button asChild variant="outline">
+              <Link href="/deals">
+                View All Deals <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
           </div>
         </section>
       )}
@@ -718,16 +634,6 @@ export default function Home({
             </div>
           </div>
         </section>
-      )}
-      {detailsOffer && (
-        <DealDetailsModal
-          deal={detailsOffer}
-          open={detailsOffer !== null}
-          onOpenChange={(open) => {
-            if (!open) setDetailsOffer(null);
-          }}
-          whatsappUrl={whatsapp.chat_url}
-        />
       )}
       <WriteReviewModal
         open={writeReviewOpen}

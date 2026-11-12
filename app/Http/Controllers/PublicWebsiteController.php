@@ -30,6 +30,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -90,6 +91,7 @@ class PublicWebsiteController extends Controller
             'openingHours' => BusinessHour::orderBy('weekday')->get(['weekday', 'open_time', 'close_time', 'is_closed']),
             'whatsapp' => $this->whatsappSupport(),
             'offers' => $this->offers(),
+            'dealsBar' => $this->dealsBar(),
             'testimonials' => $this->testimonials(),
         ]), $this->seo->home($services));
     }
@@ -892,13 +894,67 @@ class PublicWebsiteController extends Controller
      * slice. Each entry is `dealShowcaseData()` (what /deals uses, so the Details popup works from
      * here too) plus `type`/`value`/`code` for the compact card's own badge and code chip.
      */
+    /**
+     * The admin-controlled strip above the homepage offers (Admin > Settings > Deals Bar). Null — so the
+     * bar simply does not render — unless it is switched on, has a headline, and (when an end date is set)
+     * that end date is still in the future. The end date is entered in the salon's own time zone.
+     *
+     * @return array{badge: string, headline: string, subtext: ?string, ends_at: ?string, button_label: string, url: string}|null
+     */
+    private function dealsBar(): ?array
+    {
+        $headline = trim((string) Setting::get('deals_bar.headline'));
+
+        if (! Setting::get('deals_bar.enabled') || $headline === '') {
+            return null;
+        }
+
+        $endsAt = null;
+        $rawEnd = trim((string) Setting::get('deals_bar.ends_at'));
+
+        if ($rawEnd !== '') {
+            try {
+                $end = Carbon::parse($rawEnd, Setting::get('business.timezone') ?: 'Asia/Karachi');
+            } catch (\Throwable) {
+                $end = null;
+            }
+
+            if ($end !== null && $end->isPast()) {
+                return null;
+            }
+
+            $endsAt = $end?->toIso8601String();
+        }
+
+        return [
+            'badge' => trim((string) Setting::get('deals_bar.badge')) ?: 'Limited-time offer',
+            'headline' => $headline,
+            'subtext' => trim((string) Setting::get('deals_bar.subtext')) ?: null,
+            'ends_at' => $endsAt,
+            'button_label' => trim((string) Setting::get('deals_bar.button_label')) ?: 'View all deals',
+            'url' => route('deals.index'),
+        ];
+    }
+
+    /** A single deal's own page (a card on the homepage / deals page links here). */
+    public function dealShow(string $slug): Response
+    {
+        $deal = Deal::active()->with('services:id,name,base_price')->where('slug', $slug)->firstOrFail();
+        $data = $this->dealShowcaseData($deal);
+
+        return $this->withSeo(Inertia::render('Public/DealDetail', [
+            'deal' => [...$data, 'code' => $deal->code],
+            'whatsapp' => $this->whatsappContact(),
+        ]), $this->seo->dealDetail($data));
+    }
+
     private function offers(): array
     {
         return Deal::active()
             ->with('services:id,name,base_price')
             ->orderByDesc('is_top_deal')
             ->orderBy('ends_at')
-            ->limit(6)
+            ->limit(8)
             ->get()
             // The same payload the /deals page cards use (so the "Details" popup can open straight
             // from a homepage offer), plus the few extra fields the compact homepage card reads.
