@@ -94,6 +94,15 @@ function isOpenNow(rows: OpeningHour[], now: Date): boolean | null {
   return close > open ? minutes >= open && minutes < close : minutes >= open || minutes < close;
 }
 
+/** Owner-confirmed hours (every day, 10:00 AM – 9:00 PM), used only when the business_hours table has no rows. */
+const DEFAULT_HOURS_LABEL = { days: 'Monday – Sunday', hours: '10:00 AM – 9:00 PM' };
+const DEFAULT_OPENING_HOURS: OpeningHour[] = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+  weekday,
+  open_time: '10:00:00',
+  close_time: '21:00:00',
+  is_closed: false,
+}));
+
 interface HomeProps {
   findUs: { address: string; directions: string; mapsUrl: string };
   featuredServices: ServiceCard[];
@@ -387,7 +396,10 @@ export default function Home({
   // Computed after mount (and refreshed each minute) so it reflects the real clock, not the server's.
   const [openNow, setOpenNow] = React.useState<boolean | null>(null);
   React.useEffect(() => {
-    const update = () => setOpenNow(isOpenNow(openingHours, new Date()));
+    const update = () =>
+      setOpenNow(
+        isOpenNow(openingHours.length > 0 ? openingHours : DEFAULT_OPENING_HOURS, new Date()),
+      );
     update();
     const timer = window.setInterval(update, 60_000);
     return () => window.clearInterval(timer);
@@ -819,15 +831,11 @@ export default function Home({
                     )}
                   </div>
                   <div className="text-ink-muted mt-1 space-y-1 text-sm leading-6">
-                    {site.hours.length > 0 ? (
-                      site.hours.map((entry) => (
-                        <p key={entry.days}>
-                          {entry.days}: {entry.hours}
-                        </p>
-                      ))
-                    ) : (
-                      <p>Please contact us for our current opening hours.</p>
-                    )}
+                    {(site.hours.length > 0 ? site.hours : [DEFAULT_HOURS_LABEL]).map((entry) => (
+                      <p key={entry.days}>
+                        {entry.days}: {entry.hours}
+                      </p>
+                    ))}
                   </div>
                 </div>
               </div>
