@@ -102,7 +102,6 @@ class DatabaseSeeder extends Seeder
         $gallery = Gallery::create([
             'title' => 'Looks Smart Brides',
             'slug' => 'looks-smart-brides',
-            'category' => 'Bridal',
             'sort' => 1,
             'is_active' => true,
         ]);
