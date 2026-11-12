@@ -175,14 +175,15 @@ export function AutoMarquee({
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType !== 'mouse' || event.button !== 0) return; // touch/pen scroll natively
     holdNow();
+    // Pointer capture is deliberately NOT taken here: capturing on press makes the browser deliver the
+    // following click to the strip instead of the button/link under the pointer, which silently
+    // breaks every control inside a card. It is taken only once the press turns into a real drag.
     dragStart.current = {
       x: event.clientX,
       scrollLeft: event.currentTarget.scrollLeft,
       moved: false,
     };
     justDragged.current = false;
-    setGrabbing(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
@@ -195,8 +196,12 @@ export function AutoMarquee({
     const start = dragStart.current;
     if (!start) return;
     const delta = event.clientX - start.x;
-    if (Math.abs(delta) > DRAG_CLICK_THRESHOLD) start.moved = true;
-    event.currentTarget.scrollLeft = start.scrollLeft - delta;
+    if (!start.moved && Math.abs(delta) > DRAG_CLICK_THRESHOLD) {
+      start.moved = true;
+      setGrabbing(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    if (start.moved) event.currentTarget.scrollLeft = start.scrollLeft - delta;
   }
 
   function endMouseDrag(event: React.PointerEvent<HTMLDivElement>) {

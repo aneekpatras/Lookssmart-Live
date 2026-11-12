@@ -76,8 +76,8 @@ export function DealsBar({ bar }: { bar: DealsBarData }) {
       />
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10 lg:px-10">
         <div className="min-w-0 lg:max-w-xl">
-          <p className="border-accent-500/40 bg-accent-500/15 text-accent-300 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase">
-            <Sparkles className="size-3.5" aria-hidden="true" /> {bar.badge}
+          <p className="border-accent-500/40 bg-accent-500/15 text-accent-300 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase">
+            {bar.badge}
           </p>
           <h2 className="font-display mt-3 text-2xl leading-tight font-medium text-balance sm:text-3xl lg:text-4xl">
             {bar.headline}
@@ -187,7 +187,7 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
 
   return (
     <li
-      className="w-[calc((100vw-3.75rem)/2)] shrink-0 sm:w-[calc((100vw-7.25rem)/2)] lg:w-[300px]"
+      className="w-[calc((100vw-3.75rem)/2)] shrink-0 sm:w-[calc((100vw-7rem)/2)] lg:w-[300px]"
       aria-hidden={duplicate ? 'true' : undefined}
     >
       <article className="border-border-soft bg-surface shadow-soft hover:border-accent-400 relative flex h-full flex-col overflow-hidden rounded-2xl border transition-colors">
@@ -278,7 +278,8 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
               className="h-8 px-1.5 text-[11px] sm:px-2 sm:text-xs"
             >
               <Link href={deal.claim_url} tabIndex={duplicate ? -1 : undefined} draggable={false}>
-                Claim<span className="hidden sm:inline">&nbsp;Offer</span>
+                <span className="sm:hidden">Claim</span>
+                <span className="hidden sm:inline">Claim Offer</span>
               </Link>
             </Button>
           </div>
@@ -296,40 +297,15 @@ function fill<T>(list: T[], min: number): T[] {
   return out;
 }
 
-function useIsDesktop(): boolean {
-  const [desktop, setDesktop] = React.useState(() =>
-    typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1024px)').matches,
-  );
-
-  React.useEffect(() => {
-    const query = window.matchMedia('(min-width: 1024px)');
-    const apply = () => setDesktop(query.matches);
-    apply();
-    query.addEventListener('change', apply);
-    return () => query.removeEventListener('change', apply);
-  }, []);
-
-  return desktop;
-}
-
-function DealRow({
-  deals,
-  reverse,
-  min,
-  label,
-}: {
-  deals: MarqueeDeal[];
-  reverse?: boolean;
-  min: number;
-  label: string;
-}) {
+function DealRow({ deals, min, label }: { deals: MarqueeDeal[]; min: number; label: string }) {
   const list = React.useMemo(() => fill(deals, min), [deals, min]);
 
   return (
     <AutoMarquee
       count={list.length}
-      reverse={reverse}
       secondsPerCard={4}
+      // Same gap as the service cards' grid (gap-3, sm:gap-4).
+      trackClassName="gap-3 pr-3 sm:gap-4 sm:pr-4"
       label={label}
       renderItem={(index, duplicate) => {
         const deal = list[index];
@@ -342,22 +318,9 @@ function DealRow({
 }
 
 /**
- * Deals auto-scroll right-to-left like the gallery. On phones and tablets they become two rows
- * running against each other (the second left-to-right), each card the size of a service card.
+ * Deals auto-scroll right-to-left in one row, like the gallery, on every screen size. Cards are the
+ * size of the service cards on phones and tablets (two visible at once) and a little wider on desktop.
  */
 export function DealsMarquee({ deals }: { deals: MarqueeDeal[] }) {
-  const desktop = useIsDesktop();
-  const rowA = React.useMemo(() => deals.filter((_, index) => index % 2 === 0), [deals]);
-  const rowB = React.useMemo(() => deals.filter((_, index) => index % 2 === 1), [deals]);
-
-  if (desktop || deals.length < 2) {
-    return <DealRow deals={deals} min={6} label="Current deals" />;
-  }
-
-  return (
-    <div className="space-y-3 sm:space-y-5">
-      <DealRow deals={rowA} min={6} label="Current deals, first row" />
-      <DealRow deals={rowB} min={6} reverse label="Current deals, second row" />
-    </div>
-  );
+  return <DealRow deals={deals} min={6} label="Current deals" />;
 }

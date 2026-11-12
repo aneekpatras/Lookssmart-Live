@@ -531,7 +531,7 @@ function DealsBarTab({ bar, dealOptions }: { bar: Record<string, SettingValue>; 
           <div className="space-y-1.5">
             <Label htmlFor="deals_bar.ends_at">Countdown ends (optional)</Label>
             <Input id="deals_bar.ends_at" type="datetime-local" value={data.ends_at ?? ''} onChange={(e) => setField('ends_at', e.target.value)} aria-invalid={!!fieldError('ends_at')} />
-            <p className="text-ink-muted text-xs">Leave empty for no countdown. The bar hides itself once this time has passed.</p>
+            <p className="text-ink-muted text-xs">Pick a date and time, then press Save: the countdown appears on the banner and runs until then (Pakistan time). Leave empty for no countdown. The banner hides itself once the time has passed.</p>
             {fieldError('ends_at') && <p className="text-sm text-red-600">{fieldError('ends_at')}</p>}
           </div>
           <div className="space-y-1.5">

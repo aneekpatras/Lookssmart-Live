@@ -505,12 +505,16 @@ export default function Home({
       {offers.length > 0 && (
         <section className="border-border-soft bg-accent-50 overflow-hidden border-y py-16 lg:py-20">
           <div className="mx-auto max-w-6xl px-6 text-center lg:px-10">
-            <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
-              Current offers
-            </p>
-            <h2 className="font-display mt-3 text-3xl font-medium text-balance sm:text-4xl">
-              Packages and deals you can claim today
+            <h2 className="font-display text-4xl font-medium text-balance sm:text-5xl lg:text-6xl">
+              Special Deals
             </h2>
+            <span
+              className="bg-accent-500 mx-auto mt-4 block h-0.5 w-16 rounded-full"
+              aria-hidden="true"
+            />
+            <p className="text-ink-muted mx-auto mt-4 max-w-xl leading-7">
+              Packages and deals you can claim today.
+            </p>
           </div>
           <div className="mt-10 px-6 md:px-12 lg:px-16">
             <DealsMarquee deals={offers} />
