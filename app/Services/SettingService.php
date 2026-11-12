@@ -77,6 +77,8 @@ class SettingService
         'deals_bar.subtext' => ['group' => 'deals_bar', 'type' => 'string'],
         'deals_bar.ends_at' => ['group' => 'deals_bar', 'type' => 'string'],
         'deals_bar.button_label' => ['group' => 'deals_bar', 'type' => 'string'],
+        'deals_bar.claim_label' => ['group' => 'deals_bar', 'type' => 'string'],
+        'deals_bar.deal_id' => ['group' => 'deals_bar', 'type' => 'int'],
 
         'security.admin_ip_allowlist' => ['group' => 'security', 'type' => 'string'],
         'security.session_lifetime_minutes' => ['group' => 'security', 'type' => 'int'],

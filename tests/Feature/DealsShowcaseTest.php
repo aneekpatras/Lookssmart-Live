@@ -15,11 +15,33 @@ function setDealsBar(array $values): void
     }
 }
 
-it('shows no deals bar until the admin switches it on with a headline', function () {
-    $this->get('/')->assertOk()->assertInertia(fn ($page) => $page->where('dealsBar', null));
+it('shows the deals bar by default while deals are live, with a fallback headline and a Claim link', function () {
+    $deal = Deal::factory()->create(['is_active' => true, 'starts_at' => now()->subDay(), 'ends_at' => now()->addMonth()]);
 
-    setDealsBar(['enabled' => true, 'headline' => '   ']);
+    $this->get('/')->assertInertia(fn ($page) => $page
+        ->where('dealsBar.headline', 'Current salon deals and bridal packages')
+        ->where('dealsBar.ends_at', null)
+        ->where('dealsBar.claim_label', 'Claim offer')
+        ->where('dealsBar.claim_url', fn ($url) => str_starts_with($url, '/book')));
+    expect($deal->exists)->toBeTrue();
+});
+
+it('hides the deals bar when switched off, or when there is neither text nor a live deal', function () {
     $this->get('/')->assertInertia(fn ($page) => $page->where('dealsBar', null));
+
+    Deal::factory()->create(['is_active' => true, 'starts_at' => now()->subDay(), 'ends_at' => now()->addMonth()]);
+    setDealsBar(['enabled' => false, 'headline' => 'Hidden on purpose']);
+    $this->get('/')->assertInertia(fn ($page) => $page->where('dealsBar', null));
+});
+
+it('points Claim at the deal the admin picked', function () {
+    $picked = Deal::factory()->create(['is_active' => true, 'code' => 'PICKME', 'starts_at' => now()->subDay(), 'ends_at' => now()->addMonth()]);
+    Deal::factory()->create(['is_active' => true, 'is_top_deal' => true, 'code' => 'OTHERONE', 'starts_at' => now()->subDay(), 'ends_at' => now()->addMonth()]);
+    setDealsBar(['enabled' => true, 'headline' => 'Pick', 'deal_id' => $picked->id, 'claim_label' => 'Grab it']);
+
+    $this->get('/')->assertInertia(fn ($page) => $page
+        ->where('dealsBar.claim_label', 'Grab it')
+        ->where('dealsBar.claim_url', fn ($url) => str_contains($url, 'code=PICKME')));
 });
 
 it('passes the admin-written deals bar to the homepage, with the countdown end in the salon time zone', function () {

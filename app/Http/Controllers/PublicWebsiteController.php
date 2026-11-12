@@ -90,8 +90,8 @@ class PublicWebsiteController extends Controller
             // Raw weekly hours so the "Open now" badge is computed from the table, never hardcoded.
             'openingHours' => BusinessHour::orderBy('weekday')->get(['weekday', 'open_time', 'close_time', 'is_closed']),
             'whatsapp' => $this->whatsappSupport(),
-            'offers' => $this->offers(),
-            'dealsBar' => $this->dealsBar(),
+            'offers' => $offers = $this->offers(),
+            'dealsBar' => $this->dealsBar($offers),
             'testimonials' => $this->testimonials(),
         ]), $this->seo->home($services));
     }
@@ -895,19 +895,31 @@ class PublicWebsiteController extends Controller
      * here too) plus `type`/`value`/`code` for the compact card's own badge and code chip.
      */
     /**
-     * The admin-controlled strip above the homepage offers (Admin > Settings > Deals Bar). Null — so the
-     * bar simply does not render — unless it is switched on, has a headline, and (when an end date is set)
-     * that end date is still in the future. The end date is entered in the salon's own time zone.
+     * The strip between the services and the offers (Admin > Settings > Deals Bar). It shows by default
+     * whenever there are live offers (admin can switch it off), with the admin's text or a plain fallback
+     * headline. Null — so it does not render — when switched off, when there is nothing to show, or when
+     * a set end date has passed. The end date is entered in the salon's own time zone.
      *
-     * @return array{badge: string, headline: string, subtext: ?string, ends_at: ?string, button_label: string, url: string}|null
+     * The "Claim" button points at the deal the admin picked, else the top live offer: the same link every
+     * "Claim Offer" uses (booking page with that deal's services and promo code already applied).
+     *
+     * @param list<array<string, mixed>> $offers
+     * @return array<string, mixed>|null
      */
-    private function dealsBar(): ?array
+    private function dealsBar(array $offers): ?array
     {
-        $headline = trim((string) Setting::get('deals_bar.headline'));
-
-        if (! Setting::get('deals_bar.enabled') || $headline === '') {
+        // Unset (never saved) counts as on; only an explicit "off" hides it.
+        if (Setting::get('deals_bar.enabled') === false) {
             return null;
         }
+
+        $headline = trim((string) Setting::get('deals_bar.headline'));
+
+        if ($headline === '' && $offers === []) {
+            return null;
+        }
+
+        $headline = $headline ?: 'Current salon deals and bridal packages';
 
         $endsAt = null;
         $rawEnd = trim((string) Setting::get('deals_bar.ends_at'));
@@ -926,7 +938,15 @@ class PublicWebsiteController extends Controller
             $endsAt = $end?->toIso8601String();
         }
 
+        $pickedId = (int) Setting::get('deals_bar.deal_id');
+        $picked = $pickedId > 0
+            ? Deal::active()->with('services:id,name,base_price')->find($pickedId)
+            : null;
+        $claimUrl = $picked ? $this->dealClaimUrl($picked) : ($offers[0]['claim_url'] ?? null);
+
         return [
+            'claim_url' => $claimUrl,
+            'claim_label' => trim((string) Setting::get('deals_bar.claim_label')) ?: 'Claim offer',
             'badge' => trim((string) Setting::get('deals_bar.badge')) ?: 'Limited-time offer',
             'headline' => $headline,
             'subtext' => trim((string) Setting::get('deals_bar.subtext')) ?: null,

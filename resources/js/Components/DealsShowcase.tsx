@@ -22,6 +22,8 @@ export interface DealsBarData {
   ends_at: string | null;
   button_label: string;
   url: string;
+  claim_label: string;
+  claim_url: string | null;
 }
 
 /** Days / hours / minutes / seconds left until `endsAt`, or null once it has passed. */
@@ -48,8 +50,9 @@ function useCountdown(endsAt: string | null) {
 }
 
 /**
- * The full-width strip at the top of the homepage deals section. Every word comes from Admin >
- * Settings > Deals Bar; the countdown only shows while its end date is still in the future.
+ * The full-width promotional strip between the services and the offers. Every word comes from Admin >
+ * Settings > Deals Bar; the countdown only shows while its end date is still in the future. "Claim"
+ * goes to the booking page with that deal's services and promo code already applied.
  */
 export function DealsBar({ bar }: { bar: DealsBarData }) {
   const left = useCountdown(bar.ends_at);
@@ -82,7 +85,7 @@ export function DealsBar({ bar }: { bar: DealsBarData }) {
           {bar.subtext && <p className="text-ivory/70 mt-2 text-sm leading-6">{bar.subtext}</p>}
         </div>
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center lg:shrink-0">
+        <div className="flex flex-col gap-4 lg:shrink-0 lg:flex-row lg:items-center">
           {units.length > 0 && (
             <div
               role="timer"
@@ -108,11 +111,23 @@ export function DealsBar({ bar }: { bar: DealsBarData }) {
               ))}
             </div>
           )}
-          <Button asChild variant="accent" size="lg">
-            <Link href={bar.url}>
-              {bar.button_label} <ArrowRight aria-hidden="true" />
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            {bar.claim_url && (
+              <Button asChild variant="accent" size="lg">
+                <Link href={bar.claim_url}>{bar.claim_label}</Link>
+              </Button>
+            )}
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-ivory/40 text-ivory hover:bg-ivory/10 bg-transparent"
+            >
+              <Link href={bar.url}>
+                {bar.button_label} <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     </section>
@@ -121,28 +136,38 @@ export function DealsBar({ bar }: { bar: DealsBarData }) {
 
 /** A deal's image, else the first attached service's photo, else null (the card draws a branded block). */
 function dealImage(deal: MarqueeDeal): string | null {
-  return (
-    deal.image_url ?? deal.bundled_services.find((service) => service.image_url)?.image_url ?? null
-  );
+  return deal.image_url ?? deal.bundled_services.find((s) => s.image_url)?.image_url ?? null;
 }
 
-function daysLeft(endsAt: string | null): string | null {
+/** "Valid till 30 Nov" (year added only when it is not this year), in the salon's own time zone. */
+function validTill(endsAt: string | null): string | null {
   if (!endsAt) return null;
-  const ms = new Date(endsAt).getTime() - Date.now();
-  if (Number.isNaN(ms) || ms <= 0) return null;
-  const days = Math.ceil(ms / 86_400_000);
-  return days === 1 ? 'Ends today or tomorrow' : `${days} days left`;
+  const end = new Date(endsAt);
+  if (Number.isNaN(end.getTime()) || end.getTime() <= Date.now()) return null;
+  const sameYear = end.getFullYear() === new Date().getFullYear();
+  const text = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    ...(sameYear ? {} : { year: 'numeric' }),
+    timeZone: 'Asia/Karachi',
+  }).format(end);
+  return `Valid till ${text}`;
 }
 
 /**
- * One deal card, built like a service card (image, category, title, details) at the gallery card's
- * size. Clicking anywhere opens the deal's own page (the title link stretches over the card); the
- * two buttons sit above that layer.
+ * One deal card, built like a service card (image, category, title, details). Compact on purpose: the
+ * same two-up size as the service cards on phones and tablets, a little wider on desktop so three to
+ * four are visible. Clicking anywhere opens the deal's own page (the title link stretches over the
+ * card); the two buttons are pinned to the bottom so they line up whatever the text length.
  */
 function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: boolean }) {
   const image = dealImage(deal);
   const percent = deal.savings_percent ?? (deal.type === 'percent' ? Number(deal.value) : null);
-  const left = daysLeft(deal.ends_at);
+  const timing =
+    validTill(deal.ends_at) ??
+    (deal.included_services.length > 0
+      ? `${deal.included_services.length} ${deal.included_services.length === 1 ? 'service' : 'services'} included`
+      : null);
   const shown = deal.included_services.slice(0, 2);
   const more = deal.included_services.length - shown.length;
 
@@ -162,11 +187,11 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
 
   return (
     <li
-      className="w-[62vw] max-w-[240px] shrink-0 sm:w-[264px] sm:max-w-none"
+      className="w-[calc((100vw-3.75rem)/2)] shrink-0 sm:w-[calc((100vw-7.25rem)/2)] lg:w-[300px]"
       aria-hidden={duplicate ? 'true' : undefined}
     >
       <article className="border-border-soft bg-surface shadow-soft hover:border-accent-400 relative flex h-full flex-col overflow-hidden rounded-2xl border transition-colors">
-        <div className="bg-accent-50 relative aspect-[3/4] overflow-hidden">
+        <div className="bg-accent-50 relative h-[110px] shrink-0 overflow-hidden sm:h-[170px] lg:h-[180px]">
           {image ? (
             <img
               src={image}
@@ -178,28 +203,26 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
             />
           ) : (
             <div className="bg-ink text-accent-300 flex size-full items-center justify-center">
-              <Sparkles className="size-10" aria-hidden="true" />
+              <Sparkles className="size-8" aria-hidden="true" />
             </div>
           )}
           {percent !== null && percent > 0 && (
-            <span className="bg-accent-500 text-ivory absolute top-3 left-3 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm">
+            <span className="bg-accent-500 text-ivory absolute top-2 left-2 rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm sm:top-3 sm:left-3 sm:px-2.5 sm:py-1 sm:text-xs">
               {percent}% OFF
             </span>
           )}
           {deal.is_top_deal && (
-            <span className="bg-ink/85 text-accent-300 absolute top-3 right-3 rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wider uppercase">
+            <span className="bg-ink/85 text-accent-300 absolute top-2 right-2 hidden rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wider uppercase sm:top-3 sm:right-3 sm:block">
               Top deal
             </span>
           )}
         </div>
 
-        <div className="flex flex-1 flex-col p-4">
-          {deal.category_tag && (
-            <p className="text-accent-700 text-[11px] font-semibold tracking-[0.16em] uppercase">
-              {deal.category_tag}
-            </p>
-          )}
-          <h3 className="font-display mt-1 text-lg leading-snug font-medium">
+        <div className="flex flex-1 flex-col p-3 sm:p-4">
+          <p className="text-accent-700 truncate text-[10px] font-semibold tracking-wider uppercase sm:text-xs">
+            {deal.category_tag ?? 'Deal'}
+          </p>
+          <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm leading-snug font-medium sm:min-h-[3rem] sm:text-base">
             <Link
               href={`/deals/${deal.slug}`}
               tabIndex={duplicate ? -1 : undefined}
@@ -210,17 +233,15 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
             </Link>
           </h3>
 
-          {shown.length > 0 && (
-            <p className="text-ink-muted mt-2 line-clamp-2 text-xs leading-5">
-              {shown.join(' + ')}
-              {more > 0 && <span className="text-accent-700 font-semibold"> +{more} more</span>}
-            </p>
-          )}
+          <p className="text-ink-muted mt-1 hidden min-h-[2.5rem] text-xs leading-5 sm:line-clamp-2 sm:block">
+            {shown.join(' + ')}
+            {more > 0 && <span className="text-accent-700 font-semibold"> +{more} more</span>}
+          </p>
 
-          <div className="mt-3 flex items-end justify-between gap-2">
-            {deal.deal_price ? (
+          <div className="mt-2 flex flex-col gap-0.5 sm:mt-1">
+            {deal.deal_price && (
               <p className="flex flex-wrap items-baseline gap-x-2">
-                <span className="font-display text-xl font-medium">
+                <span className="font-display text-base font-medium sm:text-lg">
                   {formatCurrency(deal.deal_price)}
                 </span>
                 {deal.original_price && (
@@ -229,30 +250,35 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
                   </span>
                 )}
               </p>
-            ) : (
-              <span />
             )}
-            {left && (
-              <span className="text-ink-muted flex shrink-0 items-center gap-1 text-xs">
-                <Clock3 className="size-3.5" aria-hidden="true" /> {left}
-              </span>
+            {timing && (
+              <p className="text-ink-muted flex items-center gap-1 truncate text-[11px] sm:text-xs">
+                <Clock3 className="size-3 shrink-0 sm:size-3.5" aria-hidden="true" />
+                <span className="truncate">{timing}</span>
+              </p>
             )}
           </div>
 
-          <div className="relative z-10 mt-4 grid grid-cols-2 gap-2">
+          {/* Pinned to the bottom of every card, so the two buttons sit on one line across the row. */}
+          <div className="relative z-10 mt-auto grid grid-cols-2 gap-1.5 pt-3 sm:gap-2">
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="px-2 text-xs"
+              className="h-8 px-1.5 text-[11px] sm:px-2 sm:text-xs"
               tabIndex={duplicate ? -1 : undefined}
               onClick={handleAddToCart}
             >
-              <Plus className="hidden size-4 sm:block" aria-hidden="true" /> Add to Cart
+              <Plus className="hidden size-3.5 sm:block" aria-hidden="true" /> Add to Cart
             </Button>
-            <Button asChild size="sm" variant="accent" className="px-2 text-xs">
+            <Button
+              asChild
+              size="sm"
+              variant="accent"
+              className="h-8 px-1.5 text-[11px] sm:px-2 sm:text-xs"
+            >
               <Link href={deal.claim_url} tabIndex={duplicate ? -1 : undefined} draggable={false}>
-                Claim Offer
+                Claim<span className="hidden sm:inline">&nbsp;Offer</span>
               </Link>
             </Button>
           </div>
@@ -317,7 +343,7 @@ function DealRow({
 
 /**
  * Deals auto-scroll right-to-left like the gallery. On phones and tablets they become two rows
- * running against each other (the second left-to-right).
+ * running against each other (the second left-to-right), each card the size of a service card.
  */
 export function DealsMarquee({ deals }: { deals: MarqueeDeal[] }) {
   const desktop = useIsDesktop();
@@ -329,9 +355,9 @@ export function DealsMarquee({ deals }: { deals: MarqueeDeal[] }) {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-5">
-      <DealRow deals={rowA} min={4} label="Current deals, first row" />
-      <DealRow deals={rowB} min={4} reverse label="Current deals, second row" />
+    <div className="space-y-3 sm:space-y-5">
+      <DealRow deals={rowA} min={6} label="Current deals, first row" />
+      <DealRow deals={rowB} min={6} reverse label="Current deals, second row" />
     </div>
   );
 }

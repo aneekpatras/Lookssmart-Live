@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessHour;
+use App\Models\Deal;
 use App\Models\Setting;
 use App\Services\SecureUploadService;
 use App\Services\SettingService;
@@ -29,6 +30,8 @@ class SettingController extends Controller
                 fn (string $group) => [$group => $settingService->maskedGroup($group)],
             ),
             'businessHours' => BusinessHour::orderBy('weekday')->get(['weekday', 'open_time', 'close_time', 'is_closed']),
+            // For the Deals Bar's "Claim" button: which live deal it adds to the booking.
+            'dealOptions' => Deal::active()->orderBy('title')->get(['id', 'title']),
         ]);
     }
 

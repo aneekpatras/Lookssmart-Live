@@ -35,6 +35,7 @@ interface BusinessHourRow {
 interface SettingsIndexPageProps {
   settings: SettingsGroups;
   businessHours: BusinessHourRow[];
+  dealOptions: { id: number; title: string }[];
 }
 
 const TABS = [
@@ -499,19 +500,21 @@ function IntegrationsTab({ integrations }: { integrations: Record<string, Settin
   );
 }
 
-function DealsBarTab({ bar }: { bar: Record<string, SettingValue> }) {
+function DealsBarTab({ bar, dealOptions }: { bar: Record<string, SettingValue>; dealOptions: { id: number; title: string }[] }) {
   return (
     <GroupForm
       group="deals_bar"
       title="Homepage deals bar"
-      description="The full-width strip above the offers on the homepage. It only shows while switched on, with a headline, and (if you set an end date) before that date. The countdown uses the end date in the salon's time zone."
+      description="The full-width banner between Services and the offers on the homepage. It shows by default (with a plain headline) while there are live deals; switch it off here, or write your own text. If you set an end date it counts down and hides itself afterwards (salon time zone)."
       fields={{
-        enabled: bar['deals_bar.enabled'] === true ? 'true' : 'false',
+        enabled: bar['deals_bar.enabled'] === false ? 'false' : 'true',
         badge: toFieldValue(bar['deals_bar.badge']),
         headline: toFieldValue(bar['deals_bar.headline']),
         subtext: toFieldValue(bar['deals_bar.subtext']),
         ends_at: toFieldValue(bar['deals_bar.ends_at']),
         button_label: toFieldValue(bar['deals_bar.button_label']),
+        claim_label: toFieldValue(bar['deals_bar.claim_label']),
+        deal_id: toFieldValue(bar['deals_bar.deal_id']),
       }}
     >
       {(data, setField, fieldError) => (
@@ -531,6 +534,22 @@ function DealsBarTab({ bar }: { bar: Record<string, SettingValue> }) {
             <p className="text-ink-muted text-xs">Leave empty for no countdown. The bar hides itself once this time has passed.</p>
             {fieldError('ends_at') && <p className="text-sm text-red-600">{fieldError('ends_at')}</p>}
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="deals_bar.deal_id">&quot;Claim&quot; button adds this deal</Label>
+            <select
+              id="deals_bar.deal_id"
+              value={data.deal_id && data.deal_id !== '0' ? data.deal_id : ''}
+              onChange={(e) => setField('deal_id', e.target.value)}
+              className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+            >
+              <option value="">Top live deal (automatic)</option>
+              {dealOptions.map((deal) => (
+                <option key={deal.id} value={String(deal.id)}>{deal.title}</option>
+              ))}
+            </select>
+            <p className="text-ink-muted text-xs">Claim opens the booking page with that deal&apos;s services and promo code already applied.</p>
+          </div>
+          <TextField id="deals_bar.claim_label" label="Claim button text (default: Claim offer)" value={data.claim_label ?? ''} onChange={(v) => setField('claim_label', v)} error={fieldError('claim_label')} />
           <TextField id="deals_bar.button_label" label="Button text (default: View all deals)" value={data.button_label ?? ''} onChange={(v) => setField('button_label', v)} error={fieldError('button_label')} />
         </>
       )}
@@ -591,7 +610,7 @@ function SeoSecurityTab({ seo, security }: { seo: Record<string, SettingValue>; 
   );
 }
 
-export default function SettingsIndex({ settings, businessHours }: SettingsIndexPageProps) {
+export default function SettingsIndex({ settings, businessHours, dealOptions }: SettingsIndexPageProps) {
   const [tab, setTab] = React.useState<TabId>('general');
 
   return (
@@ -631,7 +650,7 @@ export default function SettingsIndex({ settings, businessHours }: SettingsIndex
           {tab === 'booking' && <BookingTab booking={settings.booking} />}
           {tab === 'payments' && <PaymentsTab payments={settings.payments} />}
           {tab === 'integrations' && <IntegrationsTab integrations={settings.integrations} />}
-          {tab === 'deals-bar' && <DealsBarTab bar={settings.deals_bar} />}
+          {tab === 'deals-bar' && <DealsBarTab bar={settings.deals_bar} dealOptions={dealOptions} />}
           {tab === 'seo-security' && <SeoSecurityTab seo={settings.seo} security={settings.security} />}
         </div>
       </div>
