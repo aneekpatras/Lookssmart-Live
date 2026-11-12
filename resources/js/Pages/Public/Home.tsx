@@ -772,8 +772,8 @@ export default function Home({
       {/* 7. Visit us — address, hours, phone and an embedded map. Address/hours/phone come from the shared
           `site` prop (admin Settings + business_hours rows); the directions wording and Maps link from
           SeoService::findUs, so the same text Google reads is what visitors see. */}
-      <section className="border-border-soft bg-surface border-y px-6 py-16 lg:px-10 lg:py-24">
-        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-12 lg:gap-14">
+      <section className="border-border-soft bg-surface border-y px-6 py-14 lg:px-10 lg:py-16">
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-12 lg:gap-12">
           <div className="order-2 lg:order-1 lg:col-span-5">
             <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
               Visit us
@@ -786,8 +786,8 @@ export default function Home({
               message us on WhatsApp and we will confirm your slot.
             </p>
 
-            <div className="divide-border-soft border-border-soft mt-8 divide-y border-y">
-              <div className="flex gap-4 py-5">
+            <div className="divide-border-soft border-border-soft mt-6 divide-y border-y">
+              <div className="flex gap-4 py-4">
                 <MapPin className="text-accent-700 mt-1 size-5 shrink-0" aria-hidden="true" />
                 <div className="min-w-0">
                   <h3 className="font-display text-lg font-medium">Find your way here</h3>
@@ -803,7 +803,7 @@ export default function Home({
                 </div>
               </div>
 
-              <div className="flex gap-4 py-5">
+              <div className="flex gap-4 py-4">
                 <Clock3 className="text-accent-700 mt-1 size-5 shrink-0" aria-hidden="true" />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -832,7 +832,7 @@ export default function Home({
                 </div>
               </div>
 
-              <div className="flex gap-4 py-5">
+              <div className="flex gap-4 py-4">
                 <Phone className="text-accent-700 mt-1 size-5 shrink-0" aria-hidden="true" />
                 <div className="min-w-0">
                   <h3 className="font-display text-lg font-medium">Call us</h3>
@@ -846,7 +846,7 @@ export default function Home({
               </div>
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild variant="accent">
                 <a href={whatsapp.chat_url} target="_blank" rel="noopener noreferrer">
                   <MessageCircle aria-hidden="true" /> Message on WhatsApp
@@ -861,7 +861,7 @@ export default function Home({
           </div>
 
           <div className="relative order-1 lg:order-2 lg:col-span-7">
-            <div className="shadow-soft border-border-soft bg-accent-50 h-[340px] overflow-hidden rounded-2xl rounded-tr-[4rem] border sm:h-[420px] lg:h-full lg:min-h-[520px]">
+            <div className="shadow-soft border-border-soft bg-accent-50 h-[300px] overflow-hidden rounded-2xl rounded-tr-[4rem] border sm:h-[360px] lg:h-full lg:min-h-[420px]">
               <iframe
                 title="Map showing Looks Smart Beauty Salon in Central Park Housing Scheme, Lahore"
                 src="https://www.google.com/maps?q=31.317056,74.389306&output=embed"
