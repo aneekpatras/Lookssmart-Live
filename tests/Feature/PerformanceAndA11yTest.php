@@ -84,11 +84,11 @@ it('returns a valid manifest.json with real branding and the real favicon as an 
     expect(collect($manifest['icons'])->contains(fn ($icon) => str_contains($icon['src'], 'favicon.ico')))->toBeTrue();
 });
 
-it('includes the real uploaded business logo as a second manifest icon only once one exists on disk', function () {
+it('includes the real uploaded business logo as an extra manifest icon only once one exists on disk', function () {
     Storage::fake('public');
 
     $response = $this->get('/manifest.json');
-    expect($response->json('icons'))->toHaveCount(1);
+    expect($response->json('icons'))->toHaveCount(3);
 
     Storage::disk('public')->put('business/logo.png', 'fake-real-png-bytes');
     Setting::create(['key' => 'business.logo_path', 'value' => 'business/logo.png', 'group' => 'business', 'is_encrypted' => false]);
@@ -96,7 +96,7 @@ it('includes the real uploaded business logo as a second manifest icon only once
     $response = $this->get('/manifest.json');
     $icons = $response->json('icons');
 
-    expect($icons)->toHaveCount(2)
+    expect($icons)->toHaveCount(4)
         ->and(collect($icons)->contains(fn ($icon) => str_contains($icon['src'], 'business/logo.png')))->toBeTrue();
 });
 
@@ -106,7 +106,7 @@ it('never advertises a manifest icon for a business.logo_path setting whose file
 
     $response = $this->get('/manifest.json');
 
-    expect($response->json('icons'))->toHaveCount(1);
+    expect($response->json('icons'))->toHaveCount(3);
 });
 
 /**

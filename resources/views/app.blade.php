@@ -11,8 +11,12 @@
     after verification succeeds, or Google will un-verify the property. --}}
     <meta name="google-site-verification" content="7eXs5Yo8XWjW7Fl2pYjKCHfY1nxQzLoz4g0AUoO7EvU" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    {{-- favicon.ico is an empty 0-byte placeholder, so it is deliberately not linked here (it would
-    override the SVG in Chromium browsers). Re-add it once a real .ico exists. --}}
+    {{-- Real icon set (Google Search wants a >=48px multiple-of-48 icon; the SVG stays first for browsers
+    that prefer it). Relative URLs, like the SVG link above. --}}
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="{{ route('manifest') }}">
 
     {{-- SEO Phase 1: the page's real title / description / canonical / Open Graph, written into the RAW
@@ -46,6 +50,28 @@
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700&display=swap">
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    @if (request()->routeIs('home'))
+    {{-- The hero poster is the largest thing painted on the homepage: fetch it at top priority, the
+    version that matches the screen (same breakpoint as the <picture> in Home.tsx), WebP only. --}}
+    <link rel="preload" as="image" type="image/webp" href="/images/hero-poster-mobile.webp" media="(max-width: 767px)" fetchpriority="high">
+    <link rel="preload" as="image" type="image/webp" href="/images/hero-poster.webp" media="(min-width: 768px)" fetchpriority="high">
+    @endif
+    @if (isset($seoMeta) && empty($__inertiaSsrResponse))
+    {{-- Boot screen + visually-hidden crawlable copy. Styles carry the CSP nonce (no 'unsafe-inline'). --}}
+    <style nonce="{{ $cspNonce ?? '' }}">
+        #boot-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#2a2420;opacity:1;transition:opacity .45s ease;animation:boot-failsafe .01s linear 8s forwards}
+        #boot-screen img{width:88px;height:88px;animation:boot-pulse 2.4s ease-in-out infinite}
+        #boot-screen.is-done{opacity:0;pointer-events:none}
+        @keyframes boot-pulse{0%,100%{opacity:.55;transform:scale(.97)}50%{opacity:1;transform:scale(1)}}
+        /* If the app never mounts (JS blocked or failed), the screen still goes away by itself. */
+        @keyframes boot-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
+        @media (prefers-reduced-motion:reduce){#boot-screen img{animation:none}}
+        /* The standard sr-only pattern (NOT display:none): invisible to sight, still read by crawlers and screen readers. */
+        #seo-fallback{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0}
+    </style>
+    <noscript><style nonce="{{ $cspNonce ?? '' }}">#boot-screen{display:none}</style></noscript>
+    @endif
+
     @routes(null, $cspNonce ?? null)
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
@@ -64,23 +90,18 @@
     @if ($gtmId && ! request()->is('admin*'))
         <noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ $gtmId }}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     @endif
+    @if (isset($seoMeta) && empty($__inertiaSsrResponse))
+    <div id="boot-screen" aria-hidden="true"><img src="/favicon.svg" alt="" width="88" height="88"></div>
+    @endif
     @inertia
     {{--
         SEO Phase 1: crawlable raw-HTML copy of the page (<h1>, intro, links). It sits in normal HTML so
         Google's first (non-JS) pass and no-JS visitors get real content and real internal links; it is
-        absolutely positioned, so it can never push layout around, and app.tsx removes it the instant
-        the React app is about to mount. Skipped when Inertia SSR actually responded (that output is
-        already the real page). The <style> carries the CSP nonce — this site's CSP has no
-        'unsafe-inline', so an un-nonced <style> or style="" attribute would be silently dropped.
+        visually hidden (sr-only, never display:none) and absolutely positioned, so nobody sees it and it
+        can never push layout around; app.tsx removes it the instant the React app is about to mount. Skipped when Inertia SSR actually responded (that output is
+        already the real page). Its styles live in <head> (nonced).
     --}}
     @if (isset($seoMeta) && empty($__inertiaSsrResponse))
-    <style nonce="{{ $cspNonce ?? '' }}">
-        #seo-fallback{position:absolute;top:0;left:0;right:0;z-index:60;box-sizing:border-box;min-height:100vh;padding:96px 24px 48px;background:var(--color-ivory,#faf7f2);color:var(--color-ink,#2a2420);font:16px/1.6 Inter,system-ui,sans-serif}
-        #seo-fallback h1{max-width:48rem;margin:0 0 16px;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:clamp(2rem,6vw,3.5rem);line-height:1.1}
-        #seo-fallback p{max-width:42rem;margin:0 0 24px;color:var(--color-ink-muted,#6b6157)}
-        #seo-fallback ul{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0 0 24px;padding:0;list-style:none}
-        #seo-fallback a{color:var(--color-accent-700,#8f7140)}
-    </style>
     <main id="seo-fallback">
         <h1>{{ $seoMeta['h1'] }}</h1>
         @if (! empty($seoMeta['intro']))

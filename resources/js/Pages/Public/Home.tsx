@@ -100,10 +100,12 @@ interface SharedProps {
 // hiding it behind escapes. It leaves the `/` separators alone, which encodeURIComponent would not.
 const HERO_VIDEO = encodeURI('/images/looks smart beauty Salon in Lahore.mp4');
 
-// Shown before the first frame decodes, and left in place permanently if the video cannot play at
-// all (unsupported codec, blocked autoplay, a failed request). Stock imagery for now — see §10 #40.
-const HERO_POSTER =
-  'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600&h=900&fit=crop';
+// Real photo of the salon, shown from the first paint and left in place permanently if the video
+// cannot play at all (unsupported codec, blocked autoplay, a failed request, reduced motion). Desktop
+// is 1600x900, mobile 900x1200; WebP first with a JPG fallback. The breakpoint (768px) must match the
+// <link rel="preload"> media queries in resources/views/app.blade.php.
+const HERO_POSTER = '/images/hero-poster.jpg';
+const HERO_POSTER_ALT = 'Inside Looks Smart Beauty Salon, Central Park Housing Scheme, Lahore';
 
 /** Reads better than "180 min" once past an hour; mirrors Services/ServiceDetail. */
 function formatDuration(minutes: number): string {
@@ -163,37 +165,50 @@ function HeroBackground() {
     });
   }, [allowVideo]);
 
-  if (!allowVideo || failed) {
-    return (
-      <img
-        src={HERO_POSTER}
-        alt=""
-        aria-hidden="true"
-        width={1600}
-        height={900}
-        fetchPriority="high"
-        decoding="async"
-        className="absolute inset-0 -z-20 size-full object-cover"
-      />
-    );
-  }
-
+  // The poster is always rendered, as the base layer: it paints first (high priority, never lazy,
+  // fixed size so nothing shifts) and the video, when allowed, plays on top of it. Keeping one
+  // permanent <img> also means the swap to video never flashes, and the photo keeps its alt text.
   return (
-    <video
-      ref={videoRef}
-      className="absolute inset-0 -z-20 size-full object-cover"
-      poster={HERO_POSTER}
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      aria-hidden="true"
-      tabIndex={-1}
-      onError={() => setFailed(true)}
-    >
-      <source src={HERO_VIDEO} type="video/mp4" />
-    </video>
+    <>
+      <picture>
+        <source
+          media="(max-width: 767px)"
+          srcSet="/images/hero-poster-mobile.webp"
+          type="image/webp"
+        />
+        <source
+          media="(max-width: 767px)"
+          srcSet="/images/hero-poster-mobile.jpg"
+          type="image/jpeg"
+        />
+        <source srcSet="/images/hero-poster.webp" type="image/webp" />
+        <img
+          src={HERO_POSTER}
+          alt={HERO_POSTER_ALT}
+          width={1600}
+          height={900}
+          fetchPriority="high"
+          decoding="async"
+          className="absolute inset-0 -z-20 size-full object-cover"
+        />
+      </picture>
+      {allowVideo && !failed && (
+        <video
+          ref={videoRef}
+          className="absolute inset-0 -z-20 size-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-hidden="true"
+          tabIndex={-1}
+          onError={() => setFailed(true)}
+        >
+          <source src={HERO_VIDEO} type="video/mp4" />
+        </video>
+      )}
+    </>
   );
 }
 

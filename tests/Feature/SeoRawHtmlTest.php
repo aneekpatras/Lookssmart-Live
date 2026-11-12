@@ -466,3 +466,74 @@ it('gives the homepage a Find us block with directions and a Maps link in the pa
 
     expect($raw)->toContain('near UBL Bank')->toContain('Gate No. 1')->toContain('46-B, Commercial Central Park Housing Scheme, Main Ferozpur Road, Lahore');
 });
+
+/*
+ * Hero poster / boot screen / favicons: the crawlable copy stays in the raw HTML but is visually hidden
+ * with the sr-only pattern (never display:none), visitors see a branded boot screen instead, and the
+ * head carries the full icon set.
+ */
+
+it('keeps the crawlable H1 in the raw HTML but visually hidden with sr-only, never display:none', function () {
+    $html = rawHtml($this->get('/')->assertOk());
+
+    expect($html)->toContain('<main id="seo-fallback">')
+        ->toContain('<h1>Beauty Salon in Central Park Housing Scheme, Lahore</h1>');
+
+    preg_match('/#seo-fallback\{([^}]*)\}/', $html, $rule);
+
+    expect($rule[1] ?? '')->toContain('position:absolute')->toContain('width:1px')->toContain('clip:rect(0,0,0,0)')
+        ->not->toContain('display:none')->not->toContain('visibility:hidden');
+});
+
+it('shows a branded boot screen with a CSS failsafe, styled with the CSP nonce', function () {
+    $html = rawHtml($this->get('/')->assertOk());
+
+    expect($html)->toContain('id="boot-screen"')
+        ->toContain('src="/favicon.svg"')
+        ->toContain('background:#2a2420')
+        ->toContain('animation:boot-failsafe')
+        ->toMatch('/<style nonce="[^"]+">\s*#boot-screen/');
+});
+
+it('declares the full favicon set and preloads the right hero poster on the homepage', function () {
+    $html = rawHtml($this->get('/')->assertOk());
+
+    expect($html)->toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg">')
+        ->toContain('<link rel="icon" href="/favicon.ico" sizes="48x48">')
+        ->toContain('<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">')
+        ->toContain('<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">')
+        ->toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png">')
+        ->toContain('href="/images/hero-poster.webp" media="(min-width: 768px)" fetchpriority="high"')
+        ->toContain('href="/images/hero-poster-mobile.webp" media="(max-width: 767px)" fetchpriority="high"');
+
+    // Only the homepage preloads the hero.
+    expect(rawHtml($this->get('/about')->assertOk()))->not->toContain('hero-poster');
+});
+
+it('ships every icon and hero image as a real file, and robots.txt does not block them', function () {
+    foreach (['favicon.ico', 'favicon.svg', 'favicon-48x48.png', 'favicon-192x192.png', 'apple-touch-icon.png', 'icon-512x512.png',
+        'images/hero-poster.jpg', 'images/hero-poster.webp', 'images/hero-poster-mobile.jpg', 'images/hero-poster-mobile.webp'] as $file) {
+        expect(filesize(public_path($file)))->toBeGreaterThan(1000, $file);
+    }
+
+    $robots = $this->get('/robots.txt')->assertOk()->getContent();
+
+    expect($robots)->not->toMatch('#Disallow:\s*/(favicon|apple-touch|icon-|images)#');
+});
+
+it('lists the 192 and 512 PNG icons in the web manifest', function () {
+    $icons = $this->get('/manifest.json')->assertOk()->json('icons');
+    $sources = array_column($icons, 'src');
+
+    expect(collect($sources)->contains(fn ($src) => str_ends_with($src, '/favicon-192x192.png')))->toBeTrue()
+        ->and(collect($sources)->contains(fn ($src) => str_ends_with($src, '/icon-512x512.png')))->toBeTrue();
+});
+
+it('adds the hero photo to the BeautySalon image list without a second block', function () {
+    $html = rawHtml($this->get('/')->assertOk());
+    $salons = array_values(array_filter(ldBlocks($html), fn ($b) => ($b['@type'] ?? null) === 'BeautySalon'));
+
+    expect($salons)->toHaveCount(1)
+        ->and((array) $salons[0]['image'])->toContain(url('images/hero-poster.jpg'));
+    expect(metaContent($html, 'og:image'))->toEndWith('/images/og-default.jpg');
+});

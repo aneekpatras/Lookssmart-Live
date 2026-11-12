@@ -48,6 +48,18 @@ createInertiaApp({
     }
 
     createRoot(el).render(app);
+
+    // Fade out the branded boot screen (resources/views/app.blade.php) once the first frame of the app
+    // has been painted. If this never runs (JS failure) a CSS failsafe hides it on its own.
+    const boot = document.getElementById('boot-screen');
+    if (boot) {
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          boot.classList.add('is-done');
+          window.setTimeout(() => boot.remove(), 600);
+        }),
+      );
+    }
   },
   progress: {
     color: '#c9a66b',

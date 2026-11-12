@@ -607,7 +607,7 @@ class SeoService
             'name' => $this->businessName(),
             'url' => route('home'),
             'logo' => $this->defaultImageUrl(),
-            'image' => $this->defaultShareImage(),
+            'image' => $this->salonImages(),
             'telephone' => $this->phone(),
             'email' => Setting::get('business.email') ?: null,
             'address' => $this->postalAddress(),
@@ -746,6 +746,26 @@ class SeoService
      * preview); otherwise the branded 1200x630 `public/images/og-default.jpg` is used. Null only when
      * neither exists, in which case the page simply carries no og:image.
      */
+    /**
+     * Images for the BeautySalon block: the branded share image plus the real hero photo of the salon
+     * (the one Google may use as a thumbnail). A single URL stays a plain string; two become a list.
+     *
+     * @return string|list<string>|null
+     */
+    private function salonImages(): string|array|null
+    {
+        $images = array_values(array_filter([
+            $this->defaultShareImage(),
+            is_file(public_path('images/hero-poster.jpg')) ? url('images/hero-poster.jpg') : null,
+        ]));
+
+        return match (count($images)) {
+            0 => null,
+            1 => $images[0],
+            default => $images,
+        };
+    }
+
     public function defaultShareImage(): ?string
     {
         $logo = $this->defaultImageUrl();

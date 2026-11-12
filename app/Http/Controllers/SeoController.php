@@ -102,12 +102,10 @@ class SeoController extends Controller
     }
 
     /**
-     * Phase 13 sub-step 2: PWA-lite manifest — `favicon.ico` (the only icon asset this project
-     * actually ships) is always included; the real uploaded `business.logo_path` is added on top of
-     * it only when one is configured AND still exists on disk (never a stale/broken reference).
-     * Neither is a proper multi-resolution PWA icon set (192/512 PNGs) — there's no icon-generation
-     * pipeline in this project — logged honestly as a known limitation rather than fabricating sizes
-     * that were never actually produced.
+     * Phase 13 sub-step 2: PWA-lite manifest — `favicon.ico` plus the real 192x192 and 512x512 PNGs
+     * (public/favicon-192x192.png, public/icon-512x512.png) are always included; the real uploaded
+     * `business.logo_path` is added on top only when one is configured AND still exists on disk
+     * (never a stale/broken reference).
      */
     public function manifest(): JsonResponse
     {
@@ -117,6 +115,16 @@ class SeoController extends Controller
             'src' => asset('favicon.ico'),
             'sizes' => 'any',
             'type' => 'image/x-icon',
+        ], [
+            'src' => asset('favicon-192x192.png'),
+            'sizes' => '192x192',
+            'type' => 'image/png',
+            'purpose' => 'any',
+        ], [
+            'src' => asset('icon-512x512.png'),
+            'sizes' => '512x512',
+            'type' => 'image/png',
+            'purpose' => 'any',
         ]];
 
         $logoPath = Setting::get('business.logo_path');
