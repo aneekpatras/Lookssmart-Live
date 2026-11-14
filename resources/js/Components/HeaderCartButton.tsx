@@ -130,6 +130,7 @@ export function HeaderCartButton() {
       <SheetContent
         side="right"
         overlayClassName="bg-ink/10"
+        data-lenis-prevent
         className="bg-ivory w-[90vw] max-w-[420px] sm:max-w-[420px] lg:max-w-[420px]"
       >
         <SheetHeader>
@@ -151,8 +152,13 @@ export function HeaderCartButton() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {/* `data-lenis-prevent`: Lenis (SmoothScroll) hijacks wheel/touch for the page, which is locked
+                while the drawer is open, so without it the list only scrolled via its scrollbar. */}
+            <div
+              data-lenis-prevent
+              className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1"
+            >
               {rows.map((row) => {
                 const isDiscounted = row.original_price !== undefined && row.original_price > row.price;
                 return (
