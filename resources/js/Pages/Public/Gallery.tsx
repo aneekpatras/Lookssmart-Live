@@ -215,4 +215,4 @@ export default function Gallery({ sections }: GalleryPageProps) {
   );
 }
 
-Gallery.layout = (page: React.ReactNode) => <PublicLayout>{page}</PublicLayout>;
+Gallery.layout = (page: React.ReactNode) => <PublicLayout solidHeader>{page}</PublicLayout>;

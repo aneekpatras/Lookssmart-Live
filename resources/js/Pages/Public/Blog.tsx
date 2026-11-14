@@ -383,4 +383,4 @@ export default function Blog({
   );
 }
 
-Blog.layout = (page: React.ReactNode) => <PublicLayout>{page}</PublicLayout>;
+Blog.layout = (page: React.ReactNode) => <PublicLayout solidHeader>{page}</PublicLayout>;
