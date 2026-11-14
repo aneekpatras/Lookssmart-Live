@@ -74,36 +74,8 @@ export function BookItemCard({
             {categoryIcon(label)}
           </div>
         )}
-        {price && (
-          <span className="bg-ink text-ivory absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap">
-            {formatCurrency(price)}
-          </span>
-        )}
-        <button
-          type="button"
-          aria-pressed={selected}
-          aria-label={ariaLabel}
-          onClick={onToggle}
-          className="group absolute top-0 right-0 flex h-10 items-center px-1.5 focus-visible:outline-none"
-        >
-          <span
-            className={`group-focus-visible:ring-accent-700 flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-semibold whitespace-nowrap shadow-sm group-focus-visible:ring-2 group-focus-visible:ring-offset-1 sm:h-[30px] ${
-              selected ? 'bg-ink text-ivory' : 'bg-accent-500 text-white'
-            }`}
-          >
-            {selected ? (
-              <>
-                <Check className="size-3.5" aria-hidden="true" /> Added
-              </>
-            ) : (
-              <>
-                <Plus className="size-3.5" aria-hidden="true" /> Add
-              </>
-            )}
-          </span>
-        </button>
       </div>
-      <div className="flex flex-1 flex-col p-2.5">
+      <div className="flex flex-1 flex-col p-2 sm:p-2.5">
         {label && (
           <span className="text-accent-700 truncate text-[11px] font-semibold tracking-wider uppercase">
             {label}
@@ -112,17 +84,48 @@ export function BookItemCard({
         <strong className="font-display text-ink mt-0.5 line-clamp-2 min-h-[2.5em] text-[13px] leading-tight font-medium sm:text-sm">
           {title}
         </strong>
-        <div className="text-ink-muted mt-1.5 flex items-center justify-between gap-2 text-xs">
-          {durationMin ? (
-            <span className="inline-flex items-center gap-1">
-              <Clock3 className="size-3.5" aria-hidden="true" /> {formatDuration(durationMin)}
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-x-2 gap-y-1 pt-1.5">
+          <div className="min-w-0">
+            {durationMin ? (
+              <span className="text-ink-muted flex items-center gap-1 text-xs">
+                <Clock3 className="size-3.5 shrink-0" aria-hidden="true" />{' '}
+                {formatDuration(durationMin)}
+              </span>
+            ) : null}
+            {price && (
+              <p className="text-ink mt-0.5 flex flex-wrap items-baseline gap-x-1.5 text-[13px] font-semibold whitespace-nowrap sm:text-sm">
+                {formatCurrency(price)}
+                {originalPrice && (
+                  <span className="text-ink-muted text-[11px] font-normal line-through">
+                    {formatCurrency(originalPrice)}
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-pressed={selected}
+            aria-label={ariaLabel}
+            onClick={onToggle}
+            className="group -my-[5px] ml-auto flex h-10 shrink-0 items-center focus-visible:outline-none"
+          >
+            <span
+              className={`group-focus-visible:ring-accent-700 flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold whitespace-nowrap shadow-sm group-focus-visible:ring-2 group-focus-visible:ring-offset-1 sm:h-[30px] sm:px-2.5 ${
+                selected ? 'bg-ink text-ivory' : 'bg-accent-500 text-white'
+              }`}
+            >
+              {selected ? (
+                <>
+                  <Check className="size-3.5" aria-hidden="true" /> Added
+                </>
+              ) : (
+                <>
+                  <Plus className="size-3.5" aria-hidden="true" /> Add
+                </>
+              )}
             </span>
-          ) : (
-            <span />
-          )}
-          {originalPrice && (
-            <span className="text-[11px] line-through">{formatCurrency(originalPrice)}</span>
-          )}
+          </button>
         </div>
       </div>
     </div>
