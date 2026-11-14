@@ -16,18 +16,17 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import * as React from 'react';
-import { toast } from 'sonner';
 
 import { BridalMarquee, type MarqueeImage } from '@/Components/BridalMarquee';
 import { ReviewsCarousel, type ReviewShowcase } from '@/Components/ReviewsCarousel';
 import { SeoHead } from '@/Components/SeoHead';
+import { CartAddButton } from '@/Components/CartAddButton';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import type { DealShowcase } from '@/Components/DealDetailsModal';
 import { DealsBar, DealsMarquee, type DealsBarData } from '@/Components/DealsShowcase';
 import { WriteReviewModal } from '@/Components/WriteReviewModal';
 import PublicLayout from '@/Layouts/PublicLayout';
-import { addToCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 
 interface ServiceCard {
@@ -463,19 +462,16 @@ export default function Home({
                     <span className="text-ink font-semibold">{formatCurrency(service.price)}</span>
                   </div>
                   <div className="mt-2 grid grid-cols-1 gap-1.5 sm:mt-3 sm:grid-cols-2 sm:gap-2">
-                    <Button
-                      type="button"
+                    <CartAddButton
                       variant="accent"
                       size="sm"
-                      onClick={() =>
-                        addToCart({ kind: 'service', label: service.name, service }, toast)
-                      }
+                      input={{ kind: 'service', label: service.name, service }}
                     >
                       <Plus className="size-4" aria-hidden="true" />
                       <span>
                         Add<span className="hidden sm:inline"> to Cart</span>
                       </span>
-                    </Button>
+                    </CartAddButton>
                     <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
                       <Link href={`/services/${service.slug}`}>Details</Link>
                     </Button>

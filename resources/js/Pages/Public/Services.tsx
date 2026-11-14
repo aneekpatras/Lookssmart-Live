@@ -1,15 +1,14 @@
 import { Link } from '@inertiajs/react';
 import { Clock3, Search, Sparkles } from 'lucide-react';
 import * as React from 'react';
-import { toast } from 'sonner';
 
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { SeoHead } from '@/Components/SeoHead';
+import { CartAddButton } from '@/Components/CartAddButton';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import PublicLayout from '@/Layouts/PublicLayout';
-import { addToCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 import { formatDuration } from '@/lib/format';
 import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
@@ -39,10 +38,6 @@ const TOP_ANCHOR = 'services-top';
 const INITIAL_VISIBLE = 8;
 
 function ServiceCardTile({ service }: { service: ServiceCard }) {
-  function handleAddToCart() {
-    addToCart({ kind: 'service', label: service.name, service }, toast);
-  }
-
   return (
     <Card className="border-border-soft bg-surface shadow-soft flex flex-col overflow-hidden">
       <Link
@@ -82,11 +77,15 @@ function ServiceCardTile({ service }: { service: ServiceCard }) {
           <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
             <Link href={`/services/${service.slug}`}>Details</Link>
           </Button>
-          <Button type="button" variant="accent" size="sm" onClick={handleAddToCart}>
+          <CartAddButton
+            variant="accent"
+            size="sm"
+            input={{ kind: 'service', label: service.name, service }}
+          >
             <span>
               + Add<span className="hidden sm:inline"> to Cart</span>
             </span>
-          </Button>
+          </CartAddButton>
         </div>
       </CardContent>
     </Card>

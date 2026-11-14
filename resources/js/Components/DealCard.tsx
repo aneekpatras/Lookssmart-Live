@@ -1,10 +1,9 @@
 import { Link } from '@inertiajs/react';
 import { ArrowRight, Check, Plus, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
 
+import { CartAddButton } from '@/Components/CartAddButton';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
-import { addToCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 
 import type { DealShowcase } from './DealDetailsModal';
@@ -24,20 +23,6 @@ interface DealCardProps {
 export function DealCard({ deal, onViewDetails }: DealCardProps) {
   const previewServices = deal.included_services.slice(0, 4);
   const remainingCount = deal.included_services.length - previewServices.length;
-
-  function handleAddToCart() {
-    addToCart(
-      {
-        kind: 'deal',
-        dealId: deal.id,
-        label: deal.title,
-        bundledServices: deal.bundled_services,
-        originalPrice: deal.original_price,
-        dealPrice: deal.deal_price,
-      },
-      toast,
-    );
-  }
 
   return (
     <Card
@@ -139,12 +124,23 @@ export function DealCard({ deal, onViewDetails }: DealCardProps) {
           <Button variant="outline" size="sm" onClick={() => onViewDetails(deal)}>
             Details
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={handleAddToCart}>
+          <CartAddButton
+            variant="outline"
+            size="sm"
+            input={{
+              kind: 'deal',
+              dealId: deal.id,
+              label: deal.title,
+              bundledServices: deal.bundled_services,
+              originalPrice: deal.original_price,
+              dealPrice: deal.deal_price,
+            }}
+          >
             <Plus className="size-4" aria-hidden="true" />
             <span>
               Add<span className="hidden sm:inline"> to Cart</span>
             </span>
-          </Button>
+          </CartAddButton>
         </div>
       </CardContent>
     </Card>

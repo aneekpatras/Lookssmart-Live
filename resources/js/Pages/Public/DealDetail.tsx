@@ -1,13 +1,12 @@
 import { Link } from '@inertiajs/react';
 import { ArrowLeft, ArrowRight, Check, Clock3, MessageCircle, Plus, Sparkles } from 'lucide-react';
 import * as React from 'react';
-import { toast } from 'sonner';
 
 import type { DealShowcase } from '@/Components/DealDetailsModal';
 import { SeoHead } from '@/Components/SeoHead';
+import { CartAddButton } from '@/Components/CartAddButton';
 import { Button } from '@/Components/ui/button';
 import PublicLayout from '@/Layouts/PublicLayout';
-import { addToCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 
 interface DealDetailProps {
@@ -31,20 +30,6 @@ function formatEnd(endsAt: string | null): string | null {
 export default function DealDetail({ deal, whatsapp }: DealDetailProps) {
   const image = deal.image_url ?? deal.bundled_services.find((s) => s.image_url)?.image_url ?? null;
   const ends = formatEnd(deal.ends_at);
-
-  function handleAddToCart() {
-    addToCart(
-      {
-        kind: 'deal',
-        dealId: deal.id,
-        label: deal.title,
-        bundledServices: deal.bundled_services,
-        originalPrice: deal.original_price,
-        dealPrice: deal.deal_price,
-      },
-      toast,
-    );
-  }
 
   return (
     <>
@@ -147,9 +132,21 @@ export default function DealDetail({ deal, whatsapp }: DealDetailProps) {
                     Claim Offer <ArrowRight aria-hidden="true" />
                   </Link>
                 </Button>
-                <Button type="button" variant="outline" size="lg" onClick={handleAddToCart}>
+                <CartAddButton
+                  variant="outline"
+                  size="lg"
+                  checkClassName="size-5"
+                  input={{
+                    kind: 'deal',
+                    dealId: deal.id,
+                    label: deal.title,
+                    bundledServices: deal.bundled_services,
+                    originalPrice: deal.original_price,
+                    dealPrice: deal.deal_price,
+                  }}
+                >
                   <Plus aria-hidden="true" /> Add to Cart
-                </Button>
+                </CartAddButton>
                 <Button asChild variant="outline" size="lg">
                   <a href={whatsapp.chat_url} target="_blank" rel="noopener noreferrer">
                     <MessageCircle aria-hidden="true" /> Ask on WhatsApp

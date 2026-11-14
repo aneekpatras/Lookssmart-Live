@@ -1,12 +1,11 @@
 import { Link } from '@inertiajs/react';
 import { ArrowRight, Clock3, Plus, Sparkles } from 'lucide-react';
 import * as React from 'react';
-import { toast } from 'sonner';
 
+import { CartAddButton } from '@/Components/CartAddButton';
 import { AutoMarquee } from '@/Components/AutoMarquee';
 import type { DealShowcase } from '@/Components/DealDetailsModal';
 import { Button } from '@/Components/ui/button';
-import { addToCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 import { validTill } from '@/lib/format';
 
@@ -157,20 +156,6 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
   const shown = deal.included_services.slice(0, 2);
   const more = deal.included_services.length - shown.length;
 
-  function handleAddToCart() {
-    addToCart(
-      {
-        kind: 'deal',
-        dealId: deal.id,
-        label: deal.title,
-        bundledServices: deal.bundled_services,
-        originalPrice: deal.original_price,
-        dealPrice: deal.deal_price,
-      },
-      toast,
-    );
-  }
-
   return (
     <li
       className="w-[calc((100vw-3.75rem)/2)] shrink-0 sm:w-[calc((100vw-7rem)/2)] lg:w-[300px]"
@@ -247,16 +232,23 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
 
           {/* Pinned to the bottom of every card, so the two buttons sit on one line across the row. */}
           <div className="relative z-10 mt-auto grid grid-cols-2 gap-1.5 pt-3 sm:gap-2">
-            <Button
-              type="button"
+            <CartAddButton
               size="sm"
               variant="outline"
               className="h-8 px-1.5 text-[11px] sm:px-2 sm:text-xs"
+              checkClassName="hidden size-3.5 sm:block"
               tabIndex={duplicate ? -1 : undefined}
-              onClick={handleAddToCart}
+              input={{
+                kind: 'deal',
+                dealId: deal.id,
+                label: deal.title,
+                bundledServices: deal.bundled_services,
+                originalPrice: deal.original_price,
+                dealPrice: deal.deal_price,
+              }}
             >
               <Plus className="hidden size-3.5 sm:block" aria-hidden="true" /> Add to Cart
-            </Button>
+            </CartAddButton>
             <Button
               asChild
               size="sm"

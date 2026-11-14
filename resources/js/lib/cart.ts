@@ -12,6 +12,19 @@ const CART_STORAGE_KEY = 'ls_booking_cart_items';
 export const CART_CHANGED_EVENT = 'ls-cart-changed';
 /** Dispatch to slide the header cart drawer open from anywhere (e.g. the gallery lightbox). */
 export const OPEN_CART_EVENT = 'ls-open-cart';
+/** Fired once per real add (never on removals, restores or already-in-cart no-ops) to show the popup. */
+export const CART_ADDED_EVENT = 'ls-cart-added';
+export interface CartAddedDetail {
+  name: string;
+  kind: 'service' | 'deal';
+}
+
+export function notifyCartAdded(name: string, kind: 'service' | 'deal'): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent<CartAddedDetail>(CART_ADDED_EVENT, { detail: { name, kind } }),
+  );
+}
 
 export interface CartItem {
   id: number;
@@ -55,7 +68,10 @@ export function getCartItems(): CartItem[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (item): item is CartItem =>
-        item && typeof item === 'object' && Number.isInteger(item.id) && typeof item.name === 'string',
+        item &&
+        typeof item === 'object' &&
+        Number.isInteger(item.id) &&
+        typeof item.name === 'string',
     );
   } catch {
     return [];
@@ -100,7 +116,11 @@ export function addItemsToCart(items: CartItem[]): void {
  * deal-id/service-id collision this was written to guard against.
  */
 export type AddToCartInput =
-  | { kind: 'service'; label: string; service: { id: number; name: string; price: string; image_url: string | null } }
+  | {
+      kind: 'service';
+      label: string;
+      service: { id: number; name: string; price: string; image_url: string | null };
+    }
   | {
       kind: 'deal';
       dealId: number;
@@ -123,7 +143,7 @@ export function addToCart(
         image_url: input.service.image_url,
       },
     ]);
-    toast.success(`"${input.service.name}" added to cart`);
+    notifyCartAdded(input.service.name, 'service');
     return;
   }
 
@@ -131,8 +151,36 @@ export function addToCart(
     toast.error('This deal has no bookable services attached yet.');
     return;
   }
-  addItemsToCart(dealBundleToCartItems(input.bundledServices, input.originalPrice, input.dealPrice, input.dealId, input.label));
-  toast.success(`"${input.label}" added to cart`);
+  addItemsToCart(
+    dealBundleToCartItems(
+      input.bundledServices,
+      input.originalPrice,
+      input.dealPrice,
+      input.dealId,
+      input.label,
+    ),
+  );
+  notifyCartAdded(input.label, 'deal');
+}
+
+/** True when the service is in the cart, or every service of the deal is (the gallery lightbox's rule). */
+export function isInCart(input: AddToCartInput, items: CartItem[] = getCartItems()): boolean {
+  if (input.kind === 'service') return items.some((item) => item.id === input.service.id);
+  return (
+    input.bundledServices.length > 0 &&
+    input.bundledServices.every((svc) => items.some((item) => item.id === svc.id))
+  );
+}
+
+/** Add button behaviour for every card: remove when already in the cart, otherwise add. */
+export function toggleCart(input: AddToCartInput, toast: Parameters<typeof addToCart>[1]): void {
+  if (!isInCart(input)) {
+    addToCart(input, toast);
+    return;
+  }
+  const ids =
+    input.kind === 'service' ? [input.service.id] : input.bundledServices.map((svc) => svc.id);
+  setCartItems(getCartItems().filter((item) => !ids.includes(item.id)));
 }
 
 export function removeFromCart(id: number): void {
