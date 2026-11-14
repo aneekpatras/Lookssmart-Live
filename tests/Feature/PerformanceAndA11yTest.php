@@ -63,9 +63,7 @@ it('loosens only script/frame/img/connect-src to the real Google domains once GT
         ->not->toContain('unsafe-inline');
 });
 
-it('returns a valid manifest.json with real branding and the real favicon as an icon', function () {
-    Setting::create(['key' => 'business.name', 'value' => 'Looks Smart Test Salon', 'group' => 'business', 'is_encrypted' => false]);
-
+it('returns a valid manifest.json with square app icons, any and maskable as separate entries', function () {
     $response = $this->get('/manifest.json');
 
     $response->assertOk();
@@ -73,40 +71,25 @@ it('returns a valid manifest.json with real branding and the real favicon as an 
 
     $manifest = $response->json();
 
-    expect($manifest['name'])->toBe('Looks Smart Test Salon')
-        ->and($manifest['short_name'])->toBe('Looks Smart Test Salon')
+    expect($manifest['name'])->toBe('Looks Smart')
+        ->and($manifest['short_name'])->toBe('Looks Smart')
         ->and($manifest['display'])->toBe('standalone')
         ->and($manifest['start_url'])->toBe('/')
         ->and($manifest['background_color'])->toBe('#faf7f2')
-        ->and($manifest['theme_color'])->toBe('#c9a66b')
-        ->and($manifest['icons'])->toBeArray()->not->toBeEmpty();
+        ->and($manifest['theme_color'])->toBe('#c9a66b');
 
-    expect(collect($manifest['icons'])->contains(fn ($icon) => str_contains($icon['src'], 'favicon.ico')))->toBeTrue();
+    $icons = collect($manifest['icons']);
+    expect($icons)->toHaveCount(4)
+        ->and($icons->where('purpose', 'any')->pluck('sizes')->all())->toBe(['192x192', '512x512'])
+        ->and($icons->where('purpose', 'maskable')->pluck('sizes')->all())->toBe(['192x192', '512x512']);
 });
 
-it('includes the real uploaded business logo as an extra manifest icon only once one exists on disk', function () {
+it('never lists the wide business logo as a manifest icon', function () {
     Storage::fake('public');
-
-    $response = $this->get('/manifest.json');
-    expect($response->json('icons'))->toHaveCount(3);
-
     Storage::disk('public')->put('business/logo.png', 'fake-real-png-bytes');
     Setting::create(['key' => 'business.logo_path', 'value' => 'business/logo.png', 'group' => 'business', 'is_encrypted' => false]);
 
-    $response = $this->get('/manifest.json');
-    $icons = $response->json('icons');
-
-    expect($icons)->toHaveCount(4)
-        ->and(collect($icons)->contains(fn ($icon) => str_contains($icon['src'], 'business/logo.png')))->toBeTrue();
-});
-
-it('never advertises a manifest icon for a business.logo_path setting whose file no longer exists', function () {
-    Storage::fake('public');
-    Setting::create(['key' => 'business.logo_path', 'value' => 'business/deleted.png', 'group' => 'business', 'is_encrypted' => false]);
-
-    $response = $this->get('/manifest.json');
-
-    expect($response->json('icons'))->toHaveCount(3);
+    expect($this->get('/manifest.json')->json('icons'))->toHaveCount(4);
 });
 
 /**

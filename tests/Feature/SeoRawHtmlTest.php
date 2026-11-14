@@ -571,8 +571,8 @@ it('lists the 192 and 512 PNG icons in the web manifest', function () {
     $icons = $this->get('/manifest.json')->assertOk()->json('icons');
     $sources = array_column($icons, 'src');
 
-    expect(collect($sources)->contains(fn ($src) => str_ends_with($src, '/favicon-192x192.png')))->toBeTrue()
-        ->and(collect($sources)->contains(fn ($src) => str_ends_with($src, '/icon-512x512.png')))->toBeTrue();
+    expect(collect($sources)->contains(fn ($src) => str_ends_with($src, '/icon-192.png')))->toBeTrue()
+        ->and(collect($sources)->contains(fn ($src) => str_ends_with($src, '/icon-512.png')))->toBeTrue();
 });
 
 it('adds the hero photo to the BeautySalon image list without a second block', function () {
