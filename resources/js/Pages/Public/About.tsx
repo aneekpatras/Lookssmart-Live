@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 
+import { Reveal } from '@/Components/Reveal';
 import { SeoHead } from '@/Components/SeoHead';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -74,7 +75,15 @@ const PILLAR_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   sparkles: Sparkles,
 };
 
-const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
 
 /** MySQL returns TIME as `H:i:s`, SQLite as whatever was written — parse both. */
 function formatTime(time: string | null): string {
@@ -126,7 +135,7 @@ function summariseHours(hours: BusinessHourRow[]): { days: string; hours: string
 /** Small shared eyebrow label, used above every section heading. */
 function SectionBadge({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-accent-700 text-xs font-semibold uppercase tracking-[0.22em]">{children}</p>
+    <p className="text-accent-700 text-xs font-semibold tracking-[0.22em] uppercase">{children}</p>
   );
 }
 
@@ -145,7 +154,7 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
       <section className="bg-ivory px-6 py-16 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-6xl">
           <SectionBadge>Our heritage</SectionBadge>
-          <h1 className="font-display text-ink mt-4 max-w-3xl text-4xl font-medium leading-[1.08] sm:text-5xl lg:text-6xl">
+          <h1 className="font-display text-ink mt-4 max-w-3xl text-4xl leading-[1.08] font-medium sm:text-5xl lg:text-6xl">
             About Looks Smart Beauty Salon
           </h1>
           <p className="text-ink-muted mt-6 max-w-2xl text-lg leading-8">
@@ -179,9 +188,11 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           <div>
             <SectionBadge>Our mission</SectionBadge>
-            <h2 className="font-display text-ink mt-4 text-3xl font-medium leading-tight sm:text-4xl">
-              More than a salon — a modern beauty sanctuary.
-            </h2>
+            <Reveal>
+              <h2 className="font-display text-ink mt-4 text-3xl leading-tight font-medium sm:text-4xl">
+                More than a salon — a modern beauty sanctuary.
+              </h2>
+            </Reveal>
           </div>
           <div className="text-ink-muted space-y-5 leading-8">
             <p>
@@ -209,9 +220,11 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
             <SectionBadge>Our approach</SectionBadge>
-            <h2 className="font-display text-ink mt-4 text-3xl font-medium sm:text-4xl">
-              The Looks Smart Standard
-            </h2>
+            <Reveal>
+              <h2 className="font-display text-ink mt-4 text-3xl font-medium sm:text-4xl">
+                The Looks Smart Standard
+              </h2>
+            </Reveal>
           </div>
 
           <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -244,15 +257,17 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           <div>
             <SectionBadge>Our story</SectionBadge>
-            <h2 className="font-display text-ink mt-4 text-3xl font-medium leading-tight sm:text-4xl">
-              Why we are called Looks Smart
-            </h2>
+            <Reveal>
+              <h2 className="font-display text-ink mt-4 text-3xl leading-tight font-medium sm:text-4xl">
+                Why we are called Looks Smart
+              </h2>
+            </Reveal>
           </div>
           <div className="text-ink-muted space-y-5 leading-8">
             <p>
-              The name was chosen for what it asks of us rather than what it promises. Looking
-              smart is not about a trend or a filter — it is the quiet confidence of walking out
-              knowing the work was done properly, and that it will still hold tomorrow morning.
+              The name was chosen for what it asks of us rather than what it promises. Looking smart
+              is not about a trend or a filter — it is the quiet confidence of walking out knowing
+              the work was done properly, and that it will still hold tomorrow morning.
             </p>
             <p>
               We opened on Main Ferozpur Road with one chair and a short service list, and grew only
@@ -275,9 +290,11 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
             <SectionBadge>Our leadership</SectionBadge>
-            <h2 className="font-display text-ink mt-4 text-3xl font-medium sm:text-4xl">
-              Meet our Founder
-            </h2>
+            <Reveal>
+              <h2 className="font-display text-ink mt-4 text-3xl font-medium sm:text-4xl">
+                Meet our Founder
+              </h2>
+            </Reveal>
           </div>
 
           <Card className="border-border-soft bg-surface shadow-soft mt-12 overflow-hidden">
@@ -296,7 +313,7 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
                 ) : (
                   // Monogram fallback, never a stock portrait: captioning someone else's photograph
                   // with the founder's name would misrepresent a real person.
-                  <div className="flex aspect-[3/4] w-full items-center justify-center rounded-xl bg-gradient-to-br from-accent-100 to-accent-300">
+                  <div className="from-accent-100 to-accent-300 flex aspect-[3/4] w-full items-center justify-center rounded-xl bg-gradient-to-br">
                     <span className="font-display text-accent-700/70 text-7xl" aria-hidden="true">
                       {founder.name.charAt(0)}
                     </span>
@@ -306,11 +323,11 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
 
               <CardContent className="p-8 lg:p-10">
                 <h3 className="font-display text-ink text-2xl font-medium">{founder.name}</h3>
-                <p className="text-accent-700 mt-1 text-sm font-semibold uppercase tracking-wider">
+                <p className="text-accent-700 mt-1 text-sm font-semibold tracking-wider uppercase">
                   {founder.role}
                 </p>
 
-                <blockquote className="border-accent-500 text-ink mt-6 border-l-2 pl-5 text-lg italic leading-8">
+                <blockquote className="border-accent-500 text-ink mt-6 border-l-2 pl-5 text-lg leading-8 italic">
                   &ldquo;{founder.quote}&rdquo;
                 </blockquote>
 
@@ -339,9 +356,11 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
             <SectionBadge>Visit us</SectionBadge>
-            <h2 className="font-display text-ink mt-4 text-3xl font-medium sm:text-4xl">
-              Find Looks Smart Beauty Salon
-            </h2>
+            <Reveal>
+              <h2 className="font-display text-ink mt-4 text-3xl font-medium sm:text-4xl">
+                Find Looks Smart Beauty Salon
+              </h2>
+            </Reveal>
           </div>
 
           <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -362,7 +381,9 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
                 <span className="bg-accent-50 text-accent-700 flex size-11 items-center justify-center rounded-xl">
                   <Phone className="size-5" aria-hidden="true" />
                 </span>
-                <h3 className="font-display text-ink mt-5 text-lg font-medium">Call &amp; WhatsApp</h3>
+                <h3 className="font-display text-ink mt-5 text-lg font-medium">
+                  Call &amp; WhatsApp
+                </h3>
                 <div className="mt-2 space-y-1.5 text-sm">
                   {contact.phone && (
                     <p>
@@ -423,9 +444,11 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
       {/* 7. Bottom CTA banner */}
       <section className="px-6 py-16 lg:px-10 lg:py-24">
         <div className="bg-ink text-ivory mx-auto max-w-6xl rounded-2xl px-8 py-14 text-center lg:px-16">
-          <h2 className="font-display text-3xl font-medium sm:text-4xl">
-            Experience the Looks Smart difference.
-          </h2>
+          <Reveal>
+            <h2 className="font-display text-3xl font-medium sm:text-4xl">
+              Experience the Looks Smart difference.
+            </h2>
+          </Reveal>
           <p className="text-ivory/70 mx-auto mt-4 max-w-xl">
             Book your appointment today and indulge in luxury care.
           </p>

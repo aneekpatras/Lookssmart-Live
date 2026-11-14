@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 
+import { Reveal } from '@/Components/Reveal';
 import { BridalMarquee, type MarqueeImage } from '@/Components/BridalMarquee';
 import { ReviewsCarousel, type ReviewShowcase } from '@/Components/ReviewsCarousel';
 import { SeoHead } from '@/Components/SeoHead';
@@ -381,14 +382,14 @@ export default function Home({
       {/* Our Specialized Services — category-filterable, 4 across on desktop */}
       <section className="px-6 py-14 sm:py-20 lg:px-10 lg:py-28">
         <div className="mx-auto max-w-6xl">
-          <div className="text-center">
+          <Reveal className="text-center">
             <h2 className="font-display text-3xl font-medium sm:text-5xl">
               Our Specialized Services
             </h2>
             <p className="text-ink-muted mx-auto mt-3 max-w-xl text-base sm:mt-4 sm:text-lg">
               Experience premium skin, hair, and beauty treatments in Lahore.
             </p>
-          </div>
+          </Reveal>
 
           {/* Pills are driven by the real categories the controller passes, never a hardcoded list,
               so they cannot drift out of sync with the catalog the way a literal array would. */}
@@ -428,60 +429,61 @@ export default function Home({
 
           <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-4 lg:grid-cols-4">
             {visibleServices.map((service) => (
-              <Card
-                key={service.id}
-                className="border-border-soft bg-surface shadow-soft flex flex-col overflow-hidden"
-              >
-                <Link
-                  href={`/services/${service.slug}`}
-                  aria-label={`View ${service.name}`}
-                  className="bg-accent-50 block h-[110px] shrink-0 sm:h-[170px]"
-                >
-                  {service.image_url ? (
-                    <img
-                      src={service.image_url}
-                      alt={service.name}
-                      className="size-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <div className="text-accent-700 flex size-full items-center justify-center">
-                      <Sparkles className="size-8" aria-hidden="true" />
-                    </div>
-                  )}
-                </Link>
-                <CardContent className="flex flex-1 flex-col p-3 sm:p-4">
-                  <p className="text-accent-700 hidden text-xs font-semibold tracking-wider uppercase sm:block">
-                    {service.category}
-                  </p>
-                  <h3 className="line-clamp-2 text-sm leading-snug font-medium sm:mt-1.5 sm:line-clamp-none sm:text-base">
-                    <Link href={`/services/${service.slug}`}>{service.name}</Link>
-                  </h3>
-                  <div className="text-ink-muted mt-auto flex flex-col gap-0.5 pt-2 text-xs sm:flex-row sm:items-center sm:justify-between sm:pt-3 sm:text-sm">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock3 className="size-3.5 sm:size-4" aria-hidden="true" />{' '}
-                      {formatDuration(service.duration_min)}
-                    </span>
-                    <span className="text-ink font-semibold">{formatCurrency(service.price)}</span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-1 gap-1.5 sm:mt-3 sm:grid-cols-2 sm:gap-2">
-                    <CartAddButton
-                      variant="accent"
-                      size="sm"
-                      input={{ kind: 'service', label: service.name, service }}
-                    >
-                      <Plus className="size-4" aria-hidden="true" />
-                      <span>
-                        Add<span className="hidden sm:inline"> to Cart</span>
+              <Reveal key={service.id} className="h-full">
+                <Card className="border-border-soft bg-surface shadow-soft flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-200 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:shadow-md">
+                  <Link
+                    href={`/services/${service.slug}`}
+                    aria-label={`View ${service.name}`}
+                    className="bg-accent-50 block h-[110px] shrink-0 sm:h-[170px]"
+                  >
+                    {service.image_url ? (
+                      <img
+                        src={service.image_url}
+                        alt={service.name}
+                        className="size-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div className="text-accent-700 flex size-full items-center justify-center">
+                        <Sparkles className="size-8" aria-hidden="true" />
+                      </div>
+                    )}
+                  </Link>
+                  <CardContent className="flex flex-1 flex-col p-3 sm:p-4">
+                    <p className="text-accent-700 hidden text-xs font-semibold tracking-wider uppercase sm:block">
+                      {service.category}
+                    </p>
+                    <h3 className="line-clamp-2 text-sm leading-snug font-medium sm:mt-1.5 sm:line-clamp-none sm:text-base">
+                      <Link href={`/services/${service.slug}`}>{service.name}</Link>
+                    </h3>
+                    <div className="text-ink-muted mt-auto flex flex-col gap-0.5 pt-2 text-xs sm:flex-row sm:items-center sm:justify-between sm:pt-3 sm:text-sm">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock3 className="size-3.5 sm:size-4" aria-hidden="true" />{' '}
+                        {formatDuration(service.duration_min)}
                       </span>
-                    </CartAddButton>
-                    <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
-                      <Link href={`/services/${service.slug}`}>Details</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                      <span className="text-ink font-semibold">
+                        {formatCurrency(service.price)}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 gap-1.5 sm:mt-3 sm:grid-cols-2 sm:gap-2">
+                      <CartAddButton
+                        variant="accent"
+                        size="sm"
+                        input={{ kind: 'service', label: service.name, service }}
+                      >
+                        <Plus className="size-4" aria-hidden="true" />
+                        <span>
+                          Add<span className="hidden sm:inline"> to Cart</span>
+                        </span>
+                      </CartAddButton>
+                      <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
+                        <Link href={`/services/${service.slug}`}>Details</Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Reveal>
             ))}
           </div>
 
@@ -534,7 +536,7 @@ export default function Home({
           per the brief's "use the existing app theme" rule. */}
       <section className="bg-ink text-ivory px-6 py-20 lg:px-16 lg:py-28">
         <div className="mx-auto max-w-6xl">
-          <div className="text-center">
+          <Reveal className="text-center">
             <p className="text-accent-300 text-sm font-semibold tracking-[0.22em] uppercase">
               Our legacy
             </p>
@@ -549,7 +551,7 @@ export default function Home({
               Our signature bridal look has been a Lahore bride’s choice for 12 years, and many of
               those brides now bring their friends and family back for hair.
             </p>
-          </div>
+          </Reveal>
 
           <dl className="mt-14 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
             {legacyStats.map((stat) => {
@@ -585,14 +587,14 @@ export default function Home({
           itself still spans the full width inside it so the loop has room to run. */}
       {featuredGalleryImages.length > 0 && (
         <section className="border-border-soft bg-surface overflow-hidden border-y py-20 lg:py-24">
-          <div className="mx-auto max-w-6xl px-6 text-center md:px-12 lg:px-16">
+          <Reveal className="mx-auto max-w-6xl px-6 text-center md:px-12 lg:px-16">
             <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
               Looks Smart Brides
             </p>
             <h2 className="font-display mt-3 text-4xl font-medium">
               Moments of beauty and elegance from our real brides
             </h2>
-          </div>
+          </Reveal>
           <div className="mt-12 px-6 md:px-12 lg:px-16">
             <BridalMarquee images={featuredGalleryImages} />
           </div>
@@ -612,12 +614,12 @@ export default function Home({
       {liveTestimonials.length > 0 && (
         <section className="px-6 py-20 lg:px-10">
           <div className="mx-auto max-w-6xl">
-            <div className="text-center">
+            <Reveal className="text-center">
               <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
                 Client notes
               </p>
               <h2 className="font-display mt-3 text-4xl font-medium">The feeling after.</h2>
-            </div>
+            </Reveal>
             <div className="mt-10">
               <ReviewsCarousel reviews={liveTestimonials} />
             </div>

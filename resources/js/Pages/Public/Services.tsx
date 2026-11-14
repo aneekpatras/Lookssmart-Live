@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/react';
 import { Clock3, Search, Sparkles } from 'lucide-react';
 import * as React from 'react';
 
+import { Reveal } from '@/Components/Reveal';
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { SeoHead } from '@/Components/SeoHead';
 import { CartAddButton } from '@/Components/CartAddButton';
@@ -204,7 +205,11 @@ export default function Services({ services, categories, filters }: ServicesProp
 
               return (
                 <div key={category.id} id={sectionId} className="scroll-mt-40">
-                  <h2 className="font-display text-xl font-medium sm:text-2xl">{category.name}</h2>
+                  <Reveal>
+                    <h2 className="font-display text-xl font-medium sm:text-2xl">
+                      {category.name}
+                    </h2>
+                  </Reveal>
                   <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-5 sm:gap-4 lg:grid-cols-3">
                     {items.map((service, index) => {
                       // Item 9 is shown on desktop only (3 full rows of 3); mobile/tablet stop at 8.

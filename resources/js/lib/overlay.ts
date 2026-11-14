@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import * as React from 'react';
 
 /**
@@ -36,15 +37,37 @@ export function useRegisterOverlay(name: OverlayName, value: boolean): void {
   }, [name, value]);
 }
 
+/** True once the visitor has scrolled past about 300px (used by the mobile sticky bar). */
+export function useScrolledPast(px: number): boolean {
+  const [past, setPast] = React.useState(false);
+  React.useEffect(() => {
+    const onScroll = () => setPast(window.scrollY > px);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [px]);
+  return past;
+}
+
 /** Pages where floating promos (WhatsApp popup, sticky bar) never appear. */
 export function isQuietPage(url: string, component: string): boolean {
   const path = url.split('?')[0] ?? url;
   return (
     path.startsWith('/book') ||
     path.startsWith('/admin') ||
-    /^\/(login|register|forgot-password|reset-password|two-factor|confirm-password|verify-email)/.test(path) ||
+    /^\/(login|register|forgot-password|reset-password|two-factor|confirm-password|verify-email)/.test(
+      path,
+    ) ||
     component.startsWith('Auth/') ||
     component.startsWith('Errors/') ||
     component.startsWith('Admin/')
   );
+}
+
+/** Whether the mobile sticky bar is showing (below md): scrolled ~300px, not a quiet page, no overlay open. */
+export function useStickyBarVisible(): boolean {
+  const { url, component } = usePage();
+  const overlay = useOverlayOpen();
+  const past = useScrolledPast(300);
+  return past && !overlay && !isQuietPage(url, component);
 }

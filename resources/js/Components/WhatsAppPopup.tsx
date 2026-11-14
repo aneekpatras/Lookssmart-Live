@@ -123,7 +123,7 @@ export function WhatsAppPopup() {
     <div
       role="dialog"
       aria-label="Chat on WhatsApp"
-      className={`border-border-soft bg-ivory text-ink shadow-glass fixed right-4 bottom-24 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border p-4 transition duration-[250ms] motion-reduce:translate-y-0 sm:right-6 ${
+      className={`border-border-soft bg-ivory text-ink shadow-glass fixed right-4 bottom-44 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border p-4 transition duration-[250ms] motion-reduce:translate-y-0 sm:right-6 md:bottom-24 ${
         entered ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
       }`}
     >

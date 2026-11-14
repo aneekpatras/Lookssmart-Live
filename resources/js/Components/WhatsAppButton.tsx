@@ -1,6 +1,8 @@
 import { usePage } from '@inertiajs/react';
 import { MessageCircle } from 'lucide-react';
 
+import { useStickyBarVisible } from '@/lib/overlay';
+
 const GREETING = 'Hello Looks Smart Beauty Salon!';
 
 /**
@@ -51,6 +53,7 @@ export function WhatsAppButton() {
   const digits = (site.phone ?? FALLBACK_PHONE).replace(/\D/g, '');
   const href = `https://wa.me/${digits}?text=${encodeURIComponent(messageFor(path, props.service?.name ?? null))}`;
   const onBookingPage = path.startsWith('/book');
+  const barVisible = useStickyBarVisible();
 
   return (
     <a
@@ -58,9 +61,9 @@ export function WhatsAppButton() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with us on WhatsApp"
-      className={`group fixed right-4 z-30 flex items-center gap-2 rounded-full bg-[#25D366] p-3.5 text-white shadow-lg transition hover:scale-105 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:outline-none sm:right-6 sm:bottom-6 ${
-        onBookingPage ? 'bottom-24 lg:bottom-6' : 'bottom-5'
-      }`}
+      className={`group fixed right-4 z-30 items-center gap-2 rounded-full bg-[#25D366] p-3.5 text-white shadow-lg transition hover:scale-105 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:outline-none sm:right-6 sm:bottom-6 ${
+        barVisible ? 'hidden md:flex' : 'flex'
+      } ${onBookingPage ? 'bottom-24 lg:bottom-6' : 'bottom-5'}`}
     >
       <MessageCircle className="size-6" aria-hidden="true" />
       <span className="hidden max-w-0 overflow-hidden text-sm font-medium whitespace-nowrap transition-all duration-300 group-hover:max-w-40 group-hover:pr-1 group-focus-visible:max-w-40 group-focus-visible:pr-1 sm:inline">
