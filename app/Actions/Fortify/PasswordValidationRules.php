@@ -2,23 +2,20 @@
 
 namespace App\Actions\Fortify;
 
-use Illuminate\Contracts\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
+use App\Models\User;
+use App\Support\PasswordPolicy;
 
 trait PasswordValidationRules
 {
     /**
-     * Brief §5: Argon2id (config/hashing.php), min 12 characters, breached-password check.
+     * Customers: 8+ characters, an uppercase letter, a number, not a common password. Staff and admins
+     * (and invited users, who always become staff) keep 12+ characters with a breach check.
+     * See PasswordPolicy, which the register page's checklist also reads.
      *
-     * @return array<int, Rule|array|string>
+     * @return array<int, mixed>
      */
-    protected function passwordRules(): array
+    protected function passwordRules(?User $user = null, bool $newCustomer = false): array
     {
-        return [
-            'required',
-            'string',
-            Password::min(12)->uncompromised(),
-            'confirmed',
-        ];
+        return PasswordPolicy::rulesFor($user, $newCustomer);
     }
 }

@@ -64,6 +64,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Never flash passwords back into the session, even after a failed validation.
+        $exceptions->dontFlash(['password', 'password_confirmation', 'current_password']);
+
         // Phase 14 sub-step 1: a genuine unhandled exception (not just abort(403)/404/419/503) still
         // produces status 500 here, so it was already caught by the in_array() branch below — a
         // second `$status === 500` check used to follow it, gated on `! hasDebugModeEnabled()`, but

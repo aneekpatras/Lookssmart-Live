@@ -46,11 +46,11 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::confirmPasswordView(fn () => Inertia::render('Auth/ConfirmPassword'));
         Fortify::twoFactorChallengeView(fn () => Inertia::render('Auth/TwoFactorChallenge'));
 
-        // Brief §5: 5 attempts / 15 min per IP+email, exponential backoff via Laravel's decay.
+        // 5 login attempts per minute per email+IP.
         RateLimiter::for('login', function (Request $request) {
             $email = (string) $request->input(Fortify::username());
 
-            return Limit::perMinutes(15, 5)->by($email . '|' . $request->ip());
+            return Limit::perMinute(5)->by(mb_strtolower($email) . '|' . $request->ip());
         });
 
         RateLimiter::for('two-factor', function (Request $request) {

@@ -5,9 +5,11 @@ namespace App\Http\Middleware;
 use App\Models\BusinessHour;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Inertia\Inertia;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 
@@ -116,6 +118,8 @@ class HandleInertiaRequests extends Middleware
                 'directions_url' => app(\App\Services\SeoService::class)->findUs()['mapsUrl'],
                 'service_categories' => $this->footerServiceCategories(),
             ],
+            // Same constants the server password rule uses: the register checklist reads these.
+            'passwordPolicy' => PasswordPolicy::forFrontend(),
             // Floating WhatsApp popup (admin Settings > WhatsApp popup); defaults match the admin form.
             'wa_popup' => fn () => [
                 'enabled' => Setting::get('wa_popup.enabled') !== false,
@@ -135,6 +139,14 @@ class HandleInertiaRequests extends Middleware
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    public function handle(Request $request, \Closure $next)
+    {
+        // Page history kept by the browser is encrypted (needs HTTPS or localhost); cleared on logout.
+        Inertia::encryptHistory();
+
+        return parent::handle($request, $next);
     }
 
     private function defaultOgImage(): ?string
