@@ -45,3 +45,26 @@ it('validates and clears the gallery image link in admin', function () {
     $this->actingAs($admin)->put($url, ['linked_type' => null, 'linked_id' => null]);
     expect($image->fresh()->linked_type)->toBeNull();
 });
+
+it('shows the linked service name on the public gallery right after an admin save', function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $admin = User::factory()->create([
+        'email_verified_at' => now(),
+        'two_factor_secret' => encrypt('s'),
+        'two_factor_confirmed_at' => now(),
+    ]);
+    $admin->assignRole('admin');
+    $gallery = Gallery::factory()->create(['is_active' => true]);
+    $image = GalleryImage::factory()->create(['gallery_id' => $gallery->id, 'caption' => 'Old caption']);
+    $service = Service::factory()->create(['is_active' => true]);
+
+    $this->actingAs($admin)->put("/admin/gallery/{$gallery->id}/images/{$image->id}", [
+        'linked_type' => 'service', 'linked_id' => $service->id,
+    ])->assertSessionHasNoErrors();
+
+    $edit = $this->actingAs($admin)->get("/admin/gallery/{$gallery->id}/edit")->viewData('page')['props']['gallery']['images'][0];
+    expect($edit['linked_type'])->toBe('service')->and($edit['linked_id'])->toBe($service->id);
+
+    $images = collect($this->get('/gallery')->viewData('page')['props']['sections'])->flatMap(fn ($sec) => $sec['images'])->keyBy('id');
+    expect($images[$image->id]['link']['name'])->toBe($service->name);
+});

@@ -148,6 +148,11 @@ class GalleryController extends Controller
         }
 
         if (! \Illuminate\Support\Facades\Schema::hasColumn('gallery_images', 'linked_type')) {
+            // Never pretend a link was saved: say the database update is missing.
+            if (! empty($data['linked_type'])) {
+                return back()->withErrors(['linked_type' => 'The gallery link columns are missing in the database. Run the SQL/migration for gallery_images (linked_type, linked_id), then try again.']);
+            }
+
             unset($data['linked_type'], $data['linked_id']);
         } elseif (array_key_exists('linked_type', $data) && $data['linked_type'] === null) {
             $data['linked_id'] = null;
