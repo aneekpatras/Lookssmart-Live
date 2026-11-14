@@ -12,7 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import { Textarea } from '@/Components/ui/textarea';
 import PublicLayout from '@/Layouts/PublicLayout';
-import { CART_CHANGED_EVENT, clearCart, getCartItems, setCartItems } from '@/lib/cart';
+import {
+  CART_CHANGED_EVENT,
+  clearCart,
+  getCartItems,
+  notifyCartAdded,
+  setCartItems,
+} from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
@@ -253,11 +259,16 @@ export default function Book({ services, categories, deals, authUser, look }: Bo
       if (deal.code && promoCode === deal.code) setPromoCode('');
       return;
     }
+    notifyCartAdded(deal.title, 'deal');
     setSelected((current) => Array.from(new Set([...current, ...ids])));
     if (deal.code && !promoCode) setPromoCode(deal.code);
   }
 
   function toggleService(id: number) {
+    if (!selected.includes(id)) {
+      const added = services.find((service) => service.id === id);
+      if (added) notifyCartAdded(added.name, 'service');
+    }
     setSelected((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
     );

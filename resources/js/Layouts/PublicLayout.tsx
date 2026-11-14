@@ -4,6 +4,8 @@ import { Mail, MapPin, Menu, Phone, X } from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@/Components/ui/button';
+import { CartToast } from '@/Components/CartToast';
+import { CartToast } from '@/Components/CartToast';
 import { Toaster } from '@/Components/ui/toaster';
 import { FacebookIcon, InstagramIcon } from '@/Components/SocialIcons';
 import { HeaderCartButton } from '@/Components/HeaderCartButton';
@@ -122,9 +124,7 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
       </nav>
 
       {mobileOpen ? (
-        <div
-          className="bg-ivory border-border-soft shadow-soft absolute inset-x-4 top-[4.5rem] z-40 flex flex-col gap-1 rounded-2xl border p-4 md:hidden"
-        >
+        <div className="bg-ivory border-border-soft shadow-soft absolute inset-x-4 top-[4.5rem] z-40 flex flex-col gap-1 rounded-2xl border p-4 md:hidden">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -292,6 +292,7 @@ export default function PublicLayout({
         </a>
         <FloatingNav solidHeader={solidHeader} />
         <Toaster />
+        <CartToast />
         <NavigationProgressOverlay />
         <main id="main-content" className="flex-1 pt-24">
           <AnimatePresence mode="wait" initial={false}>
