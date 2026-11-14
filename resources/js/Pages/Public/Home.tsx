@@ -20,6 +20,8 @@ import * as React from 'react';
 import { BridalMarquee, type MarqueeImage } from '@/Components/BridalMarquee';
 import { ReviewsCarousel, type ReviewShowcase } from '@/Components/ReviewsCarousel';
 import { SeoHead } from '@/Components/SeoHead';
+import type { FaqItem } from '@/Components/FaqAccordion';
+import { FaqPreview } from '@/Components/FaqPreview';
 import { CartAddButton } from '@/Components/CartAddButton';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -105,6 +107,7 @@ const DEFAULT_OPENING_HOURS: OpeningHour[] = [0, 1, 2, 3, 4, 5, 6].map((weekday)
 
 interface HomeProps {
   findUs: { address: string; directions: string; mapsUrl: string };
+  faqPreview: FaqItem[];
   featuredServices: ServiceCard[];
   categories: { id: number; name: string }[];
   featured_gallery_images: MarqueeImage[];
@@ -301,6 +304,7 @@ export default function Home({
   testimonials,
   jsonLdSchema,
   findUs,
+  faqPreview,
   openingHours,
   dealsBar,
 }: HomeProps) {
@@ -642,6 +646,8 @@ export default function Home({
           setLiveTestimonials((current) => [review, ...current].slice(0, 12))
         }
       />
+
+      <FaqPreview items={faqPreview} />
 
       {/* 7. Visit us — address, hours, phone and an embedded map. Address/hours/phone come from the shared
           `site` prop (admin Settings + business_hours rows); the directions wording and Maps link from

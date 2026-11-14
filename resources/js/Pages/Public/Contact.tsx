@@ -1,13 +1,7 @@
+import type { FaqItem } from '@/Components/FaqAccordion';
+import { FaqPreview } from '@/Components/FaqPreview';
 import { Link, useForm } from '@inertiajs/react';
-import {
-  ArrowRight,
-  Clock3,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Phone,
-  Send,
-} from 'lucide-react';
+import { ArrowRight, Clock3, Mail, MapPin, MessageCircle, Phone, Send } from 'lucide-react';
 import * as React from 'react';
 
 import { SeoHead } from '@/Components/SeoHead';
@@ -52,9 +46,18 @@ interface ContactPageProps {
   business: BusinessInfo;
   businessHours: BusinessHourRow[];
   latestPosts: PostCard[];
+  faqPreview: FaqItem[];
 }
 
-const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
 
 function digitsOnly(value: string): string {
   return value.replace(/[^\d+]/g, '');
@@ -106,11 +109,16 @@ function summariseHours(hours: BusinessHourRow[]): { days: string; hours: string
 
 function SectionBadge({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-accent-700 text-xs font-semibold uppercase tracking-[0.22em]">{children}</p>
+    <p className="text-accent-700 text-xs font-semibold tracking-[0.22em] uppercase">{children}</p>
   );
 }
 
-export default function Contact({ business, businessHours, latestPosts }: ContactPageProps) {
+export default function Contact({
+  business,
+  businessHours,
+  latestPosts,
+  faqPreview,
+}: ContactPageProps) {
   const [submitted, setSubmitted] = React.useState(false);
   // Time-trap seed: a bot that posts the form faster than a human could read it is rejected
   // server-side by ProtectsPublicForms. Captured once on first render, never re-seeded.
@@ -183,7 +191,9 @@ export default function Contact({ business, businessHours, latestPosts }: Contac
     {
       icon: MapPin,
       title: 'Visit salon',
-      body: business.address ?? '46-B, Commercial Central Park Housing Scheme, Main Ferozpur Road, Lahore',
+      body:
+        business.address ??
+        '46-B, Commercial Central Park Housing Scheme, Main Ferozpur Road, Lahore',
       action: 'Get directions',
       href: directionsHref,
       external: true,
@@ -202,7 +212,7 @@ export default function Contact({ business, businessHours, latestPosts }: Contac
       <section className="bg-ivory border-border-soft border-b px-6 py-14 lg:px-10 lg:py-20">
         <div className="mx-auto max-w-6xl">
           <SectionBadge>Get in touch</SectionBadge>
-          <h1 className="font-display text-ink mt-4 max-w-3xl text-4xl font-medium leading-[1.1] sm:text-5xl">
+          <h1 className="font-display text-ink mt-4 max-w-3xl text-4xl leading-[1.1] font-medium sm:text-5xl">
             Talk to Looks Smart — anytime, any way you like
           </h1>
           <p className="text-ink-muted mt-5 max-w-2xl leading-8">
@@ -542,11 +552,11 @@ export default function Contact({ business, businessHours, latestPosts }: Contac
                   </div>
                   <CardContent className="flex flex-1 flex-col p-5">
                     {post.category && (
-                      <p className="text-accent-700 text-xs font-semibold uppercase tracking-wider">
+                      <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
                         {post.category.name}
                       </p>
                     )}
-                    <h3 className="font-display text-ink mt-2 text-lg font-medium leading-snug">
+                    <h3 className="font-display text-ink mt-2 text-lg leading-snug font-medium">
                       <Link href={`/blog/${post.slug}`} className="hover:text-accent-700">
                         {post.title}
                       </Link>
@@ -617,6 +627,8 @@ export default function Contact({ business, businessHours, latestPosts }: Contac
           </div>
         </div>
       </section>
+
+      <FaqPreview items={faqPreview} />
     </>
   );
 }

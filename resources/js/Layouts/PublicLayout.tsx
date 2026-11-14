@@ -151,6 +151,7 @@ const FOOTER_LINKS = [
   { label: 'Services', href: '/services' },
   { label: 'Gallery', href: '/gallery' },
   { label: 'Contact', href: '/contact' },
+  { label: 'FAQs', href: '/faqs' },
   { label: 'Privacy Policy', href: '/privacy-policy' },
 ];
 
