@@ -165,12 +165,13 @@ export default function Gallery({ sections }: GalleryPageProps) {
       <section className="bg-ink px-6 py-16 text-ivory lg:px-10">
         <div className="mx-auto max-w-6xl">
           <p className="text-accent-300 text-sm font-semibold uppercase tracking-[0.18em]">
-            Portfolio
+            Our Signature Work
           </p>
-          <h1 className="mt-3 text-5xl font-medium sm:text-6xl">Our Salon Gallery</h1>
+          <h1 className="mt-3 text-5xl font-medium sm:text-6xl">Beauty, Artistry &amp; Timeless Transformations</h1>
           <p className="mt-5 max-w-xl text-ivory/70">
-            Browse real transformations and explore the artistry of our beauty experts, organized by
-            the work we&apos;re proudest of.
+            Explore a collection of our bridal looks, professional makeup, and beauty
+            transformations. Every look reflects our passion for detail, creativity, and enhancing
+            each client&apos;s natural beauty.
           </p>
         </div>
       </section>

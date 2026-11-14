@@ -16,7 +16,7 @@ test('the public gallery page renders stacked category sections with a real 4/2-
 }) => {
   await page.goto('/gallery');
 
-  await expect(page.getByRole('heading', { name: 'Our Salon Gallery', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Beauty, Artistry & Timeless Transformations', level: 1 })).toBeVisible();
 
   // At least one real category section heading (h2) with a real image grid beneath it.
   const firstSectionHeading = page.locator('h2').first();
