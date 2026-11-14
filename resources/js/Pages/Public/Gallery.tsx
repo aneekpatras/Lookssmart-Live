@@ -2,16 +2,20 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 
 import { BeforeAfterSlider } from '@/Components/BeforeAfterSlider';
+import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { Lightbox } from '@/Components/Lightbox';
 import { Picture } from '@/Components/Picture';
 import { SeoHead } from '@/Components/SeoHead';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
 interface GalleryImage {
   id: number;
   image_path: string;
   image_path_webp: string | null;
   caption: string | null;
+  specialty?: string | null;
+  category?: string | null;
   is_before_after: boolean;
   pair_image_path: string | null;
   pair_image_path_webp: string | null;
@@ -79,7 +83,8 @@ function CategorySection({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
       transition={{ duration: 0.5 }}
-      className={isFirst ? '' : 'border-border-soft border-t pt-16'}
+      id={`gallery-category-${section.id}`}
+      className={`scroll-mt-40 ${isFirst ? '' : 'border-border-soft border-t pt-16'}`}
     >
       <h2 className="font-display text-ink text-3xl font-medium">{section.name}</h2>
       {section.subtitle && <p className="text-ink-muted mt-2 max-w-2xl">{section.subtitle}</p>}
@@ -124,6 +129,11 @@ function CategorySection({
 export default function Gallery({ sections }: GalleryPageProps) {
   const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
+  const [tagsRef, tagsStyle] = useHeaderHandoff();
+  const pills = React.useMemo(
+    () => sections.map((section) => ({ id: `gallery-category-${section.id}`, label: section.name })),
+    [sections],
+  );
 
   // One shared lightbox spans every category section — regular (non before/after) images across
   // ALL sections, in section order, so Next/Previous can move seamlessly from one category's photos
@@ -171,6 +181,12 @@ export default function Gallery({ sections }: GalleryPageProps) {
               <p className="text-ink-muted">No gallery photos are available yet.</p>
             </div>
           ) : (
+            <>
+              {pills.length > 1 && (
+                <div ref={tagsRef} className="sticky z-30 mb-10 transition-[top] duration-300" style={tagsStyle}>
+                  <CategoryPillBar pills={pills} ariaLabel="Jump to gallery category" spyOffset={150} />
+                </div>
+              )}
             <div className="space-y-16">
               {sections.map((section, index) => (
                 <CategorySection
@@ -182,6 +198,7 @@ export default function Gallery({ sections }: GalleryPageProps) {
                 />
               ))}
             </div>
+            </>
           )}
         </div>
       </section>
