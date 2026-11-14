@@ -651,7 +651,10 @@ class PublicWebsiteController extends Controller
         // The hero banner shows the newest post separately from the grid; only relevant on an
         // unfiltered first page, since "the featured post" stops meaning anything once the visitor
         // has searched or filtered.
-        $showFeatured = ! $search && ! $category && $request->integer('page') <= 1;
+        // Without a search the page shows every post grouped by category (scroll-spy sections), so it is
+        // never paginated or category-filtered server-side; ?category=<id> just scrolls to that section.
+        $grouped = ! $search;
+        $showFeatured = $grouped;
 
         $query = Post::query()
             ->published()
@@ -661,24 +664,25 @@ class PublicWebsiteController extends Controller
                     ->orWhere('excerpt', 'like', "%{$search}%")
                     ->orWhere('body', 'like', "%{$search}%");
             }))
-            ->when($category, fn ($q) => $q->where('post_category_id', $category))
             ->orderBy('published_at', 'desc')
             ->orderBy('id', 'desc');
 
-        $posts = $query->paginate($perPage);
+        $posts = $grouped ? $query->get() : $query->paginate($perPage);
         $listedPosts = $posts->map(fn (Post $post) => $this->postListData($post))->all();
 
         return $this->withSeo(Inertia::render('Public/Blog', [
             // The grid excludes the featured post so it is never shown twice on the same page.
             'featuredPost' => $showFeatured ? ($listedPosts[0] ?? null) : null,
             'posts' => $showFeatured ? array_slice($listedPosts, 1) : $listedPosts,
-            'pagination' => [
-                'total' => $posts->total(),
-                'per_page' => $posts->perPage(),
-                'current_page' => $posts->currentPage(),
-                'last_page' => $posts->lastPage(),
-                'path' => $posts->path(),
-            ],
+            'pagination' => $grouped
+                ? ['total' => count($listedPosts), 'per_page' => max(1, count($listedPosts)), 'current_page' => 1, 'last_page' => 1, 'path' => url('/blog')]
+                : [
+                    'total' => $posts->total(),
+                    'per_page' => $posts->perPage(),
+                    'current_page' => $posts->currentPage(),
+                    'last_page' => $posts->lastPage(),
+                    'path' => $posts->path(),
+                ],
             'categories' => PostCategory::whereHas('posts', fn ($q) => $q->published())
                 ->orderBy('name')
                 ->get(['id', 'name', 'slug']),

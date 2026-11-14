@@ -44,7 +44,7 @@ test.describe('Blog listing (/blog)', () => {
     );
   });
 
-  test('category tab filters the grid without a full page reload', async ({ page }) => {
+  test('category tab scrolls to its section and highlights', async ({ page }) => {
     await page.goto('/blog', { waitUntil: 'domcontentloaded' });
 
     const tabs = page.getByRole('group', { name: 'Filter articles by category' });
@@ -65,9 +65,7 @@ test.describe('Blog listing (/blog)', () => {
     await expect(
       page.getByRole('heading', { name: 'Bridal Makeup in Lahore', level: 3 }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'Laser Hair Removal in Lahore', level: 3 }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Bridal', level: 2, exact: true })).toBeVisible();
   });
 
   test('quick service links point at the real catalog categories', async ({ page }) => {

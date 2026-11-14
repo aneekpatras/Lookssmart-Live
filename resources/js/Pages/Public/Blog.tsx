@@ -7,6 +7,7 @@ import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { scrollToSection, useScrollSpy } from '@/lib/useScrollSpy';
 import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
 interface PostSummary {
@@ -79,6 +80,40 @@ function PostImage({ post }: { post: PostSummary }) {
   );
 }
 
+function PostCard({ post }: { post: PostSummary }) {
+  return (
+    <Card className="border-border-soft bg-surface shadow-soft flex flex-col overflow-hidden">
+      <div className="bg-accent-50 h-[190px] shrink-0">
+        <PostImage post={post} />
+      </div>
+      <CardContent className="flex flex-1 flex-col p-5">
+        {post.category && (
+          <span className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
+            {post.category.name}
+          </span>
+        )}
+        <h3 className="font-display text-ink mt-2 text-lg leading-snug font-medium">
+          <Link href={`/blog/${post.slug}`} className="hover:text-accent-700">
+            {post.title}
+          </Link>
+        </h3>
+        {post.excerpt && (
+          <p className="text-ink-muted mt-2 line-clamp-3 text-sm leading-6">{post.excerpt}</p>
+        )}
+        <div className="text-ink-muted mt-auto flex items-center justify-between pt-4 text-xs">
+          <span>{formatDate(post.published_at)}</span>
+          <Link
+            href={`/blog/${post.slug}`}
+            className="text-accent-700 hover:text-accent-600 inline-flex items-center gap-1 font-semibold"
+          >
+            Read more <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Blog({
   featuredPost,
   posts,
@@ -91,15 +126,67 @@ export default function Blog({
 }: BlogPageProps) {
   const [search, setSearch] = React.useState(filters.search ?? '');
   const [tagsRef, tagsStyle] = useHeaderHandoff();
+  const searching = !!filters.search;
+
+  // One section per category, in tag order; a post sits in its primary category only. Empty ones
+  // (and their tags) are dropped. Posts without a category land in a trailing "More articles".
+  const sections = React.useMemo(() => {
+    const list = categories
+      .map((category) => ({
+        id: `blog-category-${category.id}`,
+        categoryId: category.id as number | null,
+        name: category.name,
+        posts: posts.filter((post) => post.category?.id === category.id),
+      }))
+      .filter((section) => section.posts.length > 0);
+    const uncategorized = posts.filter(
+      (post) => !post.category || !categories.some((category) => category.id === post.category!.id),
+    );
+    if (uncategorized.length > 0) {
+      list.push({
+        id: 'blog-category-other',
+        categoryId: null,
+        name: 'More articles',
+        posts: uncategorized,
+      });
+    }
+    return list;
+  }, [categories, posts]);
+
+  const sectionIds = React.useMemo(() => sections.map((section) => section.id), [sections]);
+  const spyId = useScrollSpy(searching ? [] : sectionIds, 150);
+  const [pastTop, setPastTop] = React.useState(false);
+
+  // "All" is the highlighted tag until the first section has been reached.
+  React.useEffect(() => {
+    if (searching || sectionIds.length === 0) return;
+    function onScroll() {
+      const first = document.getElementById(sectionIds[0]!);
+      setPastTop(!!first && first.getBoundingClientRect().top <= 170);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [searching, sectionIds]);
+
+  const activeId = searching ? null : pastTop ? spyId : null;
+
+  // ?category=<id>: scroll to that section on load.
+  React.useEffect(() => {
+    if (searching || !filters.category) return;
+    const id = `blog-category-${filters.category}`;
+    const timer = window.setTimeout(() => scrollToSection(id), 150);
+    return () => window.clearTimeout(timer);
+  }, [filters.category, searching]);
 
   function apply(next: { search?: string; category?: number | null }) {
     router.get(
       '/blog',
       {
         search: (next.search ?? search) || undefined,
-        category: next.category ?? filters.category ?? undefined,
+        category: next.category ?? undefined,
       },
-      { preserveState: true, replace: true },
+      { preserveState: true, replace: true, preserveScroll: true },
     );
   }
 
@@ -191,31 +278,43 @@ export default function Blog({
               >
                 <button
                   type="button"
-                  aria-pressed={!filters.category}
-                  onClick={() => apply({ category: null })}
+                  aria-pressed={!searching && activeId === null}
+                  onClick={() => {
+                    if (searching) apply({ search: '', category: null });
+                    else window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                   className={`shrink-0 rounded-full border px-4 py-2 text-sm whitespace-nowrap ${
-                    !filters.category
+                    !searching && activeId === null
                       ? 'border-ink bg-ink text-ivory'
                       : 'border-border-soft text-ink-muted hover:border-accent-500'
                   }`}
                 >
                   All
                 </button>
-                {categories.map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    aria-pressed={filters.category === category.id}
-                    onClick={() => apply({ category: category.id })}
-                    className={`shrink-0 rounded-full border px-4 py-2 text-sm whitespace-nowrap ${
-                      filters.category === category.id
-                        ? 'border-ink bg-ink text-ivory'
-                        : 'border-border-soft text-ink-muted hover:border-accent-500'
-                    }`}
-                  >
-                    {category.name}
-                  </button>
-                ))}
+                {categories
+                  .filter(
+                    (category) =>
+                      searching || sections.some((section) => section.categoryId === category.id),
+                  )
+                  .map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      data-pill-id={`blog-category-${category.id}`}
+                      aria-pressed={activeId === `blog-category-${category.id}`}
+                      onClick={() => {
+                        if (searching) apply({ search: '', category: category.id });
+                        else scrollToSection(`blog-category-${category.id}`);
+                      }}
+                      className={`shrink-0 rounded-full border px-4 py-2 text-sm whitespace-nowrap ${
+                        activeId === `blog-category-${category.id}`
+                          ? 'border-ink bg-ink text-ivory'
+                          : 'border-border-soft text-ink-muted hover:border-accent-500'
+                      }`}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
               </div>
 
               <div className="relative w-full max-w-xs shrink-0">
@@ -223,7 +322,11 @@ export default function Blog({
                 <Input
                   aria-label="Search articles"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    if (event.target.value === '' && filters.search)
+                      apply({ search: '', category: null });
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') apply({ search });
                   }}
@@ -238,42 +341,30 @@ export default function Blog({
           <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_320px]">
             <div>
               <div className="grid gap-5 sm:grid-cols-2">
-                {posts.map((post) => (
-                  <Card
-                    key={post.id}
-                    className="border-border-soft bg-surface shadow-soft flex flex-col overflow-hidden"
-                  >
-                    <div className="bg-accent-50 h-[190px] shrink-0">
-                      <PostImage post={post} />
+                {searching ? (
+                  <>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {posts.map((post) => (
+                        <PostCard key={post.id} post={post} />
+                      ))}
                     </div>
-                    <CardContent className="flex flex-1 flex-col p-5">
-                      {post.category && (
-                        <span className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
-                          {post.category.name}
-                        </span>
-                      )}
-                      <h3 className="font-display text-ink mt-2 text-lg leading-snug font-medium">
-                        <Link href={`/blog/${post.slug}`} className="hover:text-accent-700">
-                          {post.title}
-                        </Link>
-                      </h3>
-                      {post.excerpt && (
-                        <p className="text-ink-muted mt-2 line-clamp-3 text-sm leading-6">
-                          {post.excerpt}
-                        </p>
-                      )}
-                      <div className="text-ink-muted mt-auto flex items-center justify-between pt-4 text-xs">
-                        <span>{formatDate(post.published_at)}</span>
-                        <Link
-                          href={`/blog/${post.slug}`}
-                          className="text-accent-700 hover:text-accent-600 inline-flex items-center gap-1 font-semibold"
-                        >
-                          Read more <ArrowRight className="size-3.5" aria-hidden="true" />
-                        </Link>
+                  </>
+                ) : (
+                  <div className="space-y-12">
+                    {sections.map((section) => (
+                      <div key={section.id} id={section.id} className="scroll-mt-40">
+                        <h2 className="font-display text-ink text-xl font-medium sm:text-2xl">
+                          {section.name}
+                        </h2>
+                        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                          {section.posts.map((post) => (
+                            <PostCard key={post.id} post={post} />
+                          ))}
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    ))}
+                  </div>
+                )}
               </div>
 
               {posts.length === 0 && (

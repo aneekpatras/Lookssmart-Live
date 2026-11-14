@@ -224,7 +224,7 @@ it('renders the blog index with the newest post featured and drafts/future posts
         ->where('posts', fn ($posts) => count($posts) === 1 && $posts[0]['id'] === $older->id));
 });
 
-it('does not feature a post once the visitor has searched or filtered', function () {
+it('does not feature a post once the visitor has searched, and groups everything otherwise', function () {
     $category = PostCategory::create(['name' => 'Hair Care', 'slug' => 'hair-care']);
     Post::factory()->create([
         'post_category_id' => $category->id,
@@ -236,8 +236,10 @@ it('does not feature a post once the visitor has searched or filtered', function
     $this->get('/blog?search=winter')
         ->assertInertia(fn ($page) => $page->where('featuredPost', null)->has('posts', 1));
 
+    // Without a search the page is the grouped (scroll-spy) view: every post, newest as the featured one,
+    // and ?category only tells the page which section to scroll to.
     $this->get("/blog?category={$category->id}")
-        ->assertInertia(fn ($page) => $page->where('featuredPost', null)->has('posts', 1));
+        ->assertInertia(fn ($page) => $page->where('featuredPost.title', 'Winter Hair Care Tips')->has('posts', 0)->where('pagination.last_page', 1));
 });
 
 it('renders a published blog post by slug with reading time and TOC', function () {
