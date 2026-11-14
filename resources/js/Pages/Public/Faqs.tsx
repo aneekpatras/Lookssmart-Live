@@ -119,13 +119,13 @@ export default function Faqs({ categories, items, whatsapp }: FaqsPageProps) {
 
       <section className="bg-ivory border-border-soft border-b px-6 pt-14 pb-10 lg:px-10 lg:pt-20 lg:pb-11">
         <div className="mx-auto max-w-3xl">
-          <p className="text-accent-700 text-xs font-semibold tracking-[0.22em] uppercase">
+          <p className="text-accent-700 text-sm font-semibold tracking-[0.22em] uppercase">
             Help and answers
           </p>
           <h1 className="font-display text-ink mt-4 text-4xl font-medium sm:text-5xl">
             Frequently asked questions
           </h1>
-          <p className="text-ink-muted mt-4 max-w-xl">
+          <p className="text-ink-muted mt-4 max-w-xl text-base sm:text-lg">
             Everything you need to know about booking, prices, payment and visiting Looks Smart in
             Lahore.
           </p>
@@ -207,7 +207,7 @@ export default function Faqs({ categories, items, whatsapp }: FaqsPageProps) {
               <div className="space-y-10">
                 {sections.map((section) => (
                   <div key={section.id} id={section.id} className="scroll-mt-44">
-                    <h2 className="font-display text-ink mb-3 text-xl font-medium sm:text-2xl">
+                    <h2 className="font-display text-ink mb-3 text-2xl font-medium sm:text-3xl">
                       {section.name}
                     </h2>
                     <FaqAccordion items={section.items} openIds={openIds} onToggle={toggle} />

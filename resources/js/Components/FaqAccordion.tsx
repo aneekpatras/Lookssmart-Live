@@ -20,8 +20,8 @@ const linkClass =
   'text-accent-700 hover:text-accent-600 focus-visible:ring-accent-500 rounded-sm text-sm font-semibold underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none';
 
 /**
- * Accessible accordion: a real button per question (aria-expanded / aria-controls), several items can be
- * open at once, and the answer height animates with a CSS grid-rows transition that is switched off for
+ * Accessible accordion: a real button per question (aria-expanded / aria-controls), only one item is
+ * open at a time, and the answer height animates with a CSS grid-rows transition that is switched off for
  * prefers-reduced-motion. Shared by the /faqs page and the small FAQ block on Home and Contact.
  */
 export function FaqAccordion({ items, openIds, onToggle }: FaqAccordionProps) {
@@ -95,20 +95,12 @@ export function FaqAccordion({ items, openIds, onToggle }: FaqAccordionProps) {
   );
 }
 
-/** Open-set state helper: several can be open at once. */
+/** Open-state helper: only one item is open at a time (opening one closes the others). */
 export function useOpenSet(initial: number[] = []) {
-  const [openIds, setOpenIds] = React.useState<Set<number>>(() => new Set(initial));
+  const [openIds, setOpenIds] = React.useState<Set<number>>(() => new Set(initial.slice(0, 1)));
   const toggle = React.useCallback((id: number) => {
-    setOpenIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setOpenIds((current) => (current.has(id) ? new Set<number>() : new Set([id])));
   }, []);
-  const open = React.useCallback(
-    (id: number) => setOpenIds((current) => new Set(current).add(id)),
-    [],
-  );
+  const open = React.useCallback((id: number) => setOpenIds(new Set([id])), []);
   return { openIds, toggle, open };
 }
