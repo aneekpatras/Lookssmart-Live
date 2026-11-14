@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, router } from '@inertiajs/react';
-import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Check, CalendarCheck } from 'lucide-react';
 
 import { toast } from 'sonner';
 
@@ -317,13 +317,13 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
                       )}
                     </Button>
                     <Button type="button" variant="outline" size="lg" className="sm:flex-1" onClick={bookThisLook}>
-                      Book this service
+                      <CalendarCheck className="size-4" aria-hidden="true" /> Book this service
                     </Button>
                   </>
                 ) : (
                   <Button asChild variant="accent" size="lg" className="w-full">
                     <Link href={`/book?look=${currentImage.id}`} onClick={onClose}>
-                      Book now
+                      <CalendarCheck className="size-4" aria-hidden="true" /> Book now
                     </Link>
                   </Button>
                 )}

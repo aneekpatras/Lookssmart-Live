@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import {
   ArrowRight,
   Clock3,
+  CalendarCheck,
   Heart,
   Mail,
   MapPin,
@@ -430,7 +431,9 @@ export default function About({ quickStats, pillars, founder, contact }: AboutPa
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button asChild size="lg" variant="accent">
-              <Link href="/book">Book Now</Link>
+              <Link href="/book">
+                <CalendarCheck className="size-4" aria-hidden="true" /> Book Now
+              </Link>
             </Button>
             <Button
               asChild

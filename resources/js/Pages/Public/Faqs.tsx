@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { MessageCircle, Search } from 'lucide-react';
+import { CalendarCheck, MessageCircle, Search } from 'lucide-react';
 import * as React from 'react';
 
 import { type FaqItem, FaqAccordion, useOpenSet } from '@/Components/FaqAccordion';
@@ -232,7 +232,9 @@ export default function Faqs({ categories, items, whatsapp }: FaqsPageProps) {
                 <MessageCircle className="size-4" aria-hidden="true" /> Message on WhatsApp
               </a>
               <Button asChild variant="outline" size="lg">
-                <Link href="/book">Book now</Link>
+                <Link href="/book">
+                  <CalendarCheck className="size-4" aria-hidden="true" /> Book now
+                </Link>
               </Button>
             </div>
           </div>

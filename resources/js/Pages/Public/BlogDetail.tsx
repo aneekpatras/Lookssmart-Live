@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 import {
-  ArrowRight,
   Calendar,
+  CalendarCheck,
   Clock3,
   Link as LinkIcon,
   MapPin,
@@ -204,7 +204,9 @@ export default function BlogDetail({
               </h2>
               <div className="mt-6 flex flex-wrap justify-center gap-3">
                 <Button asChild size="lg" variant="accent">
-                  <Link href="/book">Book Now</Link>
+                  <Link href="/book">
+                    <CalendarCheck className="size-4" aria-hidden="true" /> Book Now
+                  </Link>
                 </Button>
                 <a
                   href={whatsapp.chat_url}
@@ -262,7 +264,7 @@ export default function BlogDetail({
                 </p>
                 <Button asChild variant="accent" className="mt-4 w-full">
                   <Link href="/book">
-                    Book Now <ArrowRight className="size-4" aria-hidden="true" />
+                    <CalendarCheck className="size-4" aria-hidden="true" /> Book Now
                   </Link>
                 </Button>
               </CardContent>

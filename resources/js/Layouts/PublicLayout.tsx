@@ -68,7 +68,7 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const page = usePage<SharedProps>();
   const { url } = page;
-  const { auth } = page.props;
+  const { auth, site } = page.props;
 
   React.useEffect(() => {
     function onScroll() {
@@ -125,7 +125,9 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
         <div className="flex items-center gap-1.5 sm:gap-3">
           <HeaderCartButton />
           <Button asChild size="sm" variant="accent" className="hidden md:inline-flex">
-            <Link href="/book">Book Now</Link>
+            <Link href="/book">
+              <CalendarCheck className="size-4" aria-hidden="true" /> Book Now
+            </Link>
           </Button>
           <HeaderUserMenu user={auth.user} />
           <button
@@ -152,18 +154,28 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
               {link.label}
             </Link>
           ))}
-          <Link
-            href="/faqs"
-            className="text-ink hover:bg-accent-50 focus-visible:ring-accent-500 flex items-center gap-2 rounded-md px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
-            onClick={() => setMobileOpen(false)}
-          >
-            <CircleHelp className="text-accent-700 size-4" aria-hidden="true" /> FAQs
-          </Link>
           <Button asChild variant="accent" className="mt-3 w-full">
             <Link href="/book" onClick={() => setMobileOpen(false)}>
-              Book Now
+              <CalendarCheck className="size-4" aria-hidden="true" /> Book Now
             </Link>
           </Button>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Button asChild variant="outline">
+              <Link href="/faqs" onClick={() => setMobileOpen(false)}>
+                <CircleHelp className="size-4" aria-hidden="true" /> FAQs
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <a
+                href={site.whatsapp_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileOpen(false)}
+              >
+                <MessageCircle className="size-4" aria-hidden="true" /> WhatsApp
+              </a>
+            </Button>
+          </div>
         </div>
       ) : null}
     </header>

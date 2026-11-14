@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { ArrowRight, Calendar, Clock3, MessageCircle, Search } from 'lucide-react';
+import { ArrowRight, Calendar, CalendarCheck, Clock3, MessageCircle, Search } from 'lucide-react';
 import * as React from 'react';
 
 import { SeoHead } from '@/Components/SeoHead';
@@ -429,7 +429,9 @@ export default function Blog({
                     Ready to experience it for yourself? Reserve your appointment in seconds.
                   </p>
                   <Button asChild variant="accent" className="mt-4 w-full">
-                    <Link href="/book">Book Now</Link>
+                    <Link href="/book">
+                      <CalendarCheck className="size-4" aria-hidden="true" /> Book Now
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>

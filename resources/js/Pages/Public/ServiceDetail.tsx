@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ArrowRight, Check, Clock3, Info, ShieldCheck, Star } from 'lucide-react';
+import { CalendarCheck, Check, Clock3, Info, ShieldCheck, Star } from 'lucide-react';
 import * as React from 'react';
 
 import { SeoHead } from '@/Components/SeoHead';
@@ -154,7 +154,7 @@ export default function ServiceDetail({
               )}
               <Button asChild size="lg" variant="accent" className="mt-6 w-full">
                 <Link href={bookHref}>
-                  Book this service <ArrowRight />
+                  <CalendarCheck className="size-4" aria-hidden="true" /> Book this service
                 </Link>
               </Button>
               <p className="text-ink-muted mt-3 text-xs">
@@ -301,7 +301,7 @@ export default function ServiceDetail({
           </div>
           <Button asChild size="lg" variant="accent">
             <Link href={bookHref}>
-              Book this service <ArrowRight />
+              <CalendarCheck className="size-4" aria-hidden="true" /> Book this service
             </Link>
           </Button>
         </div>
