@@ -7,6 +7,7 @@ import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { LoadingDots } from '@/Components/LoadingDots';
 import { SeoHead } from '@/Components/SeoHead';
 import { BookItemCard } from '@/Components/BookItemCard';
+import { FaqHelpLink } from '@/Components/FaqHelpLink';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
@@ -65,6 +66,7 @@ interface BookProps {
   deals: BookableDeal[];
   authUser: { name: string; email: string } | null;
   look?: { id: number; image_url: string; specialty: string | null } | null;
+  faqHref?: string;
 }
 
 const SERVICES_TOP_ANCHOR = 'book-services-top';
@@ -130,7 +132,7 @@ function slotPeriod(iso: string): 'Morning' | 'Afternoon' | 'Evening' {
  * list the controller sends (never a client-derived list from whatever category strings happen to
  * already be present in `services`, which would silently omit a real category with zero services).
  */
-export default function Book({ services, categories, deals, authUser, look }: BookProps) {
+export default function Book({ services, categories, deals, authUser, look, faqHref }: BookProps) {
   const [tagsRef, tagsStyle] = useHeaderHandoff();
   const [step, setStep] = React.useState(0);
   const [search, setSearch] = React.useState('');
@@ -697,6 +699,12 @@ export default function Book({ services, categories, deals, authUser, look }: Bo
                         No services match that search.
                       </p>
                     )}
+
+                    <p className="mt-8 lg:hidden">
+                      <FaqHelpLink href={faqHref ?? '/faqs'}>
+                        Questions about booking? Read our FAQs
+                      </FaqHelpLink>
+                    </p>
                   </div>
                 )}
 
@@ -980,6 +988,11 @@ export default function Book({ services, categories, deals, authUser, look }: Bo
                   </Button>
                 </>
               )}
+              <p className="border-border-soft mt-4 hidden border-t pt-3 lg:block">
+                <FaqHelpLink href={faqHref ?? '/faqs'}>
+                  Questions about booking? Read our FAQs
+                </FaqHelpLink>
+              </p>
             </aside>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { FaqHelpLink } from '@/Components/FaqHelpLink';
 import * as React from 'react';
 
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
@@ -16,6 +17,7 @@ interface DealSection {
 interface DealsProps {
   sections: DealSection[];
   availableTags: string[];
+  faqHref?: string;
   whatsapp: { display_phone: string; chat_url: string };
 }
 
@@ -30,7 +32,7 @@ function tagAnchorId(tag: string): string {
  * a sticky, scrollspy-highlighted pill bar that scrolls to a section instead of hiding the others
  * (ad hoc task 24) — matches the same pattern now used on Services and Book.
  */
-export default function Deals({ sections, availableTags, whatsapp }: DealsProps) {
+export default function Deals({ sections, availableTags, whatsapp, faqHref }: DealsProps) {
   const [detailsDeal, setDetailsDeal] = React.useState<DealShowcase | null>(null);
   const [tagsRef, tagsStyle] = useHeaderHandoff();
 
@@ -106,6 +108,9 @@ export default function Deals({ sections, availableTags, whatsapp }: DealsProps)
               </div>
             ))}
           </div>
+          <p className="mt-10 text-center">
+            <FaqHelpLink href={faqHref ?? '/faqs'}>How do deals work? Read our FAQs</FaqHelpLink>
+          </p>
         </div>
       </section>
 

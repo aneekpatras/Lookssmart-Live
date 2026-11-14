@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Mail, MapPin, Menu, Phone, X } from 'lucide-react';
+import { CircleHelp, Mail, MapPin, Menu, Phone, X } from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@/Components/ui/button';
@@ -134,6 +134,13 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
               {link.label}
             </Link>
           ))}
+          <Link
+            href="/faqs"
+            className="text-ink hover:bg-accent-50 focus-visible:ring-accent-500 flex items-center gap-2 rounded-md px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+            onClick={() => setMobileOpen(false)}
+          >
+            <CircleHelp className="text-accent-700 size-4" aria-hidden="true" /> FAQs
+          </Link>
           <Button asChild variant="accent" className="mt-3 w-full">
             <Link href="/book" onClick={() => setMobileOpen(false)}>
               Book Now

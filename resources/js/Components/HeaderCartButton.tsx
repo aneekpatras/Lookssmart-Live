@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { ShoppingBag, Sparkles, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
+import { FaqHelpLink } from '@/Components/FaqHelpLink';
 import { Button } from '@/Components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/Components/ui/sheet';
 import {
@@ -307,6 +308,9 @@ export function HeaderCartButton() {
               >
                 Browse More Services
               </Link>
+              <p className="mt-2 text-center">
+                <FaqHelpLink onClick={() => setOpen(false)}>Need help? FAQs</FaqHelpLink>
+              </p>
             </div>
           </div>
         )}
