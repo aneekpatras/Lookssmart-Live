@@ -326,6 +326,8 @@ class PublicWebsiteController extends Controller
                     $this->galleryLinks["service:{$service->id}"] = [
                         'type' => 'service', 'id' => $service->id, 'name' => $service->name,
                         'service' => ['id' => $data['id'], 'name' => $data['name'], 'price' => $data['price'], 'image_url' => $data['image_url'] ?? null],
+                        'price' => $data['price'],
+                        'duration_min' => $data['duration_min'],
                     ];
                 });
         }
@@ -344,6 +346,11 @@ class PublicWebsiteController extends Controller
                             'original_price' => $data['original_price'],
                             'deal_price' => $data['deal_price'],
                         ],
+                        'price' => $data['deal_price'],
+                        'original_price' => $data['original_price'],
+                        'savings_percent' => $data['savings_percent'],
+                        'ends_at' => $data['ends_at'],
+                        'included_count' => count($data['included_services']),
                     ];
                 });
         }

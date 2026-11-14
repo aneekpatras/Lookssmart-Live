@@ -8,6 +8,7 @@ import type { DealShowcase } from '@/Components/DealDetailsModal';
 import { Button } from '@/Components/ui/button';
 import { addToCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
+import { validTill } from '@/lib/format';
 
 export interface MarqueeDeal extends DealShowcase {
   type?: string;
@@ -137,21 +138,6 @@ export function DealsBar({ bar }: { bar: DealsBarData }) {
 /** A deal's image, else the first attached service's photo, else null (the card draws a branded block). */
 function dealImage(deal: MarqueeDeal): string | null {
   return deal.image_url ?? deal.bundled_services.find((s) => s.image_url)?.image_url ?? null;
-}
-
-/** "Valid till 30 Nov" (year added only when it is not this year), in the salon's own time zone. */
-function validTill(endsAt: string | null): string | null {
-  if (!endsAt) return null;
-  const end = new Date(endsAt);
-  if (Number.isNaN(end.getTime()) || end.getTime() <= Date.now()) return null;
-  const sameYear = end.getFullYear() === new Date().getFullYear();
-  const text = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    ...(sameYear ? {} : { year: 'numeric' }),
-    timeZone: 'Asia/Karachi',
-  }).format(end);
-  return `Valid till ${text}`;
 }
 
 /**

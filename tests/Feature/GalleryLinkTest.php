@@ -68,3 +68,21 @@ it('shows the linked service name on the public gallery right after an admin sav
     $images = collect($this->get('/gallery')->viewData('page')['props']['sections'])->flatMap(fn ($sec) => $sec['images'])->keyBy('id');
     expect($images[$image->id]['link']['name'])->toBe($service->name);
 });
+
+it('returns price, duration and deal pricing fields for linked items', function () {
+    $gallery = Gallery::factory()->create(['is_active' => true]);
+    $service = Service::factory()->create(['is_active' => true, 'base_price' => 10500, 'duration_min' => 90]);
+    $deal = Deal::factory()->create(['is_active' => true, 'original_price' => 20000, 'deal_price' => 15000]);
+    $deal->services()->attach($service->id);
+    $a = GalleryImage::factory()->create(['gallery_id' => $gallery->id, 'linked_type' => 'service', 'linked_id' => $service->id]);
+    $b = GalleryImage::factory()->create(['gallery_id' => $gallery->id, 'linked_type' => 'deal', 'linked_id' => $deal->id]);
+
+    $images = collect($this->get('/gallery')->viewData('page')['props']['sections'])->flatMap(fn ($sec) => $sec['images'])->keyBy('id');
+
+    expect((float) $images[$a->id]['link']['price'])->toBe(10500.0)
+        ->and($images[$a->id]['link']['duration_min'])->toBe(90)
+        ->and((float) $images[$b->id]['link']['price'])->toBe(15000.0)
+        ->and((float) $images[$b->id]['link']['original_price'])->toBe(20000.0)
+        ->and($images[$b->id]['link'])->toHaveKeys(['savings_percent', 'ends_at', 'included_count'])
+        ->and((float) $images[$b->id]['link']['deal']['deal_price'])->toBe(15000.0);
+});

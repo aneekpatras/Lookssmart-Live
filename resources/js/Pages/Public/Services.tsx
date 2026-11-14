@@ -11,6 +11,7 @@ import { Input } from '@/Components/ui/input';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { addToCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
+import { formatDuration } from '@/lib/format';
 import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
 interface ServiceCard {
@@ -36,14 +37,6 @@ interface ServicesProps {
 const TOP_ANCHOR = 'services-top';
 /** Cards shown per category before "Show all": 8 fills 4 rows on mobile (2 cols), 9 fills 3 rows on desktop. */
 const INITIAL_VISIBLE = 8;
-
-/** Mirrors ServiceDetail's formatter — "3 hours" reads better than "180 min" on a card. */
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
-}
 
 function ServiceCardTile({ service }: { service: ServiceCard }) {
   function handleAddToCart() {

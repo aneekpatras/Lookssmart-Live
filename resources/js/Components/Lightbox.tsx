@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 
 import { Button } from '@/Components/ui/button';
 import { addToCart, cartBookingUrl, getCartItems } from '@/lib/cart';
+import { formatCurrency } from '@/lib/currency';
+import { dealTiming, formatDuration } from '@/lib/format';
 
 interface Image {
   id: number;
@@ -23,6 +25,12 @@ export interface ImageLink {
   type: 'service' | 'deal';
   id: number;
   name: string;
+  price?: string | null;
+  duration_min?: number | null;
+  original_price?: string | null;
+  savings_percent?: number | null;
+  ends_at?: string | null;
+  included_count?: number;
   service?: BundledService;
   deal?: { bundled_services: BundledService[]; original_price: string | null; deal_price: string | null };
 }
@@ -211,11 +219,46 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
                       {currentImage.category}
                     </span>
                   )}
-                  {detailText && (
-                    <p className="font-display text-ink mt-2 text-xl leading-snug font-medium">
-                      {detailText}
-                    </p>
-                  )}
+                  <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    {detailText && (
+                      <p className="font-display text-ink min-w-0 text-xl leading-snug font-medium break-words">
+                        {detailText}
+                      </p>
+                    )}
+                    {link && link.price && (
+                      <div className="shrink-0 sm:text-right">
+                        {link.type === 'deal' ? (
+                          <>
+                            <p className="flex flex-wrap items-baseline gap-x-2 sm:justify-end">
+                              <span className="font-display text-ink text-lg font-medium">
+                                {formatCurrency(link.price)}
+                              </span>
+                              {link.original_price && (
+                                <span className="text-ink-muted text-xs line-through">
+                                  {formatCurrency(link.original_price)}
+                                </span>
+                              )}
+                              {!!link.savings_percent && link.savings_percent > 0 && (
+                                <span className="bg-accent-500 text-ivory rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap">
+                                  {link.savings_percent}% OFF
+                                </span>
+                              )}
+                            </p>
+                            {dealTiming(link.ends_at ?? null, link.included_count ?? 0) && (
+                              <p className="text-ink-muted text-xs">
+                                {dealTiming(link.ends_at ?? null, link.included_count ?? 0)}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-accent-700 text-sm font-semibold">
+                            {formatCurrency(link.price)}
+                            {link.duration_min ? ` · ${formatDuration(link.duration_min)}` : ''}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {subText && <p className="text-ink-muted mt-1 text-sm">{subText}</p>}
                 </div>
               )}
