@@ -647,51 +647,6 @@ export default function Home({
         }
       />
 
-      {/* 7. WhatsApp support & QR — directly below reviews. The QR is a server-generated SVG data
-          URI (App\Support\QrCode), so there is no third-party QR service to be blocked by the CSP
-          and no `dangerouslySetInnerHTML`. WhatsApp brand green is the one hardcoded colour the
-          brief allows. */}
-      <section className="px-6 py-20 md:px-12 lg:px-16 lg:py-24">
-        <div className="border-border-soft bg-surface shadow-soft mx-auto max-w-5xl rounded-2xl border p-6 sm:p-10">
-          <div className="grid items-center gap-8 md:grid-cols-[auto_1fr] md:gap-12">
-            <div className="text-center">
-              <div className="border-border-soft inline-block rounded-2xl border bg-white p-4">
-                <img
-                  src={whatsapp.qr_data_uri}
-                  alt={`QR code opening a WhatsApp chat with Looks Smart Beauty Salon on ${whatsapp.display_phone}`}
-                  width={200}
-                  height={200}
-                  className="size-[200px]"
-                />
-              </div>
-              <p className="text-ink-muted mt-3 text-xs">📱 Scan with your camera</p>
-            </div>
-
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-[#25D366]/10 px-3 py-1 text-xs font-semibold text-[#128C7E]">
-                <MessageCircle className="size-3.5" aria-hidden="true" /> Instant Support
-              </span>
-              <h2 className="font-display text-ink mt-4 text-3xl font-medium sm:text-4xl">
-                Talk to us on WhatsApp
-              </h2>
-              <p className="text-ink-muted mt-4 leading-7">
-                Book appointments, ask about services, request a quote, or get aftercare advice.
-                Scan the QR code with your camera or tap below to start a chat with our team at{' '}
-                <strong className="text-ink font-medium">{whatsapp.display_phone}</strong>.
-              </p>
-              <a
-                href={whatsapp.chat_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-6 inline-flex items-center gap-2 rounded-md bg-[#25D366] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1DA851] focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                <MessageCircle className="size-4" aria-hidden="true" /> Chat on WhatsApp
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-      {/* 7. Visit us — address, hours, phone and an embedded map. Address/hours/phone come from the shared
           `site` prop (admin Settings + business_hours rows); the directions wording and Maps link from
           SeoService::findUs, so the same text Google reads is what visitors see. */}
       <section className="border-border-soft bg-surface border-y px-6 py-14 lg:px-10 lg:py-16">
