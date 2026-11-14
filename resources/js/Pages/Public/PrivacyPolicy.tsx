@@ -59,6 +59,10 @@ export default function PrivacyPolicy({ business, effectiveDate }: PrivacyPolicy
                 type, and the pages you visit — which is used to keep the site secure and working
                 correctly.
               </p>
+              <p>
+                We use anonymous visit statistics to improve the service. Booking details you enter
+                may be used to contact you about your booking.
+              </p>
             </Section>
 
             <Section title="2. How We Use Your Data">
