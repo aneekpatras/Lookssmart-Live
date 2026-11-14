@@ -15,6 +15,7 @@ interface GalleryImageDetail {
   image_url: string;
   pair_image_url: string | null;
   caption: string | null;
+  specialty?: string | null;
   is_before_after: boolean;
   show_on_homepage: boolean;
   sort: number;
@@ -132,6 +133,7 @@ function ImageCard({
 }) {
   const { data, setData, put, processing } = useForm({
     caption: image.caption ?? '',
+    specialty: image.specialty ?? '',
     is_before_after: image.is_before_after,
     show_on_homepage: image.show_on_homepage,
     pair_image: null as File | null,
@@ -145,7 +147,7 @@ function ImageCard({
     setData('is_before_after', checked);
     router.put(
       `/admin/gallery/${galleryId}/images/${image.id}`,
-      { caption: data.caption, is_before_after: checked },
+      { caption: data.caption, specialty: data.specialty, is_before_after: checked },
       { preserveScroll: true },
     );
   }
@@ -168,7 +170,7 @@ function ImageCard({
     setData('pair_image', file);
     router.post(
       `/admin/gallery/${galleryId}/images/${image.id}`,
-      { _method: 'put', caption: data.caption, is_before_after: true, pair_image: file },
+      { _method: 'put', caption: data.caption, specialty: data.specialty, is_before_after: true, pair_image: file },
       { preserveScroll: true, forceFormData: true },
     );
   }
@@ -199,6 +201,14 @@ function ImageCard({
           placeholder="Caption"
           value={data.caption}
           onChange={(e) => setData('caption', e.target.value)}
+          onBlur={saveCaption}
+        />
+        <Input
+          aria-label="Specialty"
+          placeholder="Specialty (shown under the photo, max 160)"
+          maxLength={160}
+          value={data.specialty}
+          onChange={(e) => setData('specialty', e.target.value)}
           onBlur={saveCaption}
         />
 

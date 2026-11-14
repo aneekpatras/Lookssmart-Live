@@ -218,9 +218,23 @@ class PublicWebsiteController extends Controller
      * category strings happen to already be present in `services`, which would silently omit a real
      * category that has zero active services today.
      */
-    public function booking(): Response
+    public function booking(Request $request): Response
     {
+        // "Book this look" from the gallery lightbox: ?look=<gallery image id>.
+        $look = null;
+        $lookId = (int) $request->query('look');
+        $lookImage = $lookId > 0 ? GalleryImage::query()->whereHas('gallery', fn ($q) => $q->active())->find($lookId) : null;
+
+        if ($lookImage) {
+            $look = [
+                'id' => $lookImage->id,
+                'image_url' => asset("storage/{$lookImage->image_path}"),
+                'specialty' => $lookImage->specialty ?: $lookImage->caption,
+            ];
+        }
+
         return $this->withSeo(Inertia::render('Public/Book', [
+            'look' => $look,
             'services' => Service::active()->with(['category:id,name,stock_image_url', 'prices'])->orderBy('sort')->orderBy('name')->get()->map(fn (Service $service) => $this->serviceData($service)),
             'categories' => ServiceCategory::active()->ordered()->get(['id', 'name']),
             // Active deals that actually have bookable services attached: picking one on the "Deals"
@@ -259,7 +273,7 @@ class PublicWebsiteController extends Controller
                 'subtitle' => $category->subtitle,
                 'images' => $category->galleries
                     ->flatMap(fn (Gallery $gallery) => $gallery->images)
-                    ->map(fn (GalleryImage $image) => $this->galleryImageData($image))
+                    ->map(fn (GalleryImage $image) => [...$this->galleryImageData($image), 'category' => $category->name])
                     ->values()
                     ->all(),
             ])
@@ -277,7 +291,7 @@ class PublicWebsiteController extends Controller
                 'id' => 'uncategorized',
                 'name' => 'More Highlights',
                 'subtitle' => 'Additional favorites from our portfolio.',
-                'images' => $uncategorizedImages->map(fn (GalleryImage $image) => $this->galleryImageData($image))->values()->all(),
+                'images' => $uncategorizedImages->map(fn (GalleryImage $image) => [...$this->galleryImageData($image), 'category' => 'More Highlights'])->values()->all(),
             ]);
         }
 
@@ -294,6 +308,7 @@ class PublicWebsiteController extends Controller
             'image_path' => asset("storage/{$image->image_path}"),
             'image_path_webp' => $this->publicWebpUrl($image->image_path),
             'caption' => $image->caption,
+            'specialty' => $image->specialty,
             'is_before_after' => $image->is_before_after,
             'pair_image_path' => $image->pair_image_path ? asset("storage/{$image->pair_image_path}") : null,
             'pair_image_path_webp' => $image->pair_image_path ? $this->publicWebpUrl($image->pair_image_path) : null,

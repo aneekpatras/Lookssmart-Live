@@ -15,6 +15,7 @@ class UpdateGalleryImageRequest extends BaseFormRequest
     {
         return [
             'caption' => ['nullable', 'string', 'max:255'],
+            'specialty' => ['nullable', 'string', 'max:160'],
             'is_before_after' => ['boolean'],
             // Whether this image appears in the homepage bridal slider. Absent keys are not in
             // validated() and so are never written, which is what lets the caption, before/after

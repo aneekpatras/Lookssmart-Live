@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from '@inertiajs/react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+
+import { Button } from '@/Components/ui/button';
 
 interface Image {
   id: number;
   image_path: string;
   caption?: string | null;
+  specialty?: string | null;
+  category?: string | null;
 }
 
 interface LightboxProps {
@@ -93,6 +98,7 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
   if (images.length === 0) return null;
 
   const currentImage = images[currentIndex]!;
+  const detailText = currentImage.specialty || currentImage.caption || null;
 
   return (
     <AnimatePresence>
@@ -111,73 +117,74 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
           tabIndex={-1}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full h-full max-w-4xl max-h-[90vh] flex flex-col"
+            className="bg-ivory relative flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl shadow-2xl"
           >
-            {/* Close button */}
-            <button
-              onClick={onClose}
-              className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors z-10 p-2"
-              aria-label="Close lightbox"
-            >
-              <X size={24} />
-            </button>
-
-            {/* Image container */}
-            <div className="flex-1 flex items-center justify-center overflow-hidden rounded-lg bg-black">
+            {/* Photo, with the arrows laid over its edges */}
+            <div className="relative flex max-h-[60vh] min-h-0 flex-1 items-center justify-center bg-black">
               <motion.img
                 key={currentImage.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
                 src={currentImage.image_path}
                 alt={currentImage.caption || `Image ${currentIndex + 1}`}
-                className="w-full h-full object-contain"
+                className="max-h-[60vh] w-full object-contain"
               />
+              <div className="absolute top-3 left-3 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
+                {currentIndex + 1} / {images.length}
+              </div>
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={goToPrevious}
+                    className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/45 p-2 text-white transition-colors hover:bg-black/70"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button
+                    onClick={goToNext}
+                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/45 p-2 text-white transition-colors hover:bg-black/70"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight size={24} />
+                  </button>
+                </>
+              )}
             </div>
 
-            {/* Caption */}
-            {currentImage.caption && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-                className="mt-4 text-center text-white text-sm md:text-base"
-              >
-                {currentImage.caption}
-              </motion.div>
-            )}
-
-            {/* Image counter */}
-            <div className="mt-4 text-center text-white/70 text-sm">
-              {currentIndex + 1} / {images.length}
+            {/* Details: specialty (else caption), category chip, actions */}
+            <div className="space-y-4 p-5 sm:p-6">
+              {(detailText || currentImage.category) && (
+                <div>
+                  {currentImage.category && (
+                    <span className="border-accent-500/40 bg-accent-500/10 text-accent-700 inline-flex rounded-full border px-3 py-1 text-xs font-semibold">
+                      {currentImage.category}
+                    </span>
+                  )}
+                  {detailText && (
+                    <p className="font-display text-ink mt-2 text-xl leading-snug font-medium">
+                      {detailText}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button asChild variant="accent" size="lg" className="sm:flex-1">
+                  <Link href={`/book?look=${currentImage.id}`} onClick={onClose}>
+                    Book this look
+                  </Link>
+                </Button>
+                <Button type="button" variant="outline" size="lg" onClick={onClose} className="sm:flex-1">
+                  <X aria-hidden="true" /> Close
+                </Button>
+              </div>
             </div>
-
-            {/* Navigation buttons */}
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={goToPrevious}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 md:-translate-x-16 text-white hover:text-gray-300 transition-colors p-2"
-                  aria-label="Previous image"
-                >
-                  <ChevronLeft size={32} />
-                </button>
-
-                <button
-                  onClick={goToNext}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 md:translate-x-16 text-white hover:text-gray-300 transition-colors p-2"
-                  aria-label="Next image"
-                >
-                  <ChevronRight size={32} />
-                </button>
-              </>
-            )}
           </motion.div>
         </motion.div>
       )}

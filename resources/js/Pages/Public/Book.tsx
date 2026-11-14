@@ -65,10 +65,19 @@ interface BookProps {
   categories: Category[];
   deals: BookableDeal[];
   authUser: { name: string; email: string } | null;
+  look?: { id: number; image_url: string; specialty: string | null } | null;
 }
 
 const SERVICES_TOP_ANCHOR = 'book-services-top';
 const DEALS_SECTION_ID = 'book-deals';
+
+/** Prepends the chosen gallery look (its specialty text and image URL) to the booking notes. */
+function withLookNote(notes: string, look?: BookProps['look']): string {
+  if (!look) return notes;
+  const line = `Reference look: ${look.specialty ? `${look.specialty} - ` : ''}${look.image_url}`;
+  return (notes ? `${line}
+${notes}` : line).slice(0, 1000);
+}
 
 const steps = ['Select services', 'Date, time & details'];
 
@@ -118,7 +127,7 @@ function slotPeriod(iso: string): 'Morning' | 'Afternoon' | 'Evening' {
  * list the controller sends (never a client-derived list from whatever category strings happen to
  * already be present in `services`, which would silently omit a real category with zero services).
  */
-export default function Book({ services, categories, deals, authUser }: BookProps) {
+export default function Book({ services, categories, deals, authUser, look }: BookProps) {
   const [tagsRef, tagsStyle] = useHeaderHandoff();
   const [step, setStep] = React.useState(0);
   const [search, setSearch] = React.useState('');
@@ -396,7 +405,7 @@ export default function Book({ services, categories, deals, authUser }: BookProp
         guest_email: form.email,
         guest_phone: form.phone || undefined,
         subject: form.subject || undefined,
-        notes: form.notes || undefined,
+        notes: withLookNote(form.notes, look) || undefined,
         quote: quoteResponse.data,
       });
 
@@ -888,6 +897,15 @@ export default function Book({ services, categories, deals, authUser }: BookProp
                           className="mt-2"
                         />
                       </div>
+                      {look && (
+                        <div className="border-border-soft bg-surface flex items-center gap-3 rounded-xl border p-3 sm:col-span-2">
+                          <img src={look.image_url} alt="" className="size-16 shrink-0 rounded-lg object-cover" />
+                          <div className="min-w-0">
+                            <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">Reference look</p>
+                            {look.specialty && <p className="text-ink text-sm">{look.specialty}</p>}
+                          </div>
+                        </div>
+                      )}
                       <div className="sm:col-span-2">
                         <label className="text-sm font-medium" htmlFor="booking-notes">
                           Notes <span className="text-ink-muted font-normal">(optional)</span>

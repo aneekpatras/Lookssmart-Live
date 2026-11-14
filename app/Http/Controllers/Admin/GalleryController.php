@@ -126,6 +126,11 @@ class GalleryController extends Controller
     {
         $data = $request->safe()->except('pair_image');
 
+        // Tolerate a live DB that has not had the specialty migration yet.
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('gallery_images', 'specialty')) {
+            unset($data['specialty']);
+        }
+
         if ($request->hasFile('pair_image')) {
             $oldPairPath = $image->pair_image_path;
             $data['pair_image_path'] = $uploads->storePublicImage($request->file('pair_image'), 'gallery');
@@ -205,6 +210,7 @@ class GalleryController extends Controller
             'image_url' => asset("storage/{$image->image_path}"),
             'pair_image_url' => $image->pair_image_path ? asset("storage/{$image->pair_image_path}") : null,
             'caption' => $image->caption,
+            'specialty' => $image->specialty,
             'is_before_after' => $image->is_before_after,
             'show_on_homepage' => $image->show_on_homepage,
             'sort' => $image->sort,

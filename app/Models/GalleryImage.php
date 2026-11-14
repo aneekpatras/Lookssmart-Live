@@ -14,6 +14,7 @@ class GalleryImage extends Model
         'gallery_id',
         'image_path',
         'caption',
+        'specialty',
         'is_before_after',
         'show_on_homepage',
         'pair_image_path',
