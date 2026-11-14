@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { useRegisterOverlay } from '@/lib/overlay';
 import { ShoppingBag, Sparkles, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
@@ -90,6 +91,7 @@ function ClearAllButton({ onClear }: { onClear: () => void }) {
 export function HeaderCartButton() {
   const [items, setItems] = React.useState<CartItem[]>([]);
   const [open, setOpen] = React.useState(false);
+  useRegisterOverlay('cart', open);
 
   React.useEffect(() => {
     function refresh() {

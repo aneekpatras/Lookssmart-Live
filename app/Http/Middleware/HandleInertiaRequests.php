@@ -116,6 +116,13 @@ class HandleInertiaRequests extends Middleware
                 'directions_url' => app(\App\Services\SeoService::class)->findUs()['mapsUrl'],
                 'service_categories' => $this->footerServiceCategories(),
             ],
+            // Floating WhatsApp popup (admin Settings > WhatsApp popup); defaults match the admin form.
+            'wa_popup' => fn () => [
+                'enabled' => Setting::get('wa_popup.enabled') !== false,
+                'message' => mb_substr(trim((string) Setting::get('wa_popup.message')) ?: 'Need help choosing a service or booking? Chat with us on WhatsApp.', 0, 140),
+                'delay' => min(60, max(3, (int) (Setting::get('wa_popup.delay') ?: 8))),
+                'sound' => Setting::get('wa_popup.sound') !== false,
+            ],
         ];
     }
 

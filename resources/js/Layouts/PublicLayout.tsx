@@ -27,6 +27,8 @@ import { HeaderUserMenu } from '@/Components/HeaderUserMenu';
 import { NavigationProgressOverlay } from '@/Components/NavigationProgressOverlay';
 import { SmoothScroll } from '@/Components/SmoothScroll';
 import { WhatsAppButton } from '@/Components/WhatsAppButton';
+import { WhatsAppPopup } from '@/Components/WhatsAppPopup';
+import { useRegisterOverlay } from '@/lib/overlay';
 
 /**
  * The globally shared `site` block (HandleInertiaRequests::share) — contact details, social
@@ -66,6 +68,7 @@ const NAV_LINKS = [
 function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
   const [scrolled, setScrolled] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  useRegisterOverlay('menu', mobileOpen);
   const page = usePage<SharedProps>();
   const { url } = page;
   const { auth, site } = page.props;
@@ -424,6 +427,7 @@ export default function PublicLayout({
         </main>
         <Footer />
         <WhatsAppButton />
+        <WhatsAppPopup />
       </div>
     </SmoothScroll>
   );

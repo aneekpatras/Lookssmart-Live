@@ -81,6 +81,12 @@ class SettingService
         'deals_bar.claim_url' => ['group' => 'deals_bar', 'type' => 'string'],
         'deals_bar.deal_id' => ['group' => 'deals_bar', 'type' => 'int'],
 
+        // Floating WhatsApp popup bubble: on/off, message (max 140), delay in seconds (3-60), sound on/off.
+        'wa_popup.enabled' => ['group' => 'wa_popup', 'type' => 'bool'],
+        'wa_popup.message' => ['group' => 'wa_popup', 'type' => 'string'],
+        'wa_popup.delay' => ['group' => 'wa_popup', 'type' => 'int'],
+        'wa_popup.sound' => ['group' => 'wa_popup', 'type' => 'bool'],
+
         'security.admin_ip_allowlist' => ['group' => 'security', 'type' => 'string'],
         'security.session_lifetime_minutes' => ['group' => 'security', 'type' => 'int'],
     ];

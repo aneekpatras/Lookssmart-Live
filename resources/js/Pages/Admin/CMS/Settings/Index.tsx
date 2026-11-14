@@ -22,6 +22,7 @@ interface SettingsGroups {
   integrations: Record<string, SettingValue>;
   seo: Record<string, SettingValue>;
   deals_bar: Record<string, SettingValue>;
+  wa_popup: Record<string, SettingValue>;
   security: Record<string, SettingValue>;
 }
 
@@ -45,6 +46,7 @@ const TABS = [
   { id: 'payments', label: 'Payments & Taxes' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'deals-bar', label: 'Deals Bar' },
+  { id: 'wa-popup', label: 'WhatsApp popup' },
   { id: 'seo-security', label: 'SEO & Security' },
 ] as const;
 
@@ -562,6 +564,65 @@ function DealsBarTab({ bar, dealOptions }: { bar: Record<string, SettingValue>; 
   );
 }
 
+function WaPopupTab({ popup }: { popup: Record<string, SettingValue> }) {
+  return (
+    <GroupForm
+      group="wa_popup"
+      title="WhatsApp popup"
+      description="A small bubble beside the floating WhatsApp button. It shows once per visitor every 24 hours, never on the booking, login or admin pages."
+      fields={{
+        enabled: popup['wa_popup.enabled'] === false ? 'false' : 'true',
+        message: toFieldValue(popup['wa_popup.message']),
+        delay: toFieldValue(popup['wa_popup.delay']),
+        sound: popup['wa_popup.sound'] === false ? 'false' : 'true',
+      }}
+    >
+      {(data, setField, fieldError) => (
+        <>
+          <ToggleField
+            id="wa_popup.enabled"
+            label="Show the WhatsApp popup"
+            checked={data.enabled === 'true'}
+            onChange={(v) => setField('enabled', v ? 'true' : 'false')}
+          />
+          <div className="space-y-1.5">
+            <Label htmlFor="wa_popup.message">Message (max 140 characters, plain text)</Label>
+            <Input
+              id="wa_popup.message"
+              maxLength={140}
+              value={data.message ?? ''}
+              onChange={(e) => setField('message', e.target.value)}
+              aria-invalid={!!fieldError('message')}
+              placeholder="Need help choosing a service or booking? Chat with us on WhatsApp."
+            />
+            {fieldError('message') && <p className="text-sm text-red-600">{fieldError('message')}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="wa_popup.delay">Delay in seconds (3 to 60, default 8)</Label>
+            <Input
+              id="wa_popup.delay"
+              type="number"
+              min={3}
+              max={60}
+              value={data.delay ?? ''}
+              onChange={(e) => setField('delay', e.target.value)}
+              aria-invalid={!!fieldError('delay')}
+              className="max-w-[10rem]"
+            />
+            {fieldError('delay') && <p className="text-sm text-red-600">{fieldError('delay')}</p>}
+          </div>
+          <ToggleField
+            id="wa_popup.sound"
+            label="Play a soft sound with the popup (only after the visitor has tapped or clicked the page)"
+            checked={data.sound === 'true'}
+            onChange={(v) => setField('sound', v ? 'true' : 'false')}
+          />
+        </>
+      )}
+    </GroupForm>
+  );
+}
+
 function SeoSecurityTab({ seo, security }: { seo: Record<string, SettingValue>; security: Record<string, SettingValue> }) {
   return (
     <div className="space-y-6">
@@ -655,6 +716,7 @@ export default function SettingsIndex({ settings, businessHours, dealOptions }: 
           {tab === 'booking' && <BookingTab booking={settings.booking} />}
           {tab === 'payments' && <PaymentsTab payments={settings.payments} />}
           {tab === 'integrations' && <IntegrationsTab integrations={settings.integrations} />}
+          {tab === 'wa-popup' && <WaPopupTab popup={settings.wa_popup} />}
           {tab === 'deals-bar' && <DealsBarTab bar={settings.deals_bar} dealOptions={dealOptions} />}
           {tab === 'seo-security' && <SeoSecurityTab seo={settings.seo} security={settings.security} />}
         </div>

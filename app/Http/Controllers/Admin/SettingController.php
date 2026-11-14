@@ -17,7 +17,7 @@ use Inertia\Response;
 
 class SettingController extends Controller
 {
-    private const GROUPS = ['business', 'booking', 'payments', 'integrations', 'seo', 'deals_bar', 'security'];
+    private const GROUPS = ['business', 'booking', 'payments', 'integrations', 'seo', 'deals_bar', 'wa_popup', 'security'];
 
     public function index(): Response
     {
@@ -104,6 +104,15 @@ class SettingController extends Controller
             // The claim button link: a site path ("/book") or an https:// URL; nothing else (no javascript:).
             if ($valid && $key === 'deals_bar.claim_url' && ! $blank
                 && ! preg_match('#^(/(?!/)[^\s]*|https://[^\s]+)$#i', trim((string) $value))) {
+                $valid = false;
+            }
+
+            // WhatsApp popup: plain text up to 140 characters; delay 3 to 60 seconds.
+            if ($valid && $key === 'wa_popup.message' && ! $blank
+                && (mb_strlen((string) $value) > 140 || strip_tags((string) $value) !== (string) $value)) {
+                $valid = false;
+            }
+            if ($valid && $key === 'wa_popup.delay' && ! $blank && ((int) $value < 3 || (int) $value > 60)) {
                 $valid = false;
             }
 
