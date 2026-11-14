@@ -703,7 +703,7 @@ class PublicWebsiteController extends Controller
                 ]),
             'quickServiceLinks' => $this->quickServiceLinks(),
             'whatsapp' => $this->whatsappContact(),
-        ]), $this->seo->blogIndex($posts->getCollection(), $search ?: null, $category ?: null, $posts->currentPage()));
+        ]), $this->seo->blogIndex($grouped ? $posts : $posts->getCollection(), $search ?: null, null, $grouped ? 1 : $posts->currentPage()));
     }
 
     /**
