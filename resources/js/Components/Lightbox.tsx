@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, router } from '@inertiajs/react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 import { toast } from 'sonner';
 
 import { Button } from '@/Components/ui/button';
-import { addToCart, cartBookingUrl, getCartItems } from '@/lib/cart';
+import { addToCart, CART_CHANGED_EVENT, cartBookingUrl, getCartItems } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 import { dealTiming, formatDuration } from '@/lib/format';
 
@@ -49,6 +49,15 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
   const previousInitialIndexRef = useRef(initialIndex);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const [addedId, setAddedId] = useState<number | null>(null);
+  const [, setCartTick] = useState(0);
+
+  // Re-render when the cart changes so the Add to Cart button always reflects it.
+  useEffect(() => {
+    const bump = () => setCartTick((tick) => tick + 1);
+    window.addEventListener(CART_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(CART_CHANGED_EVENT, bump);
+  }, []);
 
   useEffect(() => {
     if (previousInitialIndexRef.current !== initialIndex) {
@@ -124,33 +133,47 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
   const detailText = link ? link.name : currentImage.specialty || currentImage.caption || null;
   const subText = link ? currentImage.specialty || null : null;
 
-  function bookThisLook() {
-    if (!link) return;
+  /** True once everything this photo's link would add is already in the cart. */
+  function linkInCart(): boolean {
+    if (!link) return false;
     const inCart = getCartItems();
     if (link.type === 'service' && link.service) {
-      if (!inCart.some((item) => item.id === link.service!.id)) {
-        addToCart({ kind: 'service', label: link.name, service: link.service }, toast);
-      }
-    } else if (link.deal) {
-      const bundled = link.deal.bundled_services;
-      if (!bundled.every((svc) => inCart.some((item) => item.id === svc.id))) {
-        addToCart(
-          {
-            kind: 'deal',
-            dealId: link.id,
-            label: link.name,
-            bundledServices: bundled,
-            originalPrice: link.deal.original_price,
-            dealPrice: link.deal.deal_price,
-          },
-          toast,
-        );
-      }
+      return inCart.some((item) => item.id === link.service!.id);
     }
+    const bundled = link.deal?.bundled_services ?? [];
+    return bundled.length > 0 && bundled.every((svc) => inCart.some((item) => item.id === svc.id));
+  }
+
+  /** Adds the linked service/deal with the shared cart logic (never twice). */
+  function addLinkToCart() {
+    if (!link || linkInCart()) return;
+    if (link.type === 'service' && link.service) {
+      addToCart({ kind: 'service', label: link.name, service: link.service }, toast);
+    } else if (link.deal) {
+      addToCart(
+        {
+          kind: 'deal',
+          dealId: link.id,
+          label: link.name,
+          bundledServices: link.deal.bundled_services,
+          originalPrice: link.deal.original_price,
+          dealPrice: link.deal.deal_price,
+        },
+        toast,
+      );
+    }
+    setAddedId(currentImage.id);
+  }
+
+  function bookThisLook() {
+    addLinkToCart();
     // The add above is already written to storage (synchronously); now go straight to booking.
     onClose();
     router.visit(cartBookingUrl());
   }
+
+  const inCartNow = linkInCart();
+  const justAdded = inCartNow && addedId === currentImage.id;
 
   return (
     <AnimatePresence>
@@ -187,6 +210,14 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
                 alt={currentImage.caption || `Image ${currentIndex + 1}`}
                 className="max-h-[60vh] w-full object-contain"
               />
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="focus-visible:ring-accent-500 absolute top-3 right-3 z-10 flex size-10 items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-colors hover:bg-black/80 focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
               <div className="absolute top-3 left-3 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
                 {currentIndex + 1} / {images.length}
               </div>
@@ -264,19 +295,38 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
               )}
               <div className="flex flex-col gap-3 sm:flex-row">
                 {link ? (
-                  <Button type="button" variant="accent" size="lg" className="sm:flex-1" onClick={bookThisLook}>
-                    Book this look
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="accent"
+                      size="lg"
+                      className="sm:flex-1"
+                      onClick={addLinkToCart}
+                      disabled={inCartNow}
+                    >
+                      {justAdded ? (
+                        <>
+                          <Check aria-hidden="true" /> Added
+                        </>
+                      ) : inCartNow ? (
+                        <>
+                          <Check aria-hidden="true" /> In cart
+                        </>
+                      ) : (
+                        'Add to Cart'
+                      )}
+                    </Button>
+                    <Button type="button" variant="outline" size="lg" className="sm:flex-1" onClick={bookThisLook}>
+                      Book this service
+                    </Button>
+                  </>
                 ) : (
-                  <Button asChild variant="accent" size="lg" className="sm:flex-1">
+                  <Button asChild variant="accent" size="lg" className="w-full">
                     <Link href={`/book?look=${currentImage.id}`} onClick={onClose}>
-                      Book this look
+                      Book now
                     </Link>
                   </Button>
                 )}
-                <Button type="button" variant="outline" size="lg" onClick={onClose} className="sm:flex-1">
-                  <X aria-hidden="true" /> Close
-                </Button>
               </div>
             </div>
           </motion.div>
