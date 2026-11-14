@@ -197,10 +197,10 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-ivory relative flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl shadow-2xl"
+            className="bg-ivory relative flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-x-hidden overflow-y-auto rounded-2xl shadow-2xl"
           >
             {/* Photo, with the arrows laid over its edges */}
-            <div className="relative flex max-h-[60vh] min-h-0 flex-1 items-center justify-center bg-black">
+            <div className="relative flex h-[50dvh] shrink-0 items-center justify-center overflow-hidden bg-black sm:h-[60dvh] lg:h-[64dvh]">
               <motion.img
                 key={currentImage.id}
                 initial={{ opacity: 0 }}
@@ -208,7 +208,7 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
                 transition={{ duration: 0.3 }}
                 src={currentImage.image_path}
                 alt={currentImage.caption || `Image ${currentIndex + 1}`}
-                className="max-h-[60vh] w-full object-contain"
+                className="h-auto max-h-full w-auto max-w-full object-contain"
               />
               <button
                 type="button"
@@ -218,7 +218,7 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
               >
                 <X size={20} aria-hidden="true" />
               </button>
-              <div className="absolute top-3 left-3 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
+              <div className="absolute top-3 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-md ring-1 ring-white/20">
                 {currentIndex + 1} / {images.length}
               </div>
               {images.length > 1 && (
