@@ -1,13 +1,5 @@
-import {
-  Brush,
-  Check,
-  Clock3,
-  Flower2,
-  Plus,
-  Scissors,
-  Sparkles,
-  type LucideIcon,
-} from 'lucide-react';
+import * as React from 'react';
+import { Brush, Check, Clock3, Flower2, Plus, Scissors, Sparkles } from 'lucide-react';
 
 import { formatCurrency } from '@/lib/currency';
 import { formatDuration } from '@/lib/format';
