@@ -35,7 +35,17 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
 
-        Fortify::loginView(fn () => Inertia::render('Auth/Login'));
+        Fortify::loginView(function (Request $request) {
+            // The header's login link passes the page the visitor was on; send them back there after
+            // signing in. Same-site paths only (no "//host", no auth pages).
+            $from = (string) $request->query('from', '');
+            if ($from !== '' && str_starts_with($from, '/') && ! str_starts_with($from, '//')
+                && ! preg_match('#^/(login|register|forgot-password|reset-password|logout)#', $from)) {
+                $request->session()->put('url.intended', url($from));
+            }
+
+            return Inertia::render('Auth/Login');
+        });
         Fortify::registerView(fn () => Inertia::render('Auth/Register'));
         Fortify::requestPasswordResetLinkView(fn () => Inertia::render('Auth/ForgotPassword'));
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('Auth/ResetPassword', [

@@ -1,8 +1,6 @@
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { CalendarCheck, LogOut, Settings, UserRound } from 'lucide-react';
-import * as React from 'react';
 
-import { HeaderAuthModal } from '@/Components/HeaderAuthModal';
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import {
   DropdownMenu,
@@ -29,21 +27,21 @@ function initials(name: string): string {
  * `POST /logout`.
  */
 export function HeaderUserMenu({ user }: HeaderUserMenuProps) {
-  const [authModalOpen, setAuthModalOpen] = React.useState(false);
+  const { url } = usePage();
 
   if (!user) {
+    // Logged out: a plain link to the login page (no overlay). `from` lets the server send the visitor
+    // back to the page they were on after signing in.
+    const from = url.startsWith('/') && !url.startsWith('//') ? url : '/';
+
     return (
-      <>
-        <button
-          type="button"
-          aria-label="Log in or create an account"
-          onClick={() => setAuthModalOpen(true)}
-          className="border-border-soft text-ink hover:border-accent-500 flex size-9 items-center justify-center rounded-full border"
-        >
-          <UserRound className="size-4" aria-hidden="true" />
-        </button>
-        <HeaderAuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
-      </>
+      <Link
+        href={`/login?from=${encodeURIComponent(from)}`}
+        aria-label="Log in or create an account"
+        className="border-border-soft text-ink hover:border-accent-500 flex size-9 items-center justify-center rounded-full border"
+      >
+        <UserRound className="size-4" aria-hidden="true" />
+      </Link>
     );
   }
 

@@ -33,6 +33,9 @@ export default function ForgotPassword({ status }: { status?: string }) {
           <Input
             id="email"
             type="email"
+            autoComplete="email"
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
             value={data.email}
             onChange={(e) => setData('email', e.target.value)}
             aria-invalid={!!errors.email}
