@@ -339,24 +339,22 @@ export default function Blog({
 
           {/* Main grid + sidebar */}
           <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_320px]">
-            <div>
-              <div className="grid gap-5 sm:grid-cols-2">
+            <div className="min-w-0">
+              <div>
                 {searching ? (
-                  <>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      {posts.map((post) => (
-                        <PostCard key={post.id} post={post} />
-                      ))}
-                    </div>
-                  </>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    {posts.map((post) => (
+                      <PostCard key={post.id} post={post} />
+                    ))}
+                  </div>
                 ) : (
-                  <div className="space-y-12">
+                  <div className="space-y-10">
                     {sections.map((section) => (
                       <div key={section.id} id={section.id} className="scroll-mt-40">
                         <h2 className="font-display text-ink text-xl font-medium sm:text-2xl">
                           {section.name}
                         </h2>
-                        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                        <div className="mt-3 grid gap-5 sm:grid-cols-2">
                           {section.posts.map((post) => (
                             <PostCard key={post.id} post={post} />
                           ))}
