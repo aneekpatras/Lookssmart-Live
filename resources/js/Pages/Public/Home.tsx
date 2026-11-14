@@ -647,6 +647,7 @@ export default function Home({
         }
       />
 
+      {/* 7. Visit us — address, hours, phone and an embedded map. Address/hours/phone come from the shared
           `site` prop (admin Settings + business_hours rows); the directions wording and Maps link from
           SeoService::findUs, so the same text Google reads is what visitors see. */}
       <section className="border-border-soft bg-surface border-y px-6 py-14 lg:px-10 lg:py-16">
