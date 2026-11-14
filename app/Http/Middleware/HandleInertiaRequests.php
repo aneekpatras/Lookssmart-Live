@@ -112,8 +112,22 @@ class HandleInertiaRequests extends Middleware
                 'facebook' => Setting::get('business.social_facebook') ?: null,
                 'instagram' => Setting::get('business.social_instagram') ?: null,
                 'hours' => $this->openingHoursSummary(),
+                'whatsapp_url' => 'https://wa.me/' . preg_replace('/\D/', '', (string) (Setting::get('business.phone') ?: '+92 305 9833859')),
+                'directions_url' => app(\App\Services\SeoService::class)->findUs()['mapsUrl'],
+                'service_categories' => $this->footerServiceCategories(),
             ],
         ];
+    }
+
+    /** Active service categories for the footer; empty (never an error) if the table is unavailable. */
+    private function footerServiceCategories(): array
+    {
+        try {
+            return \App\Models\ServiceCategory::active()->ordered()->get(['id', 'name'])
+                ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->all();
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     private function defaultOgImage(): ?string

@@ -1,3 +1,4 @@
+import { scrollToSection } from '@/lib/useScrollSpy';
 import { Link } from '@inertiajs/react';
 import { Clock3, Search, Sparkles } from 'lucide-react';
 import * as React from 'react';
@@ -126,6 +127,14 @@ export default function Services({ services, categories, filters }: ServicesProp
         .filter((section) => section.items.length > 0),
     [categories, visibleServices],
   );
+
+  // Footer links arrive as /services#services-category-<id>: scroll to that section once it is rendered.
+  React.useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash.startsWith('services-category-')) return;
+    const timer = window.setTimeout(() => scrollToSection(hash), 300);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const pills = React.useMemo(
     () =>

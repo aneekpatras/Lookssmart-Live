@@ -1,6 +1,21 @@
 import { Link, usePage } from '@inertiajs/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { CircleHelp, Mail, MapPin, Menu, Phone, X } from 'lucide-react';
+import {
+  ArrowUp,
+  CalendarCheck,
+  CircleHelp,
+  Clock,
+  Footprints,
+  Mail,
+  MapPin,
+  Menu,
+  MessageCircle,
+  Phone,
+  ShieldCheck,
+  Sparkles,
+  Wifi,
+  X,
+} from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@/Components/ui/button';
@@ -31,6 +46,9 @@ interface SharedProps {
     facebook: string | null;
     instagram: string | null;
     hours: { days: string; hours: string }[];
+    whatsapp_url: string;
+    directions_url: string;
+    service_categories: { id: number; name: string }[];
   };
   auth: { user: { name: string; email: string } | null };
 }
@@ -154,44 +172,65 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
 
 const FOOTER_LINKS = [
   { label: 'Home', href: '/' },
-  { label: 'About Us', href: '/about' },
+  { label: 'About', href: '/about' },
   { label: 'Services', href: '/services' },
+  { label: 'Deals', href: '/deals' },
   { label: 'Gallery', href: '/gallery' },
+  { label: 'Blog', href: '/blog' },
   { label: 'Contact', href: '/contact' },
   { label: 'FAQs', href: '/faqs' },
   { label: 'Privacy Policy', href: '/privacy-policy' },
 ];
 
+const TRUST_ITEMS = [
+  { icon: ShieldCheck, label: 'Women-only salon' },
+  { icon: Sparkles, label: '12 years of bridal artistry' },
+  { icon: Footprints, label: 'Walk-ins welcome' },
+  { icon: Wifi, label: 'Parking and internet available' },
+];
+
+const footerLink =
+  'hover:text-accent-600 inline-flex min-h-10 items-center transition-colors sm:min-h-0 sm:py-0.5';
+
 /**
- * Every value here comes from the globally shared `site` prop
- * (HandleInertiaRequests::share), which reads the admin-editable Settings and the real
- * `business_hours` rows. Nothing is hardcoded: the footer used to carry its own literal hours
- * string, which could silently disagree with what the Contact page showed from the database.
- * Each block is conditional, so an unconfigured setting renders as absent rather than as a
- * fabricated placeholder.
+ * Every value here comes from the globally shared `site` prop (HandleInertiaRequests::share): the
+ * admin-editable Settings, the real `business_hours` rows and the active service categories, so the
+ * address, phone and hours always match the Visit us section and the LocalBusiness schema. Each block is
+ * conditional: an unconfigured setting renders as absent rather than as a made-up placeholder.
  */
 function Footer() {
   const { site } = usePage<SharedProps>().props;
   const phoneHref = site.phone ? `tel:${site.phone.replace(/[^\d+]/g, '')}` : undefined;
 
   return (
-    <footer className="border-border-soft bg-surface border-t px-6 py-12">
-      <div className="mx-auto grid max-w-5xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
+    <footer className="border-border-soft bg-surface border-t pb-24 md:pb-0">
+      <div className="border-border-soft border-b px-6 py-6">
+        <ul className="mx-auto grid max-w-6xl grid-cols-2 gap-4 lg:grid-cols-4">
+          {TRUST_ITEMS.map(({ icon: Icon, label }) => (
+            <li key={label} className="text-ink flex items-center gap-2.5 text-sm">
+              <Icon className="text-accent-700 size-5 shrink-0" aria-hidden="true" />
+              <span>{label}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 px-6 py-12 lg:grid-cols-4 lg:gap-x-10">
+        <div className="col-span-2 lg:col-span-1">
           <p className="font-display text-ink text-lg font-medium">{site.name}</p>
           <p className="text-ink-muted mt-2 text-sm">
             Precision hair styling, signature makeup artistry, and personal consultation — in the
             heart of Lahore.
           </p>
           {(site.facebook || site.instagram) && (
-            <div className="mt-4 flex items-center gap-3">
+            <div className="mt-4 flex items-center gap-1">
               {site.facebook && (
                 <a
                   href={site.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Looks Smart Beauty Salon on Facebook"
-                  className="text-ink-muted hover:text-accent-600 transition-colors"
+                  className="text-ink-muted hover:text-accent-600 flex size-10 items-center justify-center transition-colors"
                 >
                   <FacebookIcon className="h-5 w-5" aria-hidden="true" />
                 </a>
@@ -202,36 +241,29 @@ function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Looks Smart Beauty Salon on Instagram"
-                  className="text-ink-muted hover:text-accent-600 transition-colors"
+                  className="text-ink-muted hover:text-accent-600 flex size-10 items-center justify-center transition-colors"
                 >
                   <InstagramIcon className="h-5 w-5" aria-hidden="true" />
                 </a>
               )}
             </div>
           )}
+          <Button asChild className="mt-4">
+            <Link href="/book">
+              <CalendarCheck className="size-4" aria-hidden="true" /> Book Now
+            </Link>
+          </Button>
         </div>
 
-        <div className="text-ink-muted text-sm">
-          <p className="text-ink font-medium">Explore</p>
-          <ul className="mt-2 space-y-1.5">
-            {FOOTER_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className="hover:text-accent-600 transition-colors">
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {site.hours.length > 0 && (
+        {site.service_categories.length > 0 && (
           <div className="text-ink-muted text-sm">
-            <p className="text-ink font-medium">Opening Hours</p>
-            <ul className="mt-2 space-y-1.5">
-              {site.hours.map((entry) => (
-                <li key={entry.days}>
-                  <span className="block">{entry.days}</span>
-                  <span className="block">{entry.hours}</span>
+            <p className="text-ink font-medium">Services</p>
+            <ul className="mt-2 space-y-0.5">
+              {site.service_categories.map((category) => (
+                <li key={category.id}>
+                  <Link href={`/services#services-category-${category.id}`} className={footerLink}>
+                    {category.name}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -239,12 +271,32 @@ function Footer() {
         )}
 
         <div className="text-ink-muted text-sm">
-          <p className="text-ink font-medium">Contact</p>
+          <p className="text-ink font-medium">Quick links</p>
+          <ul className="mt-2 space-y-0.5">
+            {FOOTER_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className={footerLink}>
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="text-ink-muted col-span-2 text-sm lg:col-span-1">
+          <p className="text-ink font-medium">Visit us</p>
           <ul className="mt-2 space-y-2">
             {site.address && (
               <li className="flex gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{site.address}</span>
+                <a
+                  href={site.directions_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-accent-600 transition-colors"
+                >
+                  {site.address}
+                </a>
               </li>
             )}
             {site.phone && (
@@ -253,6 +305,31 @@ function Footer() {
                 <a href={phoneHref} className="hover:text-accent-600 transition-colors">
                   {site.phone}
                 </a>
+              </li>
+            )}
+            {site.phone && (
+              <li className="flex gap-2">
+                <MessageCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <a
+                  href={site.whatsapp_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-accent-600 transition-colors"
+                >
+                  Chat on WhatsApp
+                </a>
+              </li>
+            )}
+            {site.hours.length > 0 && (
+              <li className="flex gap-2">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>
+                  {site.hours.map((entry) => (
+                    <span key={entry.days} className="block">
+                      {entry.days}: {entry.hours}
+                    </span>
+                  ))}
+                </span>
               </li>
             )}
             {site.email && (
@@ -269,9 +346,28 @@ function Footer() {
           </ul>
         </div>
       </div>
-      <p className="text-ink-muted mx-auto mt-8 max-w-5xl text-xs">
-        © 2026 {site.name}. All rights reserved.
-      </p>
+
+      <div className="border-border-soft border-t px-6 py-5">
+        <div className="text-ink-muted mx-auto flex max-w-6xl flex-col gap-3 text-xs md:flex-row md:items-center md:justify-between">
+          <p>
+            © 2026 {site.name}. All rights reserved.{' '}
+            <Link
+              href="/privacy-policy"
+              className="hover:text-accent-600 underline-offset-2 hover:underline"
+            >
+              Privacy Policy
+            </Link>
+          </p>
+          <p>We accept cash, bank transfer, JazzCash and Easypaisa.</p>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="hover:text-accent-600 inline-flex min-h-10 items-center gap-1.5 self-start transition-colors md:self-auto"
+          >
+            <ArrowUp className="size-4" aria-hidden="true" /> Back to top
+          </button>
+        </div>
+      </div>
     </footer>
   );
 }
