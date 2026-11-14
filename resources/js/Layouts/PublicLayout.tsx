@@ -5,7 +5,6 @@ import * as React from 'react';
 
 import { Button } from '@/Components/ui/button';
 import { CartToast } from '@/Components/CartToast';
-import { CartToast } from '@/Components/CartToast';
 import { Toaster } from '@/Components/ui/toaster';
 import { FacebookIcon, InstagramIcon } from '@/Components/SocialIcons';
 import { HeaderCartButton } from '@/Components/HeaderCartButton';
