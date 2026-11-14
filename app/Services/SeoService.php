@@ -146,6 +146,7 @@ class SeoService
             'meta' => $meta,
             'links' => $options['links'] ?? [],
             'jsonLd' => $options['jsonLd'] ?? [],
+            'qa' => $options['qa'] ?? [],
             'nav' => $this->navLinks(),
         ];
     }
@@ -251,6 +252,39 @@ class SeoService
             'directions' => self::DIRECTIONS,
             'mapsUrl' => 'https://www.google.com/maps/dir/?api=1&destination=' . ($hasGeo ? (float) $latitude : self::DEFAULT_LATITUDE) . ',' . ($hasGeo ? (float) $longitude : self::DEFAULT_LONGITUDE),
         ];
+    }
+
+    /**
+     * The /faqs page. `$items` are the already-resolved FaqData items, so the raw HTML, the visible page
+     * and the FAQPage schema all carry the same text. FAQPage schema is emitted here and nowhere else.
+     *
+     * @param  list<array{question: string, answer: string}>  $items
+     * @return array<string, mixed>
+     */
+    public function faqs(array $items): array
+    {
+        return $this->page(
+            'FAQs: Booking, Prices and Visiting | Looks Smart Lahore',
+            'Answers about booking, walk-ins, prices, payment, bridal bookings and visiting Looks Smart, a women-only salon in Central Park, Lahore.',
+            route('faqs.index'),
+            'Frequently asked questions',
+            [
+                'intro' => 'Everything you need to know about booking, prices, payment and visiting Looks Smart in Lahore.',
+                'qa' => array_map(fn (array $item) => ['question' => $item['question'], 'answer' => $item['answer']], $items),
+                'jsonLd' => [
+                    [
+                        '@context' => 'https://schema.org',
+                        '@type' => 'FAQPage',
+                        'mainEntity' => array_map(fn (array $item) => [
+                            '@type' => 'Question',
+                            'name' => $item['question'],
+                            'acceptedAnswer' => ['@type' => 'Answer', 'text' => $item['answer']],
+                        ], $items),
+                    ],
+                    $this->breadcrumbs([['Home', route('home')], ['FAQs', route('faqs.index')]]),
+                ],
+            ],
+        );
     }
 
     /** @return array<string, mixed> */

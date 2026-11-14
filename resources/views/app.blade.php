@@ -133,6 +133,14 @@
         @if (! empty($seoMeta['intro']))
         <p>{{ $seoMeta['intro'] }}</p>
         @endif
+        @if (! empty($seoMeta['qa']))
+        <section>
+            @foreach ($seoMeta['qa'] as $seoQa)
+            <h2>{{ $seoQa['question'] }}</h2>
+            <p>{{ $seoQa['answer'] }}</p>
+            @endforeach
+        </section>
+        @endif
         @if (! empty($seoMeta['links']))
         <ul>
             @foreach ($seoMeta['links'] as $seoLink)

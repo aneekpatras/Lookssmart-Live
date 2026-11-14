@@ -28,6 +28,7 @@ Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');
 // Phase 13 sub-step 2.
 Route::get('/manifest.json', [SeoController::class, 'manifest'])->name('manifest');
 
+Route::get('/faqs', [PublicWebsiteController::class, 'faqs'])->name('faqs.index');
 Route::get('/gallery', [PublicWebsiteController::class, 'gallery'])->name('gallery.index');
 
 Route::get('/notifications/unsubscribe/{user}/{channel}', NotificationUnsubscribeController::class)

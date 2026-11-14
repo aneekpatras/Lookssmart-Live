@@ -52,6 +52,7 @@ class SeoController extends Controller
             ->add($blogUrl)
             ->add(Url::create(route('gallery.index'))->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)->setPriority(0.6))
             ->add(Url::create(route('about'))->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)->setPriority(0.5))
+            ->add(Url::create(route('faqs.index'))->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)->setPriority(0.5))
             ->add(Url::create(route('contact'))->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)->setPriority(0.5))
             ->add(Url::create(route('privacy-policy'))->setChangeFrequency(Url::CHANGE_FREQUENCY_YEARLY)->setPriority(0.2));
 

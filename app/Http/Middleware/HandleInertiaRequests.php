@@ -132,7 +132,7 @@ class HandleInertiaRequests extends Middleware
      *
      * @return list<array{days: string, hours: string}>
      */
-    private function openingHoursSummary(): array
+    public function openingHoursSummary(): array
     {
         return Cache::remember('business:hours-summary', 300, function (): array {
             $hours = BusinessHour::orderBy('weekday')->get();

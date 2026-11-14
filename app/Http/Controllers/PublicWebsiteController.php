@@ -81,6 +81,7 @@ class PublicWebsiteController extends Controller
 
         return $this->withSeo(Inertia::render('Public/Home', [
             'findUs' => $this->seo->findUs(),
+            'faqPreview' => $this->faqPreview(),
             'featuredServices' => $services->map(fn (Service $service) => $this->serviceData($service)),
             'categories' => ServiceCategory::active()->ordered()->get(['id', 'name']),
             // Admin-curated bridal slider images, falling back to `public/images/` when nothing has
@@ -356,6 +357,41 @@ class PublicWebsiteController extends Controller
         }
     }
 
+    /** Placeholder values for the FAQ text: the same Settings the Visit us section uses, with the owner-confirmed fallbacks. */
+    private function faqVars(): array
+    {
+        $findUs = $this->seo->findUs();
+        $summary = app(\App\Http\Middleware\HandleInertiaRequests::class)->openingHoursSummary();
+        $hours = $summary === []
+            ? 'Monday to Sunday, 10:00 AM to 9:00 PM'
+            : implode('; ', array_map(fn (array $row) => str_replace(' – ', ' to ', "{$row['days']}, {$row['hours']}"), $summary));
+
+        return [
+            'phone' => $this->whatsappContact()['display_phone'],
+            'address' => $findUs['address'],
+            'hours' => $hours,
+            'whatsapp' => $this->whatsappContact()['chat_url'],
+            'maps' => $findUs['mapsUrl'],
+        ];
+    }
+
+    /** The 5 questions shown in the small FAQ block on Home and Contact. */
+    private function faqPreview(): array
+    {
+        return \App\Support\FaqData::resolve($this->faqVars(), \App\Support\FaqData::PREVIEW_IDS);
+    }
+
+    public function faqs(): Response
+    {
+        $items = \App\Support\FaqData::resolve($this->faqVars());
+
+        return $this->withSeo(Inertia::render('Public/Faqs', [
+            'categories' => \App\Support\FaqData::categories(),
+            'items' => $items,
+            'whatsapp' => $this->whatsappContact(),
+        ]), $this->seo->faqs($items));
+    }
+
     /** @return array<string, mixed> */
     private function galleryImageData(GalleryImage $image): array
     {
@@ -496,6 +532,7 @@ class PublicWebsiteController extends Controller
         $longitude = Setting::get('business.longitude');
 
         return $this->withSeo(Inertia::render('Public/Contact', [
+            'faqPreview' => $this->faqPreview(),
             'business' => [
                 'name' => Setting::get('business.name'),
                 'phone' => Setting::get('business.phone'),
