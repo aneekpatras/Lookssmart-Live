@@ -110,38 +110,18 @@ class SeoController extends Controller
      */
     public function manifest(): JsonResponse
     {
-        $name = Setting::get('business.name') ?: config('app.name');
-
-        $icons = [[
-            'src' => asset('favicon.ico'),
-            'sizes' => 'any',
-            'type' => 'image/x-icon',
-        ], [
-            'src' => asset('favicon-192x192.png'),
-            'sizes' => '192x192',
-            'type' => 'image/png',
-            'purpose' => 'any',
-        ], [
-            'src' => asset('icon-512x512.png'),
-            'sizes' => '512x512',
-            'type' => 'image/png',
-            'purpose' => 'any',
-        ]];
-
-        $logoPath = Setting::get('business.logo_path');
-
-        if (is_string($logoPath) && $logoPath !== '' && Storage::disk('public')->exists($logoPath)) {
-            $icons[] = [
-                'src' => asset("storage/{$logoPath}"),
-                'sizes' => 'any',
-                'type' => Storage::disk('public')->mimeType($logoPath) ?: 'image/png',
-                'purpose' => 'any',
-            ];
-        }
+        // Square app icons only (generated from the site logo): "any" and "maskable" as separate entries.
+        // The wide business logo is deliberately not listed, it made the installed app icon tiny.
+        $icons = [
+            ['src' => asset('icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => asset('icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => asset('icon-maskable-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'maskable'],
+            ['src' => asset('icon-maskable-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+        ];
 
         return response()->json([
-            'name' => $name,
-            'short_name' => $name,
+            'name' => 'Looks Smart',
+            'short_name' => 'Looks Smart',
             'description' => Setting::get('seo.default_description') ?: 'Book hair, skin, and nail appointments online.',
             'start_url' => '/',
             'display' => 'standalone',

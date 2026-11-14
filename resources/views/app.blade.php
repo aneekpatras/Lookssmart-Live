@@ -15,8 +15,8 @@
     that prefer it). Relative URLs, like the SVG link above. --}}
     <link rel="icon" href="/favicon.ico" sizes="48x48">
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="{{ route('manifest') }}">
 
     {{-- SEO Phase 1: the page's real title / description / canonical / Open Graph, written into the RAW
