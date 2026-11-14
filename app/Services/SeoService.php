@@ -316,8 +316,8 @@ class SeoService
             'Bridal & Salon Gallery, Central Park Lahore',
             'See real bridal makeup, hair, skin and beauty results from Looks Smart Beauty Salon, Central Park Housing Scheme, Main Ferozpur Road, Lahore.',
             route('gallery.index'),
-            'Our Salon Gallery',
-            ['intro' => 'Real results from our hair, skin, bridal, and beauty work.'],
+            'Beauty, Artistry & Timeless Transformations',
+            ['intro' => 'Explore a collection of our bridal looks, professional makeup, and beauty transformations. Every look reflects our passion for detail, creativity, and enhancing each client\'s natural beauty.'],
         );
     }
 

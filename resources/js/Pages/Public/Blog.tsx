@@ -7,6 +7,7 @@ import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
 interface PostSummary {
   id: number;
@@ -57,7 +58,11 @@ interface BlogPageProps {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
 function PostImage({ post }: { post: PostSummary }) {
@@ -85,6 +90,7 @@ export default function Blog({
   whatsapp,
 }: BlogPageProps) {
   const [search, setSearch] = React.useState(filters.search ?? '');
+  const [tagsRef, tagsStyle] = useHeaderHandoff();
 
   function apply(next: { search?: string; category?: number | null }) {
     router.get(
@@ -115,7 +121,7 @@ export default function Blog({
       {/* Hero */}
       <section className="bg-ivory border-border-soft border-b px-6 py-14 lg:px-10 lg:py-20">
         <div className="mx-auto max-w-6xl">
-          <p className="text-accent-700 text-xs font-semibold uppercase tracking-[0.22em]">
+          <p className="text-accent-700 text-xs font-semibold tracking-[0.22em] uppercase">
             The journal
           </p>
           <h1 className="font-display text-ink mt-4 text-4xl font-medium sm:text-5xl">
@@ -138,11 +144,11 @@ export default function Blog({
                 </div>
                 <CardContent className="flex flex-col justify-center p-6 sm:p-10">
                   {featuredPost.category && (
-                    <span className="bg-accent-50 text-accent-700 inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider">
+                    <span className="bg-accent-50 text-accent-700 inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold tracking-wider uppercase">
                       {featuredPost.category.name}
                     </span>
                   )}
-                  <h2 className="font-display text-ink mt-4 text-2xl font-medium leading-snug sm:text-3xl">
+                  <h2 className="font-display text-ink mt-4 text-2xl leading-snug font-medium sm:text-3xl">
                     <Link href={`/blog/${featuredPost.slug}`} className="hover:text-accent-700">
                       {featuredPost.title}
                     </Link>
@@ -172,53 +178,59 @@ export default function Blog({
           )}
 
           {/* Category filter tabs + search */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div
-              className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
-              role="group"
-              aria-label="Filter articles by category"
-            >
-              <button
-                type="button"
-                aria-pressed={!filters.category}
-                onClick={() => apply({ category: null })}
-                className={`shrink-0 rounded-full border px-4 py-2 text-sm whitespace-nowrap ${
-                  !filters.category
-                    ? 'border-ink bg-ink text-ivory'
-                    : 'border-border-soft text-ink-muted hover:border-accent-500'
-                }`}
+          <div
+            ref={tagsRef}
+            className="sticky z-30 transition-[top] duration-300"
+            style={tagsStyle}
+          >
+            <div className="border-border-soft bg-ivory -mx-1 flex min-w-0 flex-col gap-3 border-b px-1 py-3 md:flex-row md:items-center md:justify-between md:gap-4">
+              <div
+                className="no-scrollbar -mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1"
+                role="group"
+                aria-label="Filter articles by category"
               >
-                All
-              </button>
-              {categories.map((category) => (
                 <button
-                  key={category.id}
                   type="button"
-                  aria-pressed={filters.category === category.id}
-                  onClick={() => apply({ category: category.id })}
+                  aria-pressed={!filters.category}
+                  onClick={() => apply({ category: null })}
                   className={`shrink-0 rounded-full border px-4 py-2 text-sm whitespace-nowrap ${
-                    filters.category === category.id
+                    !filters.category
                       ? 'border-ink bg-ink text-ivory'
                       : 'border-border-soft text-ink-muted hover:border-accent-500'
                   }`}
                 >
-                  {category.name}
+                  All
                 </button>
-              ))}
-            </div>
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    aria-pressed={filters.category === category.id}
+                    onClick={() => apply({ category: category.id })}
+                    className={`shrink-0 rounded-full border px-4 py-2 text-sm whitespace-nowrap ${
+                      filters.category === category.id
+                        ? 'border-ink bg-ink text-ivory'
+                        : 'border-border-soft text-ink-muted hover:border-accent-500'
+                    }`}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
 
-            <div className="relative w-full max-w-xs shrink-0">
-              <Search className="text-ink-muted absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-              <Input
-                aria-label="Search articles"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') apply({ search });
-                }}
-                placeholder="Search articles"
-                className="pl-9"
-              />
+              <div className="relative w-full max-w-xs shrink-0">
+                <Search className="text-ink-muted absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                <Input
+                  aria-label="Search articles"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') apply({ search });
+                  }}
+                  placeholder="Search articles"
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
 
@@ -236,11 +248,11 @@ export default function Blog({
                     </div>
                     <CardContent className="flex flex-1 flex-col p-5">
                       {post.category && (
-                        <span className="text-accent-700 text-xs font-semibold uppercase tracking-wider">
+                        <span className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
                           {post.category.name}
                         </span>
                       )}
-                      <h3 className="font-display text-ink mt-2 text-lg font-medium leading-snug">
+                      <h3 className="font-display text-ink mt-2 text-lg leading-snug font-medium">
                         <Link href={`/blog/${post.slug}`} className="hover:text-accent-700">
                           {post.title}
                         </Link>
@@ -299,7 +311,7 @@ export default function Blog({
               {trendingPosts.length > 0 && (
                 <Card className="border-border-soft bg-surface">
                   <CardContent className="p-5">
-                    <h2 className="font-display text-ink text-sm font-semibold uppercase tracking-wider">
+                    <h2 className="font-display text-ink text-sm font-semibold tracking-wider uppercase">
                       Trending this week
                     </h2>
                     <ol className="mt-4 space-y-3">
@@ -336,7 +348,7 @@ export default function Blog({
               {quickServiceLinks.length > 0 && (
                 <Card className="border-border-soft bg-surface">
                   <CardContent className="p-5">
-                    <h2 className="font-display text-ink text-sm font-semibold uppercase tracking-wider">
+                    <h2 className="font-display text-ink text-sm font-semibold tracking-wider uppercase">
                       Our services
                     </h2>
                     <ul className="mt-4 space-y-2.5">
