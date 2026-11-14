@@ -123,7 +123,7 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
 
       {mobileOpen ? (
         <div
-          className={`${navSurfaceClass} absolute inset-x-4 top-[4.5rem] z-40 flex flex-col gap-1 rounded-2xl p-4 md:hidden`}
+          className="bg-ivory border-border-soft shadow-soft absolute inset-x-4 top-[4.5rem] z-40 flex flex-col gap-1 rounded-2xl border p-4 md:hidden"
         >
           {NAV_LINKS.map((link) => (
             <Link
@@ -135,6 +135,11 @@ function FloatingNav({ solidHeader }: { solidHeader: boolean }) {
               {link.label}
             </Link>
           ))}
+          <Button asChild variant="accent" className="mt-3 w-full">
+            <Link href="/book" onClick={() => setMobileOpen(false)}>
+              Book Now
+            </Link>
+          </Button>
         </div>
       ) : null}
     </header>
