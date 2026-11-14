@@ -547,8 +547,8 @@ it('declares the full favicon set and preloads the right hero poster on the home
     expect($html)->toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg">')
         ->toContain('<link rel="icon" href="/favicon.ico" sizes="48x48">')
         ->toContain('<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">')
-        ->toContain('<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">')
-        ->toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png">')
+        ->toContain('<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">')
+        ->toContain('<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">')
         ->toContain('href="/images/hero-poster.webp" media="(min-width: 768px)" fetchpriority="high"')
         ->toContain('href="/images/hero-poster-mobile.webp" media="(max-width: 767px)" fetchpriority="high"');
 
