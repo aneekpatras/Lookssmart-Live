@@ -236,6 +236,7 @@ class PublicWebsiteController extends Controller
 
         return $this->withSeo(Inertia::render('Public/Book', [
             'look' => $look,
+            'faqHref' => \App\Support\FaqData::hrefFor('book an appointment'),
             'services' => Service::active()->with(['category:id,name,stock_image_url', 'prices'])->orderBy('sort')->orderBy('name')->get()->map(fn (Service $service) => $this->serviceData($service)),
             'categories' => ServiceCategory::active()->ordered()->get(['id', 'name']),
             // Active deals that actually have bookable services attached: picking one on the "Deals"
@@ -378,15 +379,16 @@ class PublicWebsiteController extends Controller
     /** The 5 questions shown in the small FAQ block on Home and Contact. */
     private function faqPreview(): array
     {
-        return \App\Support\FaqData::resolve($this->faqVars(), \App\Support\FaqData::PREVIEW_IDS);
+        return \App\Support\FaqData::resolve($this->faqVars(), true);
     }
 
     public function faqs(): Response
     {
         $items = \App\Support\FaqData::resolve($this->faqVars());
+        $used = array_unique(array_column($items, 'category'));
 
         return $this->withSeo(Inertia::render('Public/Faqs', [
-            'categories' => \App\Support\FaqData::categories(),
+            'categories' => array_values(array_filter(\App\Support\FaqData::categories(), fn (array $c) => in_array($c['id'], $used, true))),
             'items' => $items,
             'whatsapp' => $this->whatsappContact(),
         ]), $this->seo->faqs($items));
@@ -1188,6 +1190,7 @@ class PublicWebsiteController extends Controller
             // Only tabs with at least one deal behind them — a tab that filters to nothing is worse
             // than not offering the filter at all.
             'availableTags' => $sections->pluck('tag')->all(),
+            'faqHref' => \App\Support\FaqData::hrefFor('deals work'),
             'whatsapp' => $this->whatsappContact(),
         ]), $this->seo->deals($deals->pluck('title')->filter()->values()->all()));
     }

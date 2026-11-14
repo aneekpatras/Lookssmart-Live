@@ -15,7 +15,7 @@ class FaqData
     public const PREVIEW_IDS = [1, 2, 10, 19, 20];
 
     /** @return list<array{id: string, label: string}> */
-    public static function categories(): array
+    public static function defaultCategories(): array
     {
         return [
             ['id' => 'booking', 'label' => 'Booking and visits'],
@@ -27,7 +27,7 @@ class FaqData
     }
 
     /** @return list<array{id: int, category: string, question: string, answer: string, links: list<array{label: string, href: string}>}> */
-    public static function items(): array
+    public static function defaults(): array
     {
         $wa = ['label' => 'Message us on WhatsApp', 'href' => '{whatsapp}'];
 
@@ -101,15 +101,100 @@ class FaqData
         ];
     }
 
+    /** @var array{categories: list<array{id: string, label: string}>, items: list<array<string, mixed>>}|null */
+    private static ?array $current = null;
+
+    /** Forget the per-request memo (used by tests and after admin edits). */
+    public static function flush(): void
+    {
+        self::$current = null;
+    }
+
+    /**
+     * The FAQs the public site shows: active questions in active categories from the database, or the
+     * built-in defaults when the tables do not exist yet or hold no active question, so the public site
+     * never breaks before the SQL has been run.
+     *
+     * @return array{categories: list<array{id: string, label: string}>, items: list<array<string, mixed>>}
+     */
+    public static function current(): array
+    {
+        if (self::$current !== null) {
+            return self::$current;
+        }
+
+        $fromDb = null;
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('faqs') && \Illuminate\Support\Facades\Schema::hasTable('faq_categories')) {
+                $faqs = \App\Models\Faq::query()
+                    ->with('category')
+                    ->where('is_active', true)
+                    ->where(fn ($q) => $q->whereNull('faq_category_id')->orWhereHas('category', fn ($c) => $c->where('is_active', true)))
+                    ->orderBy('sort_order')->orderBy('id')
+                    ->get();
+
+                if ($faqs->isNotEmpty()) {
+                    $cats = \App\Models\FaqCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
+                    $usedSlugs = $faqs->map(fn ($f) => $f->category?->slug)->filter()->unique()->all();
+                    $categories = $cats->filter(fn ($c) => in_array($c->slug, $usedSlugs, true))
+                        ->map(fn ($c) => ['id' => $c->slug, 'label' => $c->name])->values()->all();
+
+                    if ($faqs->contains(fn ($f) => $f->category === null)) {
+                        $categories[] = ['id' => 'other', 'label' => 'More questions'];
+                    }
+
+                    $fromDb = [
+                        'categories' => $categories,
+                        'items' => $faqs->map(fn ($f) => [
+                            'id' => $f->id,
+                            'category' => $f->category?->slug ?? 'other',
+                            'question' => $f->question,
+                            'answer' => $f->answer,
+                            'links' => collect($f->links ?? [])->filter(fn ($l) => ! empty($l['label']) && ! empty($l['href']))
+                                ->map(fn ($l) => ['label' => (string) $l['label'], 'href' => (string) $l['href']])->values()->all(),
+                            'preview' => (bool) $f->show_in_preview,
+                        ])->values()->all(),
+                    ];
+                }
+            }
+        } catch (\Throwable) {
+            $fromDb = null;
+        }
+
+        return self::$current = $fromDb ?? [
+            'categories' => self::defaultCategories(),
+            'items' => array_map(fn (array $item) => [...$item, 'preview' => in_array($item['id'], self::PREVIEW_IDS, true)], self::defaults()),
+        ];
+    }
+
+    /** @return list<array{id: string, label: string}> */
+    public static function categories(): array
+    {
+        return self::current()['categories'];
+    }
+
+    /** "/faqs#faq-<id>" for the first question containing `$needle`, else "/faqs". */
+    public static function hrefFor(string $needle): string
+    {
+        foreach (self::current()['items'] as $item) {
+            if (stripos($item['question'], $needle) !== false) {
+                return '/faqs#faq-' . $item['id'];
+            }
+        }
+
+        return '/faqs';
+    }
+
     /**
      * Items with every placeholder replaced. `$vars` keys: phone, address, hours, whatsapp, maps.
      * Each link also gets `external` (true for absolute URLs).
      *
      * @param  array{phone: string, address: string, hours: string, whatsapp: string, maps: string}  $vars
-     * @param  list<int>|null  $only  restrict to these ids (keeps this order)
-     * @return list<array{id: int, category: string, question: string, answer: string, links: list<array{label: string, href: string, external: bool}>}>
+     * @param  bool  $previewOnly  only the questions flagged for the short block on Home and Contact
+     * @return list<array{id: int, category: string, question: string, answer: string, preview: bool, links: list<array{label: string, href: string, external: bool}>}>
      */
-    public static function resolve(array $vars, ?array $only = null): array
+    public static function resolve(array $vars, bool $previewOnly = false): array
     {
         $map = [
             '{phone}' => $vars['phone'],
@@ -127,11 +212,10 @@ class FaqData
 
                 return ['label' => $link['label'], 'href' => $href, 'external' => str_starts_with($href, 'http')];
             }, $item['links']),
-        ], self::items());
+        ], self::current()['items']);
 
-        if ($only !== null) {
-            $byId = array_column($items, null, 'id');
-            $items = array_values(array_filter(array_map(fn (int $id) => $byId[$id] ?? null, $only)));
+        if ($previewOnly) {
+            $items = array_values(array_filter($items, fn (array $item) => $item['preview']));
         }
 
         return $items;

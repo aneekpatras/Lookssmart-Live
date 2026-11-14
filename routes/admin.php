@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\BlogController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DealController;
+use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\GalleryCategoryController;
 use App\Http\Controllers\Admin\GalleryController;
 use App\Http\Controllers\Admin\HeroSliderController;
@@ -165,6 +166,20 @@ Route::prefix('admin')
         Route::post('/blog-categories', [PostCategoryController::class, 'store'])->name('blog-categories.store');
         Route::delete('/blog-categories/{post_category}', [PostCategoryController::class, 'destroy'])->name('blog-categories.destroy');
         // Phase 10 sub-step 3.
+        Route::get('/faqs', [FaqController::class, 'index'])->name('faqs');
+        Route::get('/faqs/create', [FaqController::class, 'create'])->name('faqs.create');
+        Route::post('/faqs', [FaqController::class, 'store'])->name('faqs.store');
+        Route::post('/faqs/load-defaults', [FaqController::class, 'loadDefaults'])->name('faqs.load-defaults');
+        Route::get('/faqs/{faq}/edit', [FaqController::class, 'edit'])->name('faqs.edit');
+        Route::put('/faqs/{faq}', [FaqController::class, 'update'])->name('faqs.update');
+        Route::delete('/faqs/{faq}', [FaqController::class, 'destroy'])->name('faqs.destroy');
+        Route::patch('/faqs/{faq}/toggle', [FaqController::class, 'toggle'])->name('faqs.toggle');
+        Route::post('/faqs/{faq}/move', [FaqController::class, 'move'])->name('faqs.move');
+        Route::post('/faq-categories', [FaqController::class, 'storeCategory'])->name('faq-categories.store');
+        Route::put('/faq-categories/{faq_category}', [FaqController::class, 'updateCategory'])->name('faq-categories.update');
+        Route::delete('/faq-categories/{faq_category}', [FaqController::class, 'destroyCategory'])->name('faq-categories.destroy');
+        Route::patch('/faq-categories/{faq_category}/toggle', [FaqController::class, 'toggleCategory'])->name('faq-categories.toggle');
+        Route::post('/faq-categories/{faq_category}/move', [FaqController::class, 'moveCategory'])->name('faq-categories.move');
         Route::get('/gallery', [GalleryController::class, 'index'])->name('gallery');
         Route::get('/gallery/create', [GalleryController::class, 'create'])->name('gallery.create');
         Route::post('/gallery', [GalleryController::class, 'store'])->name('gallery.store');

@@ -9,6 +9,7 @@ import {
   Gift,
   History,
   Image as ImageIcon,
+  CircleHelp,
   Images,
   LayoutDashboard,
   LayoutList,
@@ -123,6 +124,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
     label: 'Content',
     items: [
       { label: 'Blog', href: '/admin/blog', icon: FileText, permissions: ['cms.manage'] },
+      { label: 'FAQs', href: '/admin/faqs', icon: CircleHelp, permissions: ['cms.manage'] },
       { label: 'Gallery', href: '/admin/gallery', icon: Images, permissions: ['cms.manage'] },
       { label: 'Hero Slider', href: '/admin/slider', icon: ImageIcon, permissions: ['cms.manage'] },
       { label: 'Media Library', href: '/admin/media', icon: Library, permissions: ['cms.manage'] },
