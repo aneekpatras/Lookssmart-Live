@@ -942,7 +942,9 @@ class PublicWebsiteController extends Controller
         $picked = $pickedId > 0
             ? Deal::active()->with('services:id,name,base_price')->find($pickedId)
             : null;
-        $claimUrl = $picked ? $this->dealClaimUrl($picked) : ($offers[0]['claim_url'] ?? null);
+        $customClaim = trim((string) Setting::get('deals_bar.claim_url'));
+        $customClaim = preg_match('#^(/(?!/)\S*|https://\S+)$#i', $customClaim) ? $customClaim : null;
+        $claimUrl = $customClaim ?? ($picked ? $this->dealClaimUrl($picked) : ($offers[0]['claim_url'] ?? null));
 
         return [
             'claim_url' => $claimUrl,

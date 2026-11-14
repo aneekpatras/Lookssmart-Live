@@ -514,6 +514,7 @@ function DealsBarTab({ bar, dealOptions }: { bar: Record<string, SettingValue>; 
         ends_at: toFieldValue(bar['deals_bar.ends_at']),
         button_label: toFieldValue(bar['deals_bar.button_label']),
         claim_label: toFieldValue(bar['deals_bar.claim_label']),
+        claim_url: toFieldValue(bar['deals_bar.claim_url']),
         deal_id: toFieldValue(bar['deals_bar.deal_id']),
       }}
     >
@@ -548,6 +549,10 @@ function DealsBarTab({ bar, dealOptions }: { bar: Record<string, SettingValue>; 
               ))}
             </select>
             <p className="text-ink-muted text-xs">Claim opens the booking page with that deal&apos;s services and promo code already applied.</p>
+          </div>
+          <div className="space-y-1.5">
+            <TextField id="deals_bar.claim_url" label="Claim button link (optional)" value={data.claim_url ?? ''} onChange={(v) => setField('claim_url', v)} error={fieldError('claim_url')} placeholder="/book or https://..." />
+            <p className="text-ink-muted text-xs">A page on this site (starting with /) or an https:// link. Leave empty to use the deal chosen above.</p>
           </div>
           <TextField id="deals_bar.claim_label" label="Claim button text (default: Claim offer)" value={data.claim_label ?? ''} onChange={(v) => setField('claim_label', v)} error={fieldError('claim_label')} />
           <TextField id="deals_bar.button_label" label="Button text (default: View all deals)" value={data.button_label ?? ''} onChange={(v) => setField('button_label', v)} error={fieldError('button_label')} />

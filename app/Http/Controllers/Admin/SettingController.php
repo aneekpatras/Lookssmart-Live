@@ -101,6 +101,12 @@ class SettingController extends Controller
                 $valid = false;
             }
 
+            // The claim button link: a site path ("/book") or an https:// URL; nothing else (no javascript:).
+            if ($valid && $key === 'deals_bar.claim_url' && ! $blank
+                && ! preg_match('#^(/(?!/)[^\s]*|https://[^\s]+)$#i', trim((string) $value))) {
+                $valid = false;
+            }
+
             if (! $valid) {
                 $errors["settings.{$key}"] = ["The {$key} field is not a valid {$meta['type']}."];
             }

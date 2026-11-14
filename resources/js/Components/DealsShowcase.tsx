@@ -90,7 +90,7 @@ export function DealsBar({ bar }: { bar: DealsBarData }) {
             <div
               role="timer"
               aria-label="Time left on this offer"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 lg:mr-2"
             >
               {units.map((unit, index) => (
                 <React.Fragment key={unit.label}>
@@ -99,8 +99,8 @@ export function DealsBar({ bar }: { bar: DealsBarData }) {
                       :
                     </span>
                   )}
-                  <div className="border-ivory/15 bg-ivory/5 w-14 rounded-xl border py-2 text-center sm:w-16">
-                    <div className="font-display text-xl font-semibold tabular-nums sm:text-2xl">
+                  <div className="border-accent-500/50 bg-ivory/10 w-14 rounded-xl border py-2 text-center sm:w-[4.5rem]">
+                    <div className="font-display text-ivory text-2xl font-semibold tabular-nums sm:text-3xl">
                       {String(unit.value).padStart(2, '0')}
                     </div>
                     <div className="text-accent-300 text-[10px] font-semibold tracking-wider uppercase">
