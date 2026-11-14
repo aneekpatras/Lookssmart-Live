@@ -119,7 +119,11 @@ export function HeaderCartButton() {
           )}
         </button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-md lg:max-w-[38vw]">
+      <SheetContent
+        side="right"
+        overlayClassName="bg-ink/10"
+        className="bg-ivory w-[90vw] max-w-[420px] sm:max-w-[420px] lg:max-w-[420px]"
+      >
         <SheetHeader>
           <SheetTitle>Your Cart</SheetTitle>
         </SheetHeader>

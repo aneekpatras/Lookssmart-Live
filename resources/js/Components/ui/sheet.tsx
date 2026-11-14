@@ -26,14 +26,22 @@ const sheetVariants = cva('glass fixed z-50 flex flex-col gap-4 p-6', {
 interface SheetContentProps
   extends
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  /** Replaces the default dimmed + blurred backdrop (e.g. `bg-ink/10` for a barely-there dim, no blur). */
+  overlayClassName?: string;
+}
 
 export const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
->(({ className, side, children, ...props }, ref) => (
+>(({ className, overlayClassName, side, children, ...props }, ref) => (
   <DialogPrimitive.Portal>
-    <DialogPrimitive.Overlay className="bg-ink/40 fixed inset-0 z-50 backdrop-blur-sm" />
+    <DialogPrimitive.Overlay
+      className={cn(
+        overlayClassName ?? 'bg-ink/40 backdrop-blur-sm',
+        'fixed inset-0 z-50',
+      )}
+    />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
