@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 import { BeforeAfterSlider } from '@/Components/BeforeAfterSlider';
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
-import { Lightbox } from '@/Components/Lightbox';
+import { Lightbox, type ImageLink } from '@/Components/Lightbox';
 import { Picture } from '@/Components/Picture';
 import { SeoHead } from '@/Components/SeoHead';
 import PublicLayout from '@/Layouts/PublicLayout';
@@ -16,6 +16,7 @@ interface GalleryImage {
   caption: string | null;
   specialty?: string | null;
   category?: string | null;
+  link?: ImageLink | null;
   is_before_after: boolean;
   pair_image_path: string | null;
   pair_image_path_webp: string | null;

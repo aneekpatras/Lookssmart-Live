@@ -9,6 +9,8 @@
  */
 const CART_STORAGE_KEY = 'ls_booking_cart_items';
 export const CART_CHANGED_EVENT = 'ls-cart-changed';
+/** Dispatch to slide the header cart drawer open from anywhere (e.g. the gallery lightbox). */
+export const OPEN_CART_EVENT = 'ls-open-cart';
 
 export interface CartItem {
   id: number;

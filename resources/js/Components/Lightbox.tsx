@@ -3,7 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from '@inertiajs/react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
+import { toast } from 'sonner';
+
 import { Button } from '@/Components/ui/button';
+import { addToCart, getCartItems, OPEN_CART_EVENT } from '@/lib/cart';
 
 interface Image {
   id: number;
@@ -11,6 +14,17 @@ interface Image {
   caption?: string | null;
   specialty?: string | null;
   category?: string | null;
+  link?: ImageLink | null;
+}
+
+type BundledService = { id: number; name: string; price: string; image_url: string | null };
+
+export interface ImageLink {
+  type: 'service' | 'deal';
+  id: number;
+  name: string;
+  service?: BundledService;
+  deal?: { bundled_services: BundledService[]; original_price: string | null; deal_price: string | null };
 }
 
 interface LightboxProps {
@@ -98,7 +112,36 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
   if (images.length === 0) return null;
 
   const currentImage = images[currentIndex]!;
-  const detailText = currentImage.specialty || currentImage.caption || null;
+  const link = currentImage.link ?? null;
+  const detailText = link ? link.name : currentImage.specialty || currentImage.caption || null;
+  const subText = link ? currentImage.specialty || null : null;
+
+  function bookThisLook() {
+    if (!link) return;
+    const inCart = getCartItems();
+    if (link.type === 'service' && link.service) {
+      if (!inCart.some((item) => item.id === link.service!.id)) {
+        addToCart({ kind: 'service', label: link.name, service: link.service }, toast);
+      }
+    } else if (link.deal) {
+      const bundled = link.deal.bundled_services;
+      if (!bundled.every((svc) => inCart.some((item) => item.id === svc.id))) {
+        addToCart(
+          {
+            kind: 'deal',
+            dealId: link.id,
+            label: link.name,
+            bundledServices: bundled,
+            originalPrice: link.deal.original_price,
+            dealPrice: link.deal.deal_price,
+          },
+          toast,
+        );
+      }
+    }
+    onClose();
+    window.setTimeout(() => window.dispatchEvent(new Event(OPEN_CART_EVENT)), 50);
+  }
 
   return (
     <AnimatePresence>
@@ -172,14 +215,21 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
                       {detailText}
                     </p>
                   )}
+                  {subText && <p className="text-ink-muted mt-1 text-sm">{subText}</p>}
                 </div>
               )}
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button asChild variant="accent" size="lg" className="sm:flex-1">
-                  <Link href={`/book?look=${currentImage.id}`} onClick={onClose}>
+                {link ? (
+                  <Button type="button" variant="accent" size="lg" className="sm:flex-1" onClick={bookThisLook}>
                     Book this look
-                  </Link>
-                </Button>
+                  </Button>
+                ) : (
+                  <Button asChild variant="accent" size="lg" className="sm:flex-1">
+                    <Link href={`/book?look=${currentImage.id}`} onClick={onClose}>
+                      Book this look
+                    </Link>
+                  </Button>
+                )}
                 <Button type="button" variant="outline" size="lg" onClick={onClose} className="sm:flex-1">
                   <X aria-hidden="true" /> Close
                 </Button>

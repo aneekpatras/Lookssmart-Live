@@ -9,6 +9,7 @@ import {
   cartBookingUrl,
   type CartItem,
   getCartItems,
+  OPEN_CART_EVENT,
   removeFromCart,
 } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
@@ -29,8 +30,15 @@ export function HeaderCartButton() {
       setItems(getCartItems());
     }
     refresh();
+    function openDrawer() {
+      setOpen(true);
+    }
     window.addEventListener(CART_CHANGED_EVENT, refresh);
-    return () => window.removeEventListener(CART_CHANGED_EVENT, refresh);
+    window.addEventListener(OPEN_CART_EVENT, openDrawer);
+    return () => {
+      window.removeEventListener(CART_CHANGED_EVENT, refresh);
+      window.removeEventListener(OPEN_CART_EVENT, openDrawer);
+    };
   }, []);
 
   const subtotal = items.reduce((sum, item) => sum + Number(item.price), 0);
