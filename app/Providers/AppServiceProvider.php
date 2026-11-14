@@ -3,6 +3,13 @@
 namespace App\Providers;
 
 use App\Support\DebugModeGuard;
+use App\Support\SecurityLog;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -25,6 +32,18 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         DebugModeGuard::assertSafe($this->app->environment(), (bool) config('app.debug'));
+
+        // Security log (admin > Security log). Masked emails only, never passwords.
+        Event::listen(Login::class, function (Login $event) {
+            // Only real sign-ins, not "remember me" cookie re-logins on every visit.
+            if (request()->isMethod('post') && request()->is('login', 'two-factor-challenge')) {
+                SecurityLog::record('login_success', request(), $event->user->getAuthIdentifier(), (string) ($event->user->email ?? ''));
+            }
+        });
+        Event::listen(Failed::class, fn (Failed $event) => SecurityLog::record('login_failed', request(), null, (string) ($event->credentials['email'] ?? '')));
+        Event::listen(Lockout::class, fn (Lockout $event) => SecurityLog::record('lockout', $event->request, null, (string) $event->request->input('email')));
+        Event::listen(Registered::class, fn (Registered $event) => SecurityLog::record('registered', request(), $event->user->getAuthIdentifier(), (string) ($event->user->email ?? '')));
+        Event::listen(PasswordReset::class, fn (PasswordReset $event) => SecurityLog::record('password_reset', request(), $event->user->getAuthIdentifier(), (string) ($event->user->email ?? '')));
 
         // Phase 14 sub-step 2: a production deploy sits behind Nginx/a load balancer terminating
         // TLS, forwarding plain HTTP to PHP-FPM — without this, $request->secure() (and everything
@@ -86,6 +105,9 @@ class AppServiceProvider extends ServiceProvider
                 default => Limit::none(),
             };
         });
+
+        RateLimiter::for('track', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
+        RateLimiter::for('track-incomplete', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
 
         RateLimiter::for('contact', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
 

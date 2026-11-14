@@ -46,6 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
             'throttle:fortify-routes',
+            \App\Http\Middleware\RegisterHoneypot::class,
         ]);
 
         // Browsers send CSP violation reports without our CSRF token — this is the one deliberate

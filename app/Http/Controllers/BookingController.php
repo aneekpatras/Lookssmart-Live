@@ -172,6 +172,19 @@ class BookingController extends Controller
      */
     public function store(StoreBookingRequest $request, CreateBookingAction $action, AvailabilityEngine $availabilityEngine, SlotHoldService $slotHoldService): JsonResponse
     {
+        // Honeypot: a bot that fills the hidden field gets a believable success and nothing is created.
+        if (filled($request->input('website'))) {
+            \App\Support\SecurityLog::record('form_spam', $request);
+
+            return response()->json([
+                'code' => 'LS-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                'starts_at' => (string) $request->input('starts_at'),
+                'ends_at' => (string) $request->input('starts_at'),
+                'total' => '0.00',
+                'status' => 'pending',
+            ], 201);
+        }
+
         $data = $request->validated();
 
         // `bookings` has no dedicated `subject` column — folded onto `notes` here, the same

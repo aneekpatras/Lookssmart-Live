@@ -3,6 +3,8 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Check, LoaderCircle, Search, Sparkles, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
+import { Honeypot } from '@/Components/auth/AuthFields';
+import { normalisePhone, saveIncompleteBooking, track } from '@/lib/track';
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { LoadingDots } from '@/Components/LoadingDots';
 import { SeoHead } from '@/Components/SeoHead';
@@ -204,6 +206,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
     phone: '',
     subject: '',
     notes: '',
+    website: '', // honeypot: always empty for a real visitor
   });
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -425,12 +428,14 @@ export default function Book({ services, categories, deals, authUser, look, faqH
         guest_name: form.name,
         guest_email: form.email,
         guest_phone: form.phone || undefined,
+        website: form.website || undefined,
         subject: form.subject || undefined,
         notes: withLookNote(form.notes, look) || undefined,
         quote: quoteResponse.data,
       });
 
       clearCart();
+      track('booking_submitted');
       setComplete(response.data.code);
     } catch (err) {
       setError(
@@ -451,6 +456,44 @@ export default function Book({ services, categories, deals, authUser, look, faqH
     () => selectedServices.reduce((sum, service) => sum + Number(service.price), 0),
     [selectedServices],
   );
+
+  // Funnel: the booking page opened with something in the cart (once per page load).
+  const beganBooking = React.useRef(false);
+  React.useEffect(() => {
+    if (!beganBooking.current && selected.length > 0) {
+      beganBooking.current = true;
+      track('begin_booking');
+    }
+  }, [selected.length]);
+
+  // Funnel: the first time any contact field is focused. Only the event is sent, never the value.
+  const formStarted = React.useRef(false);
+  function markFormStarted() {
+    if (formStarted.current) return;
+    formStarted.current = true;
+    track('form_started');
+  }
+
+  // Incomplete booking: once a name and a plausible phone are filled, save the details about 2 seconds
+  // after the last change so the salon can follow up. Cart snapshot only; nothing else is sent.
+  React.useEffect(() => {
+    const phone = normalisePhone(form.phone);
+    const name = form.name.trim();
+    if (!name || !phone || selectedServices.length === 0 || complete) return;
+    const timer = window.setTimeout(() => {
+      saveIncompleteBooking({
+        name: name.slice(0, 100),
+        phone,
+        items: selectedServices.map((service) => ({
+          id: service.id,
+          name: service.name,
+          price: Number(service.price),
+        })),
+        total: liveTotal,
+      });
+    }, 2000);
+    return () => window.clearTimeout(timer);
+  }, [form.name, form.phone, selectedServices, liveTotal, complete]);
   // Ad hoc task 35: the raw sum of every selected service's own duration — a real, honest total (not
   // the padded/buffered block duration `CreateBookingAction` uses internally to schedule the real
   // appointment), so what the customer sees here matches what they'd naively expect from adding up
@@ -799,13 +842,21 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                       )}
                     </div>
 
-                    <div className="border-border-soft grid gap-4 border-t pt-6 sm:grid-cols-2">
+                    <div
+                      className="border-border-soft grid gap-4 border-t pt-6 sm:grid-cols-2"
+                      onFocusCapture={markFormStarted}
+                    >
+                      <Honeypot
+                        value={form.website}
+                        onChange={(value) => setForm((current) => ({ ...current, website: value }))}
+                      />
                       <div>
                         <label className="text-sm font-medium" htmlFor="booking-name">
                           Full Name
                         </label>
                         <Input
                           id="booking-name"
+                          autoComplete="name"
                           value={form.name}
                           onChange={(event) => setForm({ ...form, name: event.target.value })}
                           required
@@ -818,9 +869,13 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                         <Input
                           id="booking-phone"
                           type="tel"
+                          autoComplete="tel"
                           value={form.phone}
                           onChange={(event) => setForm({ ...form, phone: event.target.value })}
                         />
+                        <p className="text-ink-muted mt-1 text-xs">
+                          We may contact you on WhatsApp about this booking.
+                        </p>
                       </div>
                       <div className="sm:col-span-2">
                         <label className="text-sm font-medium" htmlFor="booking-email">
@@ -829,6 +884,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                         <Input
                           id="booking-email"
                           type="email"
+                          autoComplete="email"
                           value={form.email}
                           onChange={(event) => setForm({ ...form, email: event.target.value })}
                           required

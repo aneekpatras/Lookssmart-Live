@@ -582,6 +582,9 @@ class PublicWebsiteController extends Controller
         $data = $request->validated();
 
         if (! $this->passesHoneypotAndTimeTrap($request)) {
+            if (filled($request->input('website'))) {
+                \App\Support\SecurityLog::record('form_spam', $request);
+            }
             // Deliberately no error surfaced to the caller — a bot that fails the honeypot/time-trap
             // check gets the same "success" response a real visitor would, so it has no signal to
             // adapt against. No Lead row is created.

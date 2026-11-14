@@ -9,6 +9,7 @@
  * happened in a completely different part of the page.
  */
 const CART_STORAGE_KEY = 'ls_booking_cart_items';
+import { track } from '@/lib/track';
 export const CART_CHANGED_EVENT = 'ls-cart-changed';
 /** Dispatch to slide the header cart drawer open from anywhere (e.g. the gallery lightbox). */
 export const OPEN_CART_EVENT = 'ls-open-cart';
@@ -144,6 +145,7 @@ export function addToCart(
       },
     ]);
     notifyCartAdded(input.service.name, 'service');
+    track('add_to_cart', { kind: 'service', id: input.service.id });
     return;
   }
 
@@ -161,6 +163,7 @@ export function addToCart(
     ),
   );
   notifyCartAdded(input.label, 'deal');
+  track('add_to_cart', { kind: 'deal', id: input.dealId });
 }
 
 /** True when the service is in the cart, or every service of the deal is (the gallery lightbox's rule). */
