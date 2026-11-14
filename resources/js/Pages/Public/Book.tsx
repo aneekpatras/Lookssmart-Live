@@ -1,20 +1,12 @@
 import axios, { isAxiosError } from 'axios';
 import { Head, Link } from '@inertiajs/react';
-import {
-  ArrowLeft,
-  Check,
-  Clock3,
-  LoaderCircle,
-  Plus,
-  Search,
-  Sparkles,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, Check, LoaderCircle, Search, Sparkles, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { LoadingDots } from '@/Components/LoadingDots';
 import { SeoHead } from '@/Components/SeoHead';
+import { BookItemCard } from '@/Components/BookItemCard';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
@@ -59,6 +51,7 @@ interface BookableDeal {
   included_services: string[];
   code: string | null;
   bundled_services: { id: number; name: string; price: string; image_url: string | null }[];
+  image_url?: string | null;
 }
 interface BookProps {
   services: Service[];
@@ -75,8 +68,12 @@ const DEALS_SECTION_ID = 'book-deals';
 function withLookNote(notes: string, look?: BookProps['look']): string {
   if (!look) return notes;
   const line = `Reference look: ${look.specialty ? `${look.specialty} - ` : ''}${look.image_url}`;
-  return (notes ? `${line}
-${notes}` : line).slice(0, 1000);
+  return (
+    notes
+      ? `${line}
+${notes}`
+      : line
+  ).slice(0, 1000);
 }
 
 const steps = ['Select services', 'Date, time & details'];
@@ -613,51 +610,25 @@ export default function Book({ services, categories, deals, authUser, look }: Bo
                           <h3 className="text-ink-muted text-xs font-semibold tracking-wider uppercase">
                             {category.name}
                           </h3>
-                          {/* 3-column responsive grid (1 on mobile, 2 on tablet, 3 on desktop). */}
                           <div
                             data-testid="service-grid"
-                            className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                            className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
                           >
                             {items.map((service) => {
                               const isSelected = selected.includes(service.id);
                               return (
-                                <div
+                                <BookItemCard
                                   key={service.id}
-                                  className={`flex flex-col rounded-lg border p-4 transition ${isSelected ? 'border-accent-600 bg-accent-50' : 'border-border-soft'}`}
-                                >
-                                  <span className="text-accent-700 text-xs uppercase">
-                                    {service.category}
-                                  </span>
-                                  <strong className="mt-1 block text-lg leading-snug">
-                                    {service.name}
-                                  </strong>
-                                  <span className="text-ink-muted mt-3 flex items-center justify-between text-sm">
-                                    <span>
-                                      <Clock3 className="mr-1 inline size-4" />
-                                      {service.duration_min} min
-                                    </span>
-                                    {formatCurrency(service.price)}
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={isSelected ? 'outline' : 'accent'}
-                                    aria-pressed={isSelected}
-                                    aria-label={`${service.name}: ${isSelected ? 'Added' : 'Add'}`}
-                                    onClick={() => toggleService(service.id)}
-                                    className="mt-4"
-                                  >
-                                    {isSelected ? (
-                                      <>
-                                        <Check className="size-4" aria-hidden="true" /> Added
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Plus className="size-4" aria-hidden="true" /> Add
-                                      </>
-                                    )}
-                                  </Button>
-                                </div>
+                                  id={service.id}
+                                  title={service.name}
+                                  label={service.category}
+                                  imageUrl={service.image_url}
+                                  price={service.price}
+                                  durationMin={service.duration_min}
+                                  selected={isSelected}
+                                  ariaLabel={`${service.name}: ${isSelected ? 'Added' : 'Add'}`}
+                                  onToggle={() => toggleService(service.id)}
+                                />
                               );
                             })}
                           </div>
@@ -672,78 +643,27 @@ export default function Book({ services, categories, deals, authUser, look }: Bo
                         </h3>
                         <div
                           data-testid="deal-grid"
-                          className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                          className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
                         >
                           {visibleDeals.map((deal) => {
                             const isSelected = isDealSelected(deal);
                             return (
-                              <div
+                              <BookItemCard
                                 key={deal.id}
-                                className={`flex flex-col rounded-lg border p-4 transition ${isSelected ? 'border-accent-600 bg-accent-50' : 'border-border-soft'}`}
-                              >
-                                <span className="flex items-center justify-between gap-2">
-                                  <span className="text-accent-700 text-xs uppercase">Deal</span>
-                                  {deal.savings_percent !== null && deal.savings_percent > 0 && (
-                                    <span className="bg-accent-500 text-ivory rounded-full px-2 py-0.5 text-xs font-semibold">
-                                      {deal.savings_percent}% OFF
-                                    </span>
-                                  )}
-                                </span>
-                                <strong className="mt-1 block text-lg leading-snug">
-                                  {deal.title}
-                                </strong>
-                                <ul className="text-ink-muted mt-2 space-y-0.5 text-xs leading-5">
-                                  {deal.included_services.slice(0, 3).map((item) => (
-                                    <li key={item} className="flex gap-1.5">
-                                      <Check
-                                        className="text-accent-600 mt-0.5 size-3.5 shrink-0"
-                                        aria-hidden="true"
-                                      />
-                                      <span className="truncate">{item}</span>
-                                    </li>
-                                  ))}
-                                  {deal.included_services.length > 3 && (
-                                    <li className="pl-5">
-                                      +{deal.included_services.length - 3} more included
-                                    </li>
-                                  )}
-                                </ul>
-                                <span className="mt-auto flex items-baseline justify-between gap-2 pt-3 text-sm">
-                                  {deal.original_price && deal.deal_price ? (
-                                    <>
-                                      <span className="text-ink-muted text-xs line-through">
-                                        {formatCurrency(deal.original_price)}
-                                      </span>
-                                      <span className="text-ink font-semibold">
-                                        {formatCurrency(deal.deal_price)}
-                                      </span>
-                                    </>
-                                  ) : deal.deal_price ? (
-                                    <span className="text-ink ml-auto font-semibold">
-                                      {formatCurrency(deal.deal_price)}
-                                    </span>
-                                  ) : null}
-                                </span>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant={isSelected ? 'outline' : 'accent'}
-                                  aria-pressed={isSelected}
-                                  aria-label={`${deal.title}: ${isSelected ? 'Added' : 'Add deal'}`}
-                                  onClick={() => toggleDeal(deal)}
-                                  className="mt-3"
-                                >
-                                  {isSelected ? (
-                                    <>
-                                      <Check className="size-4" aria-hidden="true" /> Added
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Plus className="size-4" aria-hidden="true" /> Add deal
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
+                                id={deal.id}
+                                title={deal.title}
+                                label="Deal"
+                                imageUrl={
+                                  deal.image_url ??
+                                  deal.bundled_services.find((svc) => svc.image_url)?.image_url ??
+                                  null
+                                }
+                                price={deal.deal_price}
+                                originalPrice={deal.deal_price ? deal.original_price : null}
+                                selected={isSelected}
+                                ariaLabel={`${deal.title}: ${isSelected ? 'Added' : 'Add deal'}`}
+                                onToggle={() => toggleDeal(deal)}
+                              />
                             );
                           })}
                         </div>
@@ -899,9 +819,15 @@ export default function Book({ services, categories, deals, authUser, look }: Bo
                       </div>
                       {look && (
                         <div className="border-border-soft bg-surface flex items-center gap-3 rounded-xl border p-3 sm:col-span-2">
-                          <img src={look.image_url} alt="" className="size-16 shrink-0 rounded-lg object-cover" />
+                          <img
+                            src={look.image_url}
+                            alt=""
+                            className="size-16 shrink-0 rounded-lg object-cover"
+                          />
                           <div className="min-w-0">
-                            <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">Reference look</p>
+                            <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
+                              Reference look
+                            </p>
                             {look.specialty && <p className="text-ink text-sm">{look.specialty}</p>}
                           </div>
                         </div>
