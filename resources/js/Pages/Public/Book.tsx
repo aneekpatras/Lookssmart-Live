@@ -134,7 +134,7 @@ export default function Book({ services, categories, deals, authUser, look }: Bo
   // Honours every repeated `?service=<id>` param that a "Book now"/"Add to Cart" link on the Home,
   // Services, Deals and service-detail pages passes (a deal's card can carry several — one per
   // bundled service), UNIONED with whatever was already in the cart from an earlier visit this same
-  // tab (sessionStorage) — so adding a service from Home, browsing to Deals, and adding another deal
+  // tab (localStorage) — so adding a service from Home, browsing to Deals, and adding another deal
   // there both land in the same cart on /book rather than the second visit wiping out the first. Both
   // sources are validated against the real services list: a stale or hand-edited id is silently
   // dropped instead of poisoning the selection with one the quote endpoint would later reject.

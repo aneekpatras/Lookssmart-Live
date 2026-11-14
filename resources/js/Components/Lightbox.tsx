@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { toast } from 'sonner';
 
 import { Button } from '@/Components/ui/button';
-import { addToCart, getCartItems, OPEN_CART_EVENT } from '@/lib/cart';
+import { addToCart, cartBookingUrl, getCartItems } from '@/lib/cart';
 
 interface Image {
   id: number;
@@ -139,8 +139,9 @@ export function Lightbox({ images, initialIndex, isOpen, onClose }: LightboxProp
         );
       }
     }
+    // The add above is already written to storage (synchronously); now go straight to booking.
     onClose();
-    window.setTimeout(() => window.dispatchEvent(new Event(OPEN_CART_EVENT)), 50);
+    router.visit(cartBookingUrl());
   }
 
   return (

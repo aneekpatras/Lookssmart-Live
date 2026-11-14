@@ -1,5 +1,6 @@
 /**
- * Shared cart — the booking wizard's own service selection, persisted in `sessionStorage` so it
+ * Shared cart — the booking wizard's own service selection, persisted in `localStorage` (so it also
+ * survives closing the tab and coming back, not just reload/back) so it
  * survives navigating between Home/Deals/Services and `/book` (ad hoc task 22), upgraded to carry
  * real display data per item (name/price/thumbnail) rather than bare ids (ad hoc task 24) so the
  * redesigned "Your Selection" sidebar and the header cart drawer can render a real line-item list
@@ -31,10 +32,26 @@ export interface CartItem {
   deal_label?: string;
 }
 
+/** Reads the cart; carries over a cart an earlier build kept in `sessionStorage`. */
+function readRaw(): string {
+  try {
+    const stored = window.localStorage.getItem(CART_STORAGE_KEY);
+    if (stored !== null) return stored;
+    const legacy = window.sessionStorage.getItem(CART_STORAGE_KEY);
+    if (legacy !== null) {
+      window.localStorage.setItem(CART_STORAGE_KEY, legacy);
+      return legacy;
+    }
+  } catch {
+    // storage blocked: behave as an empty cart
+  }
+  return '[]';
+}
+
 export function getCartItems(): CartItem[] {
   if (typeof window === 'undefined') return [];
   try {
-    const parsed = JSON.parse(window.sessionStorage.getItem(CART_STORAGE_KEY) ?? '[]') as unknown;
+    const parsed = JSON.parse(readRaw()) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (item): item is CartItem =>
@@ -53,7 +70,11 @@ export function getCartServiceIds(): number[] {
  * listeners — the header badge/drawer — that it changed. */
 export function setCartItems(items: CartItem[]): void {
   const deduped = Array.from(new Map(items.map((item) => [item.id, item])).values());
-  window.sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(deduped));
+  try {
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(deduped));
+  } catch {
+    // storage blocked: the in-page event below still updates this tab
+  }
   window.dispatchEvent(new Event(CART_CHANGED_EVENT));
 }
 
