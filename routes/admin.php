@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\GalleryCategoryController;
 use App\Http\Controllers\Admin\GalleryController;
 use App\Http\Controllers\Admin\HeroSliderController;
 use App\Http\Controllers\Admin\ImpersonationController;
+use App\Http\Controllers\Admin\InsightsController;
 use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\Admin\MediaLibraryController;
 use App\Http\Controllers\Admin\MessageController;
@@ -236,5 +237,10 @@ Route::prefix('admin')
         Route::post('/impersonate/stop', [ImpersonationController::class, 'stop'])->name('impersonate.stop');
 
         Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit-log');
+        Route::get('/funnel', [InsightsController::class, 'funnel'])->name('funnel');
+        Route::get('/incomplete-bookings', [InsightsController::class, 'incomplete'])->name('incomplete-bookings');
+        Route::post('/incomplete-bookings/{incompleteBooking}/contacted', [InsightsController::class, 'markContacted'])->name('incomplete-bookings.contacted');
+        Route::delete('/incomplete-bookings/{incompleteBooking}', [InsightsController::class, 'destroyIncomplete'])->name('incomplete-bookings.destroy');
+        Route::get('/security-log', [InsightsController::class, 'security'])->name('security-log');
         Route::get('/notification-logs', [NotificationLogController::class, 'index'])->name('notification-logs');
     });

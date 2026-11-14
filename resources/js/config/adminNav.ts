@@ -4,6 +4,9 @@ import {
   Calendar,
   ClipboardList,
   Clock,
+  Filter,
+  PhoneCall,
+  ShieldAlert,
   FileText,
   FileUp,
   Gift,
@@ -59,6 +62,18 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         permissions: ['bookings.view', 'bookings.manage', 'bookings.view_own'],
       },
       {
+        label: 'Visitor funnel',
+        href: '/admin/funnel',
+        icon: Filter,
+        permissions: ['bookings.manage'],
+      },
+      {
+        label: 'Incomplete bookings',
+        href: '/admin/incomplete-bookings',
+        icon: PhoneCall,
+        permissions: ['bookings.manage'],
+      },
+      {
         label: 'Availability',
         href: '/admin/availability',
         icon: ClipboardList,
@@ -70,8 +85,18 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
     label: 'Sales',
     items: [
       { label: 'POS', href: '/admin/pos', icon: ShoppingCart, permissions: ['pos.sell'] },
-      { label: 'New Sale', href: '/admin/pos/terminal', icon: ShoppingCart, permissions: ['pos.sell'] },
-      { label: 'Held Sales', href: '/admin/pos/held-sales', icon: Clock, permissions: ['pos.sell'] },
+      {
+        label: 'New Sale',
+        href: '/admin/pos/terminal',
+        icon: ShoppingCart,
+        permissions: ['pos.sell'],
+      },
+      {
+        label: 'Held Sales',
+        href: '/admin/pos/held-sales',
+        icon: Clock,
+        permissions: ['pos.sell'],
+      },
       {
         label: 'Sales History',
         href: '/admin/pos/sales-history',
@@ -151,6 +176,12 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         href: '/admin/settings',
         icon: Settings,
         permissions: ['settings.view', 'settings.manage'],
+      },
+      {
+        label: 'Security log',
+        href: '/admin/security-log',
+        icon: ShieldAlert,
+        permissions: ['settings.manage'],
       },
       {
         label: 'Audit Log',
