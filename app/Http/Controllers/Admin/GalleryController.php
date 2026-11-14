@@ -85,7 +85,23 @@ class GalleryController extends Controller
                 'images' => $gallery->images->map(fn (GalleryImage $image) => $this->imageData($image)),
             ],
             'categories' => $this->categoryOptions(),
+            'linkOptions' => $this->linkOptions(),
         ]);
+    }
+
+    /**
+     * Active services and live deals for the "Linked service or deal" picker.
+     *
+     * @return list<array{type: string, id: int, name: string}>
+     */
+    private function linkOptions(): array
+    {
+        $services = \App\Models\Service::active()->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($s) => ['type' => 'service', 'id' => $s->id, 'name' => $s->name]);
+        $deals = \App\Models\Deal::active()->orderBy('title')->get(['id', 'title'])
+            ->map(fn ($d) => ['type' => 'deal', 'id' => $d->id, 'name' => $d->title]);
+
+        return $services->concat($deals)->values()->all();
     }
 
     public function update(UpdateGalleryRequest $request, Gallery $gallery): RedirectResponse
@@ -129,6 +145,12 @@ class GalleryController extends Controller
         // Tolerate a live DB that has not had the specialty migration yet.
         if (! \Illuminate\Support\Facades\Schema::hasColumn('gallery_images', 'specialty')) {
             unset($data['specialty']);
+        }
+
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('gallery_images', 'linked_type')) {
+            unset($data['linked_type'], $data['linked_id']);
+        } elseif (array_key_exists('linked_type', $data) && $data['linked_type'] === null) {
+            $data['linked_id'] = null;
         }
 
         if ($request->hasFile('pair_image')) {
@@ -211,6 +233,8 @@ class GalleryController extends Controller
             'pair_image_url' => $image->pair_image_path ? asset("storage/{$image->pair_image_path}") : null,
             'caption' => $image->caption,
             'specialty' => $image->specialty,
+            'linked_type' => $image->linked_type,
+            'linked_id' => $image->linked_id,
             'is_before_after' => $image->is_before_after,
             'show_on_homepage' => $image->show_on_homepage,
             'sort' => $image->sort,

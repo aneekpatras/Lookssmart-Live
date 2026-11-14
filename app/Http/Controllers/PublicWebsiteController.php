@@ -261,6 +261,8 @@ class PublicWebsiteController extends Controller
      */
     public function gallery(): Response
     {
+        $this->loadGalleryLinks();
+
         $categories = GalleryCategory::query()
             ->with(['galleries' => fn ($query) => $query->active()->with(['images' => fn ($imagesQuery) => $imagesQuery->orderBy('sort')])])
             ->ordered()
@@ -300,6 +302,53 @@ class PublicWebsiteController extends Controller
         ]), $this->seo->gallery());
     }
 
+    /** @var array<string, array<string, mixed>> "type:id" => link payload, for active/live items only. */
+    private array $galleryLinks = [];
+
+    /** Resolves every gallery photo's linked service/deal in two queries; skipped if the columns are missing. */
+    private function loadGalleryLinks(): void
+    {
+        $this->galleryLinks = [];
+
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('gallery_images', 'linked_type')) {
+            return;
+        }
+
+        $rows = GalleryImage::query()->whereNotNull('linked_type')->whereNotNull('linked_id')->get(['linked_type', 'linked_id']);
+
+        $serviceIds = $rows->where('linked_type', 'service')->pluck('linked_id')->unique()->all();
+        $dealIds = $rows->where('linked_type', 'deal')->pluck('linked_id')->unique()->all();
+
+        if ($serviceIds !== []) {
+            Service::active()->with(['category:id,name,stock_image_url', 'prices'])->whereIn('id', $serviceIds)->get()
+                ->each(function (Service $service) {
+                    $data = $this->serviceData($service);
+                    $this->galleryLinks["service:{$service->id}"] = [
+                        'type' => 'service', 'id' => $service->id, 'name' => $service->name,
+                        'service' => ['id' => $data['id'], 'name' => $data['name'], 'price' => $data['price'], 'image_url' => $data['image_url'] ?? null],
+                    ];
+                });
+        }
+
+        if ($dealIds !== []) {
+            Deal::active()->with('services:id,name,base_price')->whereIn('id', $dealIds)->get()
+                ->each(function (Deal $deal) {
+                    $data = $this->dealShowcaseData($deal);
+                    if ($data['bundled_services'] === []) {
+                        return; // nothing bookable to add, so behave as not linked
+                    }
+                    $this->galleryLinks["deal:{$deal->id}"] = [
+                        'type' => 'deal', 'id' => $deal->id, 'name' => $deal->title,
+                        'deal' => [
+                            'bundled_services' => $data['bundled_services'],
+                            'original_price' => $data['original_price'],
+                            'deal_price' => $data['deal_price'],
+                        ],
+                    ];
+                });
+        }
+    }
+
     /** @return array<string, mixed> */
     private function galleryImageData(GalleryImage $image): array
     {
@@ -309,6 +358,7 @@ class PublicWebsiteController extends Controller
             'image_path_webp' => $this->publicWebpUrl($image->image_path),
             'caption' => $image->caption,
             'specialty' => $image->specialty,
+            'link' => $image->linked_type && $image->linked_id ? ($this->galleryLinks["{$image->linked_type}:{$image->linked_id}"] ?? null) : null,
             'is_before_after' => $image->is_before_after,
             'pair_image_path' => $image->pair_image_path ? asset("storage/{$image->pair_image_path}") : null,
             'pair_image_path_webp' => $image->pair_image_path ? $this->publicWebpUrl($image->pair_image_path) : null,

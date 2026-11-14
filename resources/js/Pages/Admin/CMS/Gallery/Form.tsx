@@ -18,7 +18,15 @@ interface GalleryImageDetail {
   specialty?: string | null;
   is_before_after: boolean;
   show_on_homepage: boolean;
+  linked_type?: 'service' | 'deal' | null;
+  linked_id?: number | null;
   sort: number;
+}
+
+interface LinkOption {
+  type: 'service' | 'deal';
+  id: number;
+  name: string;
 }
 
 interface GalleryCategoryOption {
@@ -40,6 +48,7 @@ interface GalleryDetail {
 interface GalleryFormPageProps {
   gallery?: GalleryDetail;
   categories: GalleryCategoryOption[];
+  linkOptions?: LinkOption[];
 }
 
 function AlbumDetailsCard({ gallery, categories }: { gallery?: GalleryDetail; categories: GalleryCategoryOption[] }) {
@@ -116,6 +125,84 @@ function AlbumDetailsCard({ gallery, categories }: { gallery?: GalleryDetail; ca
   );
 }
 
+/** Searchable "Linked service or deal" picker: type to filter, pick one, or clear it. */
+function LinkedItemPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: LinkOption[];
+  value: LinkOption | null;
+  onChange: (option: LinkOption | null) => void;
+}) {
+  const [query, setQuery] = React.useState('');
+  const [open, setOpen] = React.useState(false);
+  const matches = React.useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return options.filter((option) => !needle || option.name.toLowerCase().includes(needle)).slice(0, 50);
+  }, [options, query]);
+
+  return (
+    <div className="relative space-y-1">
+      <p className="text-ink-muted text-xs font-medium">Linked service or deal (optional)</p>
+      {value && !open ? (
+        <div className="border-input flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-sm">
+          <span className="min-w-0 truncate">
+            {value.name}{' '}
+            <span className="bg-accent-50 text-accent-700 ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold">
+              {value.type === 'deal' ? 'Deal' : 'Service'}
+            </span>
+          </span>
+          <span className="flex shrink-0 gap-2">
+            <button type="button" className="text-accent-700 text-xs underline" onClick={() => setOpen(true)}>
+              Change
+            </button>
+            <button type="button" className="text-xs text-red-600 underline" onClick={() => onChange(null)}>
+              Clear
+            </button>
+          </span>
+        </div>
+      ) : (
+        <>
+          <Input
+            aria-label="Search services and deals"
+            placeholder="Type to search services and deals"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+          />
+          {open && (
+            <ul className="border-border-soft bg-ivory shadow-soft absolute z-20 max-h-56 w-full overflow-y-auto rounded-md border text-sm">
+              {matches.length === 0 && <li className="text-ink-muted px-3 py-2">No matches</li>}
+              {matches.map((option) => (
+                <li key={`${option.type}-${option.id}`}>
+                  <button
+                    type="button"
+                    className="hover:bg-accent-50 flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                    onClick={() => {
+                      onChange(option);
+                      setQuery('');
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="truncate">{option.name}</span>
+                    <span className="bg-accent-50 text-accent-700 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold">
+                      {option.type === 'deal' ? 'Deal' : 'Service'}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ImageCard({
   image,
   galleryId,
@@ -123,7 +210,9 @@ function ImageCard({
   isFirst,
   isLast,
   onMove,
+  linkOptions,
 }: {
+  linkOptions: LinkOption[];
   image: GalleryImageDetail;
   galleryId: number;
   isCover: boolean;
@@ -141,6 +230,19 @@ function ImageCard({
 
   function saveCaption() {
     put(`/admin/gallery/${galleryId}/images/${image.id}`, { preserveScroll: true, forceFormData: true });
+  }
+
+  const [linked, setLinked] = React.useState<LinkOption | null>(
+    () => linkOptions.find((o) => o.type === image.linked_type && o.id === image.linked_id) ?? null,
+  );
+
+  function saveLink(option: LinkOption | null) {
+    setLinked(option);
+    router.put(
+      `/admin/gallery/${galleryId}/images/${image.id}`,
+      { linked_type: option?.type ?? null, linked_id: option?.id ?? null },
+      { preserveScroll: true },
+    );
   }
 
   function toggleBeforeAfter(checked: boolean) {
@@ -212,6 +314,8 @@ function ImageCard({
           onBlur={saveCaption}
         />
 
+        <LinkedItemPicker options={linkOptions} value={linked} onChange={saveLink} />
+
         <div className="flex items-center gap-2 text-sm">
           <Switch
             checked={data.is_before_after}
@@ -273,7 +377,7 @@ function ImageCard({
   );
 }
 
-function MediaOrganizer({ gallery }: { gallery: GalleryDetail }) {
+function MediaOrganizer({ gallery, linkOptions }: { gallery: GalleryDetail; linkOptions: LinkOption[] }) {
   const images = gallery.images;
   const uploadForm = useForm<{ images: File[] }>({ images: [] });
 
@@ -342,6 +446,7 @@ function MediaOrganizer({ gallery }: { gallery: GalleryDetail }) {
                 isFirst={index === 0}
                 isLast={index === images.length - 1}
                 onMove={(direction) => move(index, direction)}
+                linkOptions={linkOptions}
               />
             ))}
           </div>
@@ -351,7 +456,7 @@ function MediaOrganizer({ gallery }: { gallery: GalleryDetail }) {
   );
 }
 
-export default function GalleryForm({ gallery, categories }: GalleryFormPageProps) {
+export default function GalleryForm({ gallery, categories, linkOptions = [] }: GalleryFormPageProps) {
   return (
     <>
       <Head title={gallery ? 'Edit Album' : 'New Album'} />
@@ -363,7 +468,7 @@ export default function GalleryForm({ gallery, categories }: GalleryFormPageProp
         </div>
 
         <AlbumDetailsCard gallery={gallery} categories={categories} />
-        {gallery && <MediaOrganizer gallery={gallery} />}
+        {gallery && <MediaOrganizer gallery={gallery} linkOptions={linkOptions} />}
       </div>
     </>
   );
