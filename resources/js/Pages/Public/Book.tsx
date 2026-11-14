@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import { Textarea } from '@/Components/ui/textarea';
 import PublicLayout from '@/Layouts/PublicLayout';
-import { clearCart, getCartItems, setCartItems } from '@/lib/cart';
+import { CART_CHANGED_EVENT, clearCart, getCartItems, setCartItems } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 import { useHeaderHandoff } from '@/lib/useHeaderHandoff';
 
@@ -160,6 +160,17 @@ export default function Book({ services, categories, deals, authUser, look }: Bo
         })),
     );
   }, [selected, services]);
+  // Items removed from the header cart drawer (one by one, or "Clear all") must stop showing as Added.
+  React.useEffect(() => {
+    function syncRemovals() {
+      const inCart = new Set(getCartItems().map((item) => item.id));
+      setSelected((current) =>
+        current.every((id) => inCart.has(id)) ? current : current.filter((id) => inCart.has(id)),
+      );
+    }
+    window.addEventListener(CART_CHANGED_EVENT, syncRemovals);
+    return () => window.removeEventListener(CART_CHANGED_EVENT, syncRemovals);
+  }, []);
   const [date, setDate] = React.useState(localDateString());
   const [slots, setSlots] = React.useState<Slot[]>([]);
   const [slot, setSlot] = React.useState<Slot | null>(null);

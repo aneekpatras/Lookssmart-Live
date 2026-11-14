@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/Co
 import {
   CART_CHANGED_EVENT,
   cartBookingUrl,
+  clearCart,
   type CartItem,
   getCartItems,
   OPEN_CART_EVENT,
@@ -21,6 +22,70 @@ import { formatCurrency } from '@/lib/currency';
  * add-to-cart action anywhere on the site dispatches `CART_CHANGED_EVENT` after writing to
  * `sessionStorage` specifically so this component reacts to it live.
  */
+/** "Clear all" with an inline confirmation (no browser confirm()): reverts on Keep, Escape or after 5s. */
+function ClearAllButton({ onClear }: { onClear: () => void }) {
+  const [confirming, setConfirming] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!confirming) return;
+    const timer = window.setTimeout(() => setConfirming(false), 5000);
+    // Capture on window so Escape only cancels the confirmation instead of also closing the drawer.
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setConfirming(false);
+      }
+    }
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [confirming]);
+
+  const focusRing =
+    'focus-visible:ring-accent-500 rounded-md px-1.5 py-1 focus-visible:ring-2 focus-visible:outline-none';
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className={`text-ink-muted hover:text-ink text-[13px] underline-offset-2 hover:underline ${focusRing}`}
+      >
+        Clear all
+      </button>
+    );
+  }
+
+  return (
+    <span
+      className="flex items-center gap-1 text-[13px]"
+      role="group"
+      aria-label="Confirm clearing the cart"
+    >
+      <span className="text-ink">Clear all items?</span>
+      <button
+        type="button"
+        onClick={() => {
+          setConfirming(false);
+          onClear();
+        }}
+        className={`font-semibold text-red-700 ${focusRing}`}
+      >
+        Clear
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirming(false)}
+        className={`text-ink-muted hover:text-ink ${focusRing}`}
+      >
+        Keep
+      </button>
+    </span>
+  );
+}
+
 export function HeaderCartButton() {
   const [items, setItems] = React.useState<CartItem[]>([]);
   const [open, setOpen] = React.useState(false);
@@ -43,7 +108,8 @@ export function HeaderCartButton() {
 
   const subtotal = items.reduce((sum, item) => sum + Number(item.price), 0);
   const totalSavings = items.reduce(
-    (sum, item) => sum + (item.original_price ? Number(item.original_price) - Number(item.price) : 0),
+    (sum, item) =>
+      sum + (item.original_price ? Number(item.original_price) - Number(item.price) : 0),
     0,
   );
 
@@ -72,7 +138,8 @@ export function HeaderCartButton() {
       // Every item contributes its own original price when discounted, else its own actual price —
       // so the group's original-price sum only differs from its price sum by real savings, never a
       // fabricated one for an undiscounted item sharing the group.
-      const itemOriginal = item.original_price !== undefined ? Number(item.original_price) : Number(item.price);
+      const itemOriginal =
+        item.original_price !== undefined ? Number(item.original_price) : Number(item.price);
       const existing = groups.get(key);
 
       if (existing) {
@@ -104,6 +171,8 @@ export function HeaderCartButton() {
     }));
   }, [items]);
 
+  const itemsLabel = `${rows.length} ${rows.length === 1 ? 'item' : 'items'}`;
+
   function removeRow(ids: number[]) {
     ids.forEach((id) => removeFromCart(id));
   }
@@ -120,9 +189,9 @@ export function HeaderCartButton() {
           {rows.length > 0 && (
             <span
               aria-hidden="true"
-              className="bg-accent-500 text-ivory absolute -top-0.5 -right-0.5 flex size-4.5 items-center justify-center rounded-full text-[10px] font-semibold"
+              className="bg-accent-500 text-ivory absolute -top-0.5 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] leading-none font-semibold"
             >
-              {rows.length > 9 ? '9+' : rows.length}
+              {rows.length > 99 ? '99+' : rows.length}
             </span>
           )}
         </button>
@@ -133,8 +202,16 @@ export function HeaderCartButton() {
         data-lenis-prevent
         className="bg-ivory w-[90vw] max-w-[420px] sm:max-w-[420px] lg:max-w-[420px]"
       >
-        <SheetHeader>
+        <SheetHeader className="pr-8">
           <SheetTitle>Your Cart</SheetTitle>
+          {rows.length > 0 && (
+            <div className="flex min-h-7 items-center justify-between gap-2">
+              <span className="text-accent-700 text-sm font-medium" aria-live="polite">
+                {itemsLabel}
+              </span>
+              <ClearAllButton onClear={clearCart} />
+            </div>
+          )}
         </SheetHeader>
 
         {rows.length === 0 ? (
@@ -160,7 +237,8 @@ export function HeaderCartButton() {
               className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1"
             >
               {rows.map((row) => {
-                const isDiscounted = row.original_price !== undefined && row.original_price > row.price;
+                const isDiscounted =
+                  row.original_price !== undefined && row.original_price > row.price;
                 return (
                   <div
                     key={row.key}
@@ -181,7 +259,11 @@ export function HeaderCartButton() {
                             {formatCurrency(String(row.original_price))}
                           </span>
                         )}
-                        <span className={isDiscounted ? 'text-accent-700 font-medium' : 'text-ink-muted'}>
+                        <span
+                          className={
+                            isDiscounted ? 'text-accent-700 font-medium' : 'text-ink-muted'
+                          }
+                        >
                           {formatCurrency(String(row.price))}
                         </span>
                       </p>
@@ -190,7 +272,7 @@ export function HeaderCartButton() {
                       type="button"
                       aria-label={`Remove ${row.name} from cart`}
                       onClick={() => removeRow(row.ids)}
-                      className="text-ink-muted hover:text-red-600 shrink-0 rounded-md p-1.5"
+                      className="text-ink-muted shrink-0 rounded-md p-1.5 hover:text-red-600"
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
                     </button>
@@ -201,7 +283,7 @@ export function HeaderCartButton() {
 
             <div className="border-border-soft mt-4 border-t pt-4">
               <p className="text-ink flex justify-between font-semibold">
-                <span>Subtotal</span>
+                <span>Subtotal ({itemsLabel})</span>
                 <span>{formatCurrency(String(subtotal))}</span>
               </p>
               {totalSavings > 0 && (
@@ -210,7 +292,12 @@ export function HeaderCartButton() {
                   <span>{formatCurrency(String(totalSavings))}</span>
                 </p>
               )}
-              <Button asChild variant="accent" className="mt-4 w-full" onClick={() => setOpen(false)}>
+              <Button
+                asChild
+                variant="accent"
+                className="mt-4 w-full"
+                onClick={() => setOpen(false)}
+              >
                 <Link href={cartBookingUrl()}>Continue to Booking</Link>
               </Button>
               <Link
