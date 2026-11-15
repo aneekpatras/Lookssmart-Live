@@ -96,7 +96,7 @@ export default function Login({ status }: { status?: string }) {
 }
 
 Login.layout = (page: React.ReactNode) => (
-  <AuthLayout title="Welcome back" description="Log in to manage your bookings and profile.">
+  <AuthLayout title="Welcome back" description="Log in to manage your bookings.">
     {page}
   </AuthLayout>
 );
