@@ -7,6 +7,7 @@ import {
   type DataTableColumn,
   type DataTablePaginationMeta,
 } from '@/Components/admin/DataTable';
+import { formatWithRelative } from '@/lib/adminFormat';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -146,7 +147,7 @@ export default function BookingsIndex({ bookings, statuses, filters }: BookingsI
       id: 'starts_at',
       header: 'When',
       sortable: true,
-      cell: (row) => (row.starts_at ? new Date(row.starts_at).toLocaleString() : '—'),
+      cell: (row) => formatWithRelative(row.starts_at),
     },
     {
       id: 'total',
@@ -177,7 +178,9 @@ export default function BookingsIndex({ bookings, statuses, filters }: BookingsI
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-ink text-2xl font-medium">Bookings</h1>
-          <p className="text-ink-muted text-sm">Every appointment booked through the site or by staff.</p>
+          <p className="text-ink-muted text-sm">
+            Every appointment booked through the site or by staff.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-end gap-3">
@@ -185,7 +188,9 @@ export default function BookingsIndex({ bookings, statuses, filters }: BookingsI
             <Label>Status</Label>
             <Select
               value={filters.status ?? 'all'}
-              onValueChange={(value) => reload({ status: value === 'all' ? undefined : value, page: undefined })}
+              onValueChange={(value) =>
+                reload({ status: value === 'all' ? undefined : value, page: undefined })
+              }
             >
               <SelectTrigger className="w-40">
                 <SelectValue />
@@ -206,7 +211,9 @@ export default function BookingsIndex({ bookings, statuses, filters }: BookingsI
               id="bookings-from"
               type="date"
               value={filters.from ?? ''}
-              onChange={(event) => reload({ from: event.target.value || undefined, page: undefined })}
+              onChange={(event) =>
+                reload({ from: event.target.value || undefined, page: undefined })
+              }
               className="w-40"
             />
           </div>

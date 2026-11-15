@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import * as React from 'react';
 
+import { formatWithRelative } from '@/lib/adminFormat';
 import { Badge } from '@/Components/ui/badge';
 import { Card, CardContent } from '@/Components/ui/card';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -119,7 +120,7 @@ export default function SecurityLog({ ready, types, type, topIps, events }: Secu
                       {events.map((event) => (
                         <tr key={event.id} className="border-border-soft border-t align-top">
                           <td className="p-3 whitespace-nowrap">
-                            {event.created_at ? new Date(event.created_at).toLocaleString() : '—'}
+                            {formatWithRelative(event.created_at)}
                           </td>
                           <td className="p-3">
                             <Badge variant={BAD.includes(event.type) ? 'destructive' : 'outline'}>

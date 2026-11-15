@@ -88,7 +88,12 @@ function Sidebar({
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const base = item.href.split('#')[0] ?? item.href;
-                const active = url.startsWith(base);
+                const path = url.split('?')[0] ?? url;
+                // Dashboard only on /admin itself; every other item on its own path or a sub-path.
+                const active =
+                  base === '/admin'
+                    ? path === '/admin'
+                    : path === base || path.startsWith(`${base}/`);
 
                 return (
                   <li key={item.href}>

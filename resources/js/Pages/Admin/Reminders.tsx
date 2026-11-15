@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ChevronDown, Copy, MessageCircle } from 'lucide-react';
 import * as React from 'react';
 
+import { formatWithRelative } from '@/lib/adminFormat';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -160,7 +161,7 @@ function WhatsAppCell({
 function SentLabel({ sent }: { sent: Sent | null }) {
   return sent ? (
     <span className="text-emerald-700">
-      Sent {sent.at}
+      Sent {formatWithRelative(sent.at)}
       {sent.by ? ` by ${sent.by}` : ''}
     </span>
   ) : (

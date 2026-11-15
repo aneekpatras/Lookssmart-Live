@@ -110,7 +110,7 @@ class RemindersController extends Controller
                 'status' => $booking->status,
                 'message' => $message,
                 'vars' => $vars,
-                'sent' => $log ? ['at' => $log->sent_at?->setTimezone(self::TZ)->format('D j M, g:i A'), 'by' => $log->sender?->name] : null,
+                'sent' => $log ? ['at' => $log->sent_at?->toIso8601String(), 'by' => $log->sender?->name] : null,
             ];
         })->values()->all();
     }
@@ -183,7 +183,7 @@ class RemindersController extends Controller
 
             foreach ($rows as &$row) {
                 $log = $logs[$row['customer_id']] ?? null;
-                $row['sent'] = $log ? ['at' => $log->sent_at?->setTimezone(self::TZ)->format('D j M, g:i A'), 'by' => $log->sender?->name] : null;
+                $row['sent'] = $log ? ['at' => $log->sent_at?->toIso8601String(), 'by' => $log->sender?->name] : null;
             }
             unset($row);
         }

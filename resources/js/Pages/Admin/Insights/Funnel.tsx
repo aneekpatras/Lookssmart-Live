@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import * as React from 'react';
 
+import { plural } from '@/lib/adminFormat';
 import { Card, CardContent } from '@/Components/ui/card';
 import AdminLayout from '@/Layouts/AdminLayout';
 
@@ -86,13 +87,13 @@ export default function Funnel({ ready, days, steps, top }: FunnelProps) {
                   <div key={step.key}>
                     <div className="flex justify-between text-sm">
                       <span>{step.label}</span>
-                      <span className="text-ink-muted">{step.sessions} sessions</span>
+                      <span className="text-ink-muted">{plural(step.sessions, 'session')}</span>
                     </div>
                     <progress
                       className="[&::-moz-progress-bar]:bg-accent-500 [&::-webkit-progress-bar]:bg-accent-50 [&::-webkit-progress-value]:bg-accent-500 mt-1 h-2 w-full overflow-hidden rounded-full"
                       value={step.sessions}
                       max={max}
-                      aria-label={`${step.label}: ${step.sessions} sessions`}
+                      aria-label={`${step.label}: ${plural(step.sessions, 'session')}`}
                     />
                   </div>
                 ))}
@@ -116,7 +117,7 @@ export default function Funnel({ ready, days, steps, top }: FunnelProps) {
                         {index + 1}. {row.name}{' '}
                         <span className="text-ink-muted text-xs">({row.kind})</span>
                       </span>
-                      <span className="text-ink-muted">{row.sessions} sessions</span>
+                      <span className="text-ink-muted">{plural(row.sessions, 'session')}</span>
                     </li>
                   ))}
                 </ol>

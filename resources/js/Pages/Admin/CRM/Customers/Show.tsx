@@ -3,6 +3,7 @@ import { ArrowLeft, Download } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 
+import { displayPhone } from '@/lib/phone';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -222,7 +223,7 @@ export default function CustomerShow({
               <h1 className="font-display text-ink text-2xl font-medium">{customer.name}</h1>
               <p className="text-ink-muted text-sm">
                 {customer.email ?? 'No email'}
-                {customer.phone ? ` · ${customer.phone}` : ''}
+                {customer.phone ? ` · ${displayPhone(customer.phone)}` : ''}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

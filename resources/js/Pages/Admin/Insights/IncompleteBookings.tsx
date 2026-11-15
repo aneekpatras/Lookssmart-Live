@@ -2,6 +2,8 @@ import { Head, router } from '@inertiajs/react';
 import { MessageCircle, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
+import { formatWithRelative } from '@/lib/adminFormat';
+import { displayPhone } from '@/lib/phone';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -63,13 +65,13 @@ export default function IncompleteBookings({ ready, rows }: { ready: boolean; ro
                 {rows.map((row) => (
                   <tr key={row.id} className="border-border-soft border-t align-top">
                     <td className="p-3">{row.name}</td>
-                    <td className="p-3 whitespace-nowrap">{row.phone}</td>
+                    <td className="p-3 whitespace-nowrap">{displayPhone(row.phone)}</td>
                     <td className="p-3">{row.services || '—'}</td>
                     <td className="p-3 whitespace-nowrap">
                       {row.total ? `Rs. ${Number(row.total).toLocaleString()}` : '—'}
                     </td>
                     <td className="p-3 whitespace-nowrap">
-                      {row.last_seen_at ? new Date(row.last_seen_at).toLocaleString() : '—'}
+                      {formatWithRelative(row.last_seen_at)}
                     </td>
                     <td className="p-3">
                       <Badge variant={statusVariant[row.status] ?? 'outline'}>{row.status}</Badge>

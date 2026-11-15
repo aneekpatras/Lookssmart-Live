@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 
+import { displayPhone } from '@/lib/phone';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -68,7 +69,10 @@ export default function BookingShow({ booking }: { booking: BookingDetail }) {
   const [busy, setBusy] = React.useState(false);
 
   function transition(status: string) {
-    const reason = status === 'cancelled' ? window.prompt('Reason for cancelling (optional):') ?? undefined : undefined;
+    const reason =
+      status === 'cancelled'
+        ? (window.prompt('Reason for cancelling (optional):') ?? undefined)
+        : undefined;
 
     setBusy(true);
     router.patch(
@@ -89,7 +93,10 @@ export default function BookingShow({ booking }: { booking: BookingDetail }) {
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <Link href="/admin/bookings" className="text-ink-muted inline-flex items-center gap-1 text-sm hover:underline">
+            <Link
+              href="/admin/bookings"
+              className="text-ink-muted inline-flex items-center gap-1 text-sm hover:underline"
+            >
               <ArrowLeft className="size-4" /> Back to bookings
             </Link>
             <h1 className="font-display text-ink mt-2 text-2xl font-medium">{booking.code}</h1>
@@ -104,14 +111,42 @@ export default function BookingShow({ booking }: { booking: BookingDetail }) {
                 <CardTitle>Appointment</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <p><span className="text-ink-muted">Customer:</span> {booking.customer_name ?? '—'}</p>
-                <p><span className="text-ink-muted">Staff:</span> {booking.staff_name ?? 'Any available'}</p>
-                <p><span className="text-ink-muted">When:</span> {booking.starts_at ? new Date(booking.starts_at).toLocaleString() : '—'}</p>
-                <p><span className="text-ink-muted">Source:</span> {booking.source ?? '—'}</p>
-                {booking.guest_email && <p><span className="text-ink-muted">Guest email:</span> {booking.guest_email}</p>}
-                {booking.guest_phone && <p><span className="text-ink-muted">Guest phone:</span> {booking.guest_phone}</p>}
-                {booking.notes && <p><span className="text-ink-muted">Notes:</span> {booking.notes}</p>}
-                {booking.cancellation_reason && <p><span className="text-ink-muted">Cancellation reason:</span> {booking.cancellation_reason}</p>}
+                <p>
+                  <span className="text-ink-muted">Customer:</span> {booking.customer_name ?? '—'}
+                </p>
+                <p>
+                  <span className="text-ink-muted">Staff:</span>{' '}
+                  {booking.staff_name ?? 'Any available'}
+                </p>
+                <p>
+                  <span className="text-ink-muted">When:</span>{' '}
+                  {booking.starts_at ? new Date(booking.starts_at).toLocaleString() : '—'}
+                </p>
+                <p>
+                  <span className="text-ink-muted">Source:</span> {booking.source ?? '—'}
+                </p>
+                {booking.guest_email && (
+                  <p>
+                    <span className="text-ink-muted">Guest email:</span> {booking.guest_email}
+                  </p>
+                )}
+                {booking.guest_phone && (
+                  <p>
+                    <span className="text-ink-muted">Guest phone:</span>{' '}
+                    {displayPhone(booking.guest_phone)}
+                  </p>
+                )}
+                {booking.notes && (
+                  <p>
+                    <span className="text-ink-muted">Notes:</span> {booking.notes}
+                  </p>
+                )}
+                {booking.cancellation_reason && (
+                  <p>
+                    <span className="text-ink-muted">Cancellation reason:</span>{' '}
+                    {booking.cancellation_reason}
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -155,7 +190,9 @@ export default function BookingShow({ booking }: { booking: BookingDetail }) {
                 <CardContent className="space-y-1 text-sm">
                   {booking.payments.map((payment) => (
                     <p key={payment.id} className="flex justify-between capitalize">
-                      <span>{payment.method.replace('_', ' ')} ({payment.status})</span>
+                      <span>
+                        {payment.method.replace('_', ' ')} ({payment.status})
+                      </span>
                       <span>{payment.amount}</span>
                     </p>
                   ))}
@@ -173,8 +210,10 @@ export default function BookingShow({ booking }: { booking: BookingDetail }) {
                 ) : (
                   booking.status_log.map((log, index) => (
                     <p key={index} className="text-ink-muted">
-                      <span className="text-ink capitalize">{log.from ?? 'created'} → {log.to.replace('_', ' ')}</span>
-                      {' '}by {log.changed_by}
+                      <span className="text-ink capitalize">
+                        {log.from ?? 'created'} → {log.to.replace('_', ' ')}
+                      </span>{' '}
+                      by {log.changed_by}
                       {log.created_at ? ` · ${new Date(log.created_at).toLocaleString()}` : ''}
                       {log.reason ? ` · "${log.reason}"` : ''}
                     </p>
@@ -193,7 +232,11 @@ export default function BookingShow({ booking }: { booking: BookingDetail }) {
                 const nextStatuses = NEXT_STATUSES[booking.status] ?? [];
 
                 if (nextStatuses.length === 0) {
-                  return <p className="text-ink-muted text-sm">No further actions — this booking is final.</p>;
+                  return (
+                    <p className="text-ink-muted text-sm">
+                      No further actions — this booking is final.
+                    </p>
+                  );
                 }
 
                 return nextStatuses.map((status) => (
