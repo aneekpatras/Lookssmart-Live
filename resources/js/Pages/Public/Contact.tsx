@@ -11,6 +11,8 @@ import { Card, CardContent } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { normalizePhone } from '@/lib/phone';
+import { saveContactDraft, trackingSessionId } from '@/lib/track';
 
 interface BusinessInfo {
   name: string | null;
@@ -132,13 +134,57 @@ export default function Contact({
     message: '',
     website: '', // Honeypot — kept empty by real users.
     rendered_at: renderedAt,
+    session_id: trackingSessionId(),
   });
+
+  // Draft: once the name and a valid phone are filled, save what has been typed about 2 seconds after the
+  // last change, and once more when the visitor leaves the page. Do Not Track sends nothing (lib/track.ts).
+  const draftRef = React.useRef({
+    name: '',
+    phone: '',
+    email: '',
+    subject: '',
+    message: '',
+    website: '',
+  });
+  const sentRef = React.useRef(false);
+  React.useEffect(() => {
+    draftRef.current = {
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      subject: data.subject,
+      message: data.message,
+      website: data.website,
+    };
+    if (sentRef.current || !data.name.trim() || !normalizePhone(data.phone)) return;
+    const timer = window.setTimeout(() => saveContactDraft(draftRef.current), 2000);
+    return () => window.clearTimeout(timer);
+  }, [data.name, data.phone, data.email, data.subject, data.message, data.website]);
+
+  React.useEffect(() => {
+    function flush() {
+      const draft = draftRef.current;
+      if (!sentRef.current && draft.name.trim() && normalizePhone(draft.phone))
+        saveContactDraft(draft);
+    }
+    function onVisibility() {
+      if (document.visibilityState === 'hidden') flush();
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, []);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     post('/contact', {
       preserveScroll: true,
       onSuccess: () => {
+        sentRef.current = true;
         setSubmitted(true);
         reset('name', 'phone', 'email', 'subject', 'message');
       },
@@ -359,6 +405,9 @@ export default function Contact({
                         {errors.phone}
                       </p>
                     )}
+                    <p className="text-ink-muted mt-1 text-xs">
+                      We may contact you on WhatsApp about this message.
+                    </p>
                   </div>
 
                   <div>
