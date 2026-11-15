@@ -232,7 +232,7 @@ class BookingController extends Controller
                     customerId: $request->user()?->id,
                     guestName: $data['guest_name'] ?? null,
                     guestEmail: $data['guest_email'] ?? null,
-                    guestPhone: $data['guest_phone'] ?? null,
+                    guestPhone: \App\Support\Phone::normalize($data['guest_phone'] ?? null),
                     notes: $notes !== '' ? $notes : null,
                 );
 

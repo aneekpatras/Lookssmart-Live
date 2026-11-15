@@ -66,3 +66,9 @@ it('answers a password reset request the same way for unknown and phone-only acc
     $this->from('/forgot-password')->post('/forgot-password', ['email' => 'nobody@example.com'])
         ->assertSessionHas('status', 'If an account with that email exists, we have sent a reset link.');
 });
+
+it('accepts an international number written with a plus sign', function () {
+    $this->post('/register', registerPayload(['phone' => '+44 7700 900123']))->assertSessionHasNoErrors();
+
+    expect(User::where('phone', '447700900123')->exists())->toBeTrue();
+});

@@ -438,7 +438,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         guest_name: form.name,
         guest_email: form.email.trim() || undefined,
-        guest_phone: normalizePhone(form.phone) ?? form.phone,
+        guest_phone: form.phone.trim(),
         website: form.website || undefined,
         subject: form.subject || undefined,
         notes: withLookNote(form.notes, look) || undefined,
@@ -494,7 +494,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
     const timer = window.setTimeout(() => {
       saveIncompleteBooking({
         name: name.slice(0, 100),
-        phone,
+        phone: form.phone.trim(),
         items: selectedServices.map((service) => ({
           id: service.id,
           name: service.name,

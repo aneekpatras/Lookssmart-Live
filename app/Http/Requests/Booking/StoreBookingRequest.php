@@ -17,7 +17,9 @@ class StoreBookingRequest extends BaseFormRequest
         // Store one format everywhere: digits with country code, no plus (invalid input is left as typed
         // so the rule above can reject it).
         $this->merge([
-            'guest_phone' => Phone::normalize((string) ($this->input('guest_phone') ?: $this->user()?->phone)) ?? ($this->input('guest_phone') ?: $this->user()?->phone),
+            // Validated as typed (a logged-in customer falls back to the number on the account);
+            // BookingController normalises it before it is stored.
+            'guest_phone' => $this->input('guest_phone') ?: ($this->user()?->phone ? '+' . $this->user()->phone : null),
             'guest_email' => filled($this->input('guest_email')) ? trim((string) $this->input('guest_email')) : null,
         ]);
     }

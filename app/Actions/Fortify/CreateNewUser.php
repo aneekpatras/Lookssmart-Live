@@ -20,18 +20,23 @@ class CreateNewUser implements CreatesNewUsers
     public function create(array $input): User
     {
         // One normalised phone format for the uniqueness check and for storage.
-        $phone = Phone::normalize($input['phone'] ?? null);
-        $input['phone'] = $phone ?? (filled($input['phone'] ?? null) ? $input['phone'] : null);
+        $input['phone'] = filled($input['phone'] ?? null) ? trim($input['phone']) : null;
         $input['email'] = filled($input['email'] ?? null) ? trim($input['email']) : null;
 
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
             // At least one of phone or email is required; both must be unique when given.
             'phone' => [
-                'nullable', 'string', 'max:30', 'required_without:email', 'unique:users,phone',
+                'nullable', 'string', 'max:30', 'required_without:email',
                 function ($attribute, $value, $fail) {
-                    if (filled($value) && ! Phone::isValid($value)) {
+                    if (! filled($value)) {
+                        return;
+                    }
+                    $normalised = Phone::normalize($value);
+                    if ($normalised === null) {
                         $fail(Phone::MESSAGE);
+                    } elseif (User::where('phone', $normalised)->exists()) {
+                        $fail('That number is already registered. Try logging in instead.');
                     }
                 },
             ],
@@ -40,7 +45,6 @@ class CreateNewUser implements CreatesNewUsers
         ], [
             'phone.required_without' => 'Enter your WhatsApp number or your email address.',
             'email.required_without' => 'Enter your WhatsApp number or your email address.',
-            'phone.unique' => 'That number is already registered. Try logging in instead.',
             'email.unique' => 'That email is already registered. Try logging in instead.',
         ])->validate();
 
@@ -48,7 +52,7 @@ class CreateNewUser implements CreatesNewUsers
             $user = User::create([
                 'name' => $input['name'],
                 'email' => $input['email'],
-                'phone' => $input['phone'],
+                'phone' => Phone::normalize($input['phone']),
                 'password' => Hash::make($input['password']),
             ]);
 
