@@ -47,7 +47,7 @@ class TrackController extends Controller
                     'event' => $data['event'],
                     'path' => isset($data['path']) ? Str::limit(strtok($data['path'], '?') ?: '', 255, '') : null,
                     'meta' => isset($data['meta']) ? array_intersect_key($data['meta'], ['kind' => 1, 'id' => 1]) : null,
-                    'ip' => $request->ip(),
+                    'ip' => \App\Support\ClientIp::get($request),
                     'user_agent' => Str::limit((string) $request->userAgent(), 250, ''),
                 ]);
 

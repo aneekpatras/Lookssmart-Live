@@ -24,7 +24,7 @@ class SecurityLog
 
             SecurityEvent::create([
                 'type' => $type,
-                'ip' => $request->ip(),
+                'ip' => ClientIp::get($request),
                 'user_agent' => Str::limit((string) $request->userAgent(), 250, ''),
                 'user_id' => $userId,
                 'subject' => $email ? self::mask($email) : null,
