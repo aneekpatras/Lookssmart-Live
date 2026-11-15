@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class IncompleteBooking extends Model
 {
-    protected $fillable = ['session_id', 'name', 'phone', 'items', 'total', 'status', 'last_seen_at'];
+    protected $fillable = ['session_id', 'name', 'phone', 'items', 'total', 'status', 'note', 'last_seen_at'];
 
     protected function casts(): array
     {

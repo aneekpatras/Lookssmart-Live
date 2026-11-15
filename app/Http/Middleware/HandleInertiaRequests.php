@@ -121,6 +121,9 @@ class HandleInertiaRequests extends Middleware
             ],
             // Same constants the server password rule uses: the register checklist reads these.
             'passwordPolicy' => PasswordPolicy::forFrontend(),
+            // Sidebar badge: rows with status "new" on the Follow-ups page (admin pages only; never public props).
+            'followUpsNew' => fn () => ($request->user() && $request->is('admin*') && $request->user()->can('bookings.manage'))
+                ? \App\Http\Controllers\Admin\FollowUpsController::newCount() : 0,
             // Floating WhatsApp popup (admin Settings > WhatsApp popup); defaults match the admin form.
             'wa_popup' => fn () => [
                 'enabled' => Setting::get('wa_popup.enabled') !== false,

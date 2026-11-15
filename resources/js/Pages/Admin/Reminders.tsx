@@ -4,10 +4,10 @@ import { ChevronDown, Copy, MessageCircle } from 'lucide-react';
 import * as React from 'react';
 
 import { formatWithRelative } from '@/lib/adminFormat';
+import { MessageTemplateEditor } from '@/Components/admin/MessageTemplateEditor';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
-import { Textarea } from '@/Components/ui/textarea';
 import AdminLayout from '@/Layouts/AdminLayout';
 
 interface Sent {
@@ -61,6 +61,8 @@ interface RemindersProps {
   appointments: AppointmentRow[];
   birthdays: { available: boolean; rows: BirthdayRow[] };
 }
+
+const PLACEHOLDERS = ['name', 'services', 'date', 'time', 'salon', 'address', 'phone'];
 
 const RANGES = [
   { id: 'today', label: 'Today' },
@@ -169,71 +171,6 @@ function SentLabel({ sent }: { sent: Sent | null }) {
   );
 }
 
-function TemplateEditor({
-  label,
-  keyName,
-  value,
-  defaultValue,
-  sampleVars,
-  shared,
-}: {
-  label: string;
-  keyName: 'reminder' | 'birthday';
-  value: string;
-  defaultValue: string;
-  sampleVars: Vars | undefined;
-  shared: RemindersProps['shared'];
-}) {
-  const [text, setText] = React.useState(value);
-
-  function save(next: string) {
-    router.post(
-      '/admin/reminders/templates',
-      { key: keyName, value: next },
-      { preserveScroll: true },
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <label htmlFor={`template-${keyName}`} className="text-sm font-medium">
-        {label}
-      </label>
-      <Textarea
-        id={`template-${keyName}`}
-        rows={4}
-        maxLength={600}
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-      />
-      <p className="text-ink-muted text-xs">
-        Placeholders: {'{name}'} {'{services}'} {'{date}'} {'{time}'} {'{salon}'} {'{address}'}{' '}
-        {'{phone}'}. Plain text, up to 600 characters ({text.length}).
-      </p>
-      <p className="bg-accent-50 rounded-md p-3 text-sm">
-        <span className="text-ink-muted block text-xs">Preview</span>
-        {fillPreview(text, sampleVars, shared)}
-      </p>
-      <div className="flex gap-2">
-        <Button type="button" size="sm" onClick={() => save(text)} disabled={text === value}>
-          Save template
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setText(defaultValue);
-            save('');
-          }}
-        >
-          Reset to default
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export default function Reminders({
   logsReady,
   range,
@@ -286,21 +223,25 @@ export default function Reminders({
             </button>
             {showTemplates && (
               <div className="mt-4 space-y-6">
-                <TemplateEditor
+                <MessageTemplateEditor
+                  id="template-reminder"
                   label="Appointment reminder"
-                  keyName="reminder"
                   value={templates.reminder}
                   defaultValue={templates.defaults.reminder}
-                  sampleVars={appointments[0]?.vars}
-                  shared={shared}
+                  saveUrl="/admin/reminders/templates"
+                  payloadKey="reminder"
+                  placeholders={PLACEHOLDERS}
+                  preview={(text) => fillPreview(text, appointments[0]?.vars, shared)}
                 />
-                <TemplateEditor
+                <MessageTemplateEditor
+                  id="template-birthday"
                   label="Birthday wish"
-                  keyName="birthday"
                   value={templates.birthday}
                   defaultValue={templates.defaults.birthday}
-                  sampleVars={birthdays.rows[0]?.vars}
-                  shared={shared}
+                  saveUrl="/admin/reminders/templates"
+                  payloadKey="birthday"
+                  placeholders={PLACEHOLDERS}
+                  preview={(text) => fillPreview(text, birthdays.rows[0]?.vars, shared)}
                 />
               </div>
             )}

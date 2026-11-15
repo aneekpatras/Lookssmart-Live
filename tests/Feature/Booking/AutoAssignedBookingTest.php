@@ -240,3 +240,23 @@ it('rejects a booking with a missing or invalid WhatsApp number', function () {
     $this->postJson('/api/booking', [...$base, 'guest_phone' => '12345'])->assertStatus(422)->assertJsonValidationErrors('guest_phone');
     $this->postJson('/api/booking', [...$base, 'guest_phone' => '03001234567', 'guest_email' => 'not-an-email'])->assertStatus(422)->assertJsonValidationErrors('guest_email');
 });
+
+it('marks matching follow-ups as booked when a booking is submitted with that phone', function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    seedAutoAssignSettings();
+    $day = CarbonImmutable::now('UTC')->addDay();
+    [, $service] = makeStaffPoolAndService($day->dayOfWeek, 1);
+    $quote = $this->postJson('/api/booking/quote', ['service_ids' => [$service->id]])->assertOk()->json();
+
+    \App\Models\IncompleteBooking::create(['session_id' => 'fu1123456789abcdef', 'name' => 'Draft', 'phone' => '923001234567', 'status' => 'new', 'last_seen_at' => now()]);
+    \App\Models\VisitorSession::create(['session_id' => 'fu1123456789abcdef', 'status' => 'new', 'last_seen_at' => now()]);
+
+    $this->postJson('/api/booking', [
+        'service_ids' => [$service->id], 'starts_at' => $day->setTime(9, 0)->toIso8601String(), 'timezone' => 'UTC',
+        'guest_name' => 'Draft', 'guest_phone' => '0300 1234567', 'session_id' => 'fu1123456789abcdef', 'quote' => $quote,
+    ])->assertCreated();
+
+    expect(\App\Models\IncompleteBooking::first()->status)->toBe('converted')
+        ->and(\App\Models\VisitorSession::first()->status)->toBe('booked')
+        ->and(\App\Models\VisitorSession::first()->phone)->toBe('923001234567');
+});

@@ -34,6 +34,8 @@ export interface AdminNavItem {
   icon: LucideIcon;
   /** Any one of these permissions is enough to see the item. `null` = always visible (e.g. Dashboard). */
   permissions: string[] | null;
+  /** Small count badge fed by a shared Inertia prop (see AdminLayout). */
+  badge?: 'followUps';
 }
 
 export interface AdminNavSection {
@@ -68,8 +70,9 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         permissions: ['bookings.manage'],
       },
       {
-        label: 'Incomplete bookings',
-        href: '/admin/incomplete-bookings',
+        label: 'Follow-ups',
+        href: '/admin/follow-ups',
+        badge: 'followUps',
         icon: PhoneCall,
         permissions: ['bookings.manage'],
       },

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DealController;
 use App\Http\Controllers\Admin\FaqController;
+use App\Http\Controllers\Admin\FollowUpsController;
 use App\Http\Controllers\Admin\GalleryCategoryController;
 use App\Http\Controllers\Admin\GalleryController;
 use App\Http\Controllers\Admin\HeroSliderController;
@@ -241,9 +242,14 @@ Route::prefix('admin')
 
         Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit-log');
         Route::get('/funnel', [InsightsController::class, 'funnel'])->name('funnel');
-        Route::get('/incomplete-bookings', [InsightsController::class, 'incomplete'])->name('incomplete-bookings');
-        Route::post('/incomplete-bookings/{incompleteBooking}/contacted', [InsightsController::class, 'markContacted'])->name('incomplete-bookings.contacted');
-        Route::delete('/incomplete-bookings/{incompleteBooking}', [InsightsController::class, 'destroyIncomplete'])->name('incomplete-bookings.destroy');
+        Route::get('/incomplete-bookings', fn () => redirect('/admin/follow-ups?tab=bookings'))->name('incomplete-bookings');
+        Route::get('/follow-ups', [FollowUpsController::class, 'index'])->name('follow-ups');
+        Route::get('/follow-ups/journey', [FollowUpsController::class, 'journey'])->name('follow-ups.journey');
+        Route::post('/follow-ups/templates', [FollowUpsController::class, 'saveTemplate'])->name('follow-ups.templates');
+        Route::patch('/follow-ups/{type}/{id}/status', [FollowUpsController::class, 'updateStatus'])->whereNumber('id')->name('follow-ups.status');
+        Route::patch('/follow-ups/{type}/{id}/note', [FollowUpsController::class, 'updateNote'])->whereNumber('id')->name('follow-ups.note');
+        Route::post('/follow-ups/{type}/{id}/contacted', [FollowUpsController::class, 'contacted'])->whereNumber('id')->name('follow-ups.contacted');
+        Route::delete('/follow-ups/{type}/{id}', [FollowUpsController::class, 'destroy'])->whereNumber('id')->name('follow-ups.destroy');
         Route::get('/security-log', [InsightsController::class, 'security'])->name('security-log');
         Route::get('/notification-logs', [NotificationLogController::class, 'index'])->name('notification-logs');
     });

@@ -91,6 +91,11 @@ class SettingService
         'reminder.template' => ['group' => 'reminder', 'type' => 'string'],
         'birthday.template' => ['group' => 'reminder', 'type' => 'string'],
 
+        // Follow-ups page: WhatsApp message templates (plain text, max 600).
+        'followup.booking_template' => ['group' => 'followup', 'type' => 'string'],
+        'followup.contact_template' => ['group' => 'followup', 'type' => 'string'],
+        'followup.cart_template' => ['group' => 'followup', 'type' => 'string'],
+
         'security.admin_ip_allowlist' => ['group' => 'security', 'type' => 'string'],
         'security.session_lifetime_minutes' => ['group' => 'security', 'type' => 'int'],
     ];

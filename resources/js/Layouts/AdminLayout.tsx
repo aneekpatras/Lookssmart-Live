@@ -62,7 +62,8 @@ function Sidebar({
   collapsed: boolean;
   permissions: readonly string[];
 }) {
-  const { url } = usePage();
+  const { url, props } = usePage<{ [key: string]: unknown; followUpsNew?: number }>();
+  const followUpsNew = props.followUpsNew ?? 0;
   const sections = visibleAdminNavSections(permissions);
 
   return (
@@ -108,6 +109,11 @@ function Sidebar({
                     >
                       <Icon className="size-4 shrink-0" />
                       {!collapsed && item.label}
+                      {!collapsed && item.badge === 'followUps' && followUpsNew > 0 && (
+                        <span className="bg-accent-500 text-ivory ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
+                          {followUpsNew > 99 ? '99+' : followUpsNew}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );
