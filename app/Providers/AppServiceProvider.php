@@ -107,6 +107,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('track', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
+        RateLimiter::for('track-contact', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
         RateLimiter::for('track-incomplete', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
 
         RateLimiter::for('contact', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));

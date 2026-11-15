@@ -194,6 +194,8 @@ class BookingController extends Controller
         );
         $startsAt = CarbonImmutable::parse($data['starts_at'], $data['timezone'])->setTimezone('UTC');
 
+        $guestPhoneNormalised = \App\Support\Phone::normalize($data['guest_phone'] ?? null);
+
         $slot = $availabilityEngine->getSlots($data['service_ids'], $startsAt->toDateString(), $data['timezone'])
             ->firstWhere('starts_at', $startsAt->toIso8601String());
 
@@ -232,7 +234,7 @@ class BookingController extends Controller
                     customerId: $request->user()?->id,
                     guestName: $data['guest_name'] ?? null,
                     guestEmail: $data['guest_email'] ?? null,
-                    guestPhone: \App\Support\Phone::normalize($data['guest_phone'] ?? null),
+                    guestPhone: $guestPhoneNormalised,
                     notes: $notes !== '' ? $notes : null,
                 );
 
@@ -240,6 +242,12 @@ class BookingController extends Controller
                 // count — the ephemeral database-backed claim has done its job of blocking concurrent checkouts
                 // during this request and can be released immediately rather than waiting out its TTL.
                 $slotHoldService->releaseCapacitySeat($startsAt, $capacitySeat);
+
+                // Close matching follow-ups (incomplete booking, contact draft, visitor session) for this phone.
+                $sid = (string) $request->input('session_id');
+                $sid = preg_match('/^[A-Za-z0-9_-]{8,64}$/', $sid) ? $sid : null;
+                \App\Support\FollowUps::linkIdentity($sid, $data['guest_name'] ?? null, $guestPhoneNormalised, $request->user()?->id);
+                \App\Support\FollowUps::markBooked($guestPhoneNormalised, $sid);
 
                 return response()->json([
                     'code' => $booking->code,

@@ -81,3 +81,77 @@ export interface IncompleteBookingPayload {
 export function saveIncompleteBooking(payload: IncompleteBookingPayload): void {
   send('/track/incomplete', { session_id: trackingSessionId(), ...payload });
 }
+
+/** Sends session details once per browser session: screen, language, timezone, referrer host, utm and landing path. */
+export function trackSessionStart(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.sessionStorage.getItem('ls_ss') === '1') return;
+    window.sessionStorage.setItem('ls_ss', '1');
+  } catch {
+    // storage blocked: send anyway, the server upserts
+  }
+
+  let referrerHost = '';
+  try {
+    const host = document.referrer ? new URL(document.referrer).hostname : '';
+    referrerHost = host && host !== window.location.hostname ? host : '';
+  } catch {
+    referrerHost = '';
+  }
+  const params = new URLSearchParams(window.location.search);
+
+  send('/track', {
+    session_id: trackingSessionId(),
+    event: 'session_start',
+    path: window.location.pathname,
+    screen: `${window.screen.width}x${window.screen.height}`,
+    language: (navigator.language || '').slice(0, 12),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    referrer_host: referrerHost || undefined,
+    utm_source: params.get('utm_source')?.slice(0, 60) || undefined,
+    utm_medium: params.get('utm_medium')?.slice(0, 60) || undefined,
+    utm_campaign: params.get('utm_campaign')?.slice(0, 60) || undefined,
+  });
+}
+
+/** One page view (path only). The server keeps at most 25 per session per day. */
+export function trackPageView(): void {
+  send('/track', {
+    session_id: trackingSessionId(),
+    event: 'page_view',
+    path: window.location.pathname,
+  });
+}
+
+export interface CartSnapshotItem {
+  id: number;
+  name: string;
+  type: 'service' | 'deal';
+  price: number;
+}
+
+/** Current cart for the follow-up lists: names, ids, types and prices only. An empty cart clears it. */
+export function syncCartSnapshot(items: CartSnapshotItem[]): void {
+  const capped = items.slice(0, 40).map((item) => ({ ...item, name: item.name.slice(0, 120) }));
+  send('/track', {
+    session_id: trackingSessionId(),
+    event: 'cart_update',
+    path: window.location.pathname,
+    cart: { items: capped, total: capped.reduce((sum, item) => sum + item.price, 0) },
+  });
+}
+
+export interface ContactDraftPayload {
+  name: string;
+  phone: string;
+  email: string;
+  subject: string;
+  message: string;
+  website: string;
+}
+
+/** Contact form draft (name and a valid phone are filled). Uses keepalive so a final save survives leaving. */
+export function saveContactDraft(payload: ContactDraftPayload): void {
+  send('/track/contact', { session_id: trackingSessionId(), ...payload });
+}

@@ -48,6 +48,7 @@ Route::post('/contact', [PublicWebsiteController::class, 'submitContact'])
 // Anonymous funnel events and incomplete-booking capture (CSRF-protected, throttled, whitelisted).
 Route::post('/track', [\App\Http\Controllers\TrackController::class, 'event'])->middleware('throttle:track')->name('track');
 Route::post('/track/incomplete', [\App\Http\Controllers\TrackController::class, 'incomplete'])->middleware('throttle:track-incomplete')->name('track.incomplete');
+Route::post('/track/contact', [\App\Http\Controllers\TrackController::class, 'contact'])->middleware('throttle:track-contact')->name('track.contact');
 Route::post('/reviews', [PublicWebsiteController::class, 'submitReview'])
     ->middleware('throttle:review')
     ->name('reviews.submit');

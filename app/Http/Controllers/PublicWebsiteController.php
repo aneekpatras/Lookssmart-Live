@@ -591,6 +591,8 @@ class PublicWebsiteController extends Controller
             return back()->with('success', 'Thanks for reaching out — we will be in touch shortly.');
         }
 
+        \App\Support\FollowUps::markContactSent((string) $request->input('session_id'));
+
         $lead = Lead::create([
             'name' => $data['name'],
             'email' => $data['email'] ?? null,

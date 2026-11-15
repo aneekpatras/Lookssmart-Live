@@ -27,6 +27,7 @@ import { HeaderUserMenu } from '@/Components/HeaderUserMenu';
 import { NavigationProgressOverlay } from '@/Components/NavigationProgressOverlay';
 import { SmoothScroll } from '@/Components/SmoothScroll';
 import { WhatsAppButton } from '@/Components/WhatsAppButton';
+import { VisitorTracker } from '@/Components/VisitorTracker';
 import { StickyMobileBar } from '@/Components/StickyMobileBar';
 import { WhatsAppPopup } from '@/Components/WhatsAppPopup';
 import { useRegisterOverlay } from '@/lib/overlay';
@@ -430,6 +431,7 @@ export default function PublicLayout({
         <WhatsAppButton />
         <WhatsAppPopup />
         <StickyMobileBar />
+        <VisitorTracker />
       </div>
     </SmoothScroll>
   );

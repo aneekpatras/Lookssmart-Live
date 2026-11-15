@@ -5,7 +5,7 @@ import * as React from 'react';
 
 import { Honeypot } from '@/Components/auth/AuthFields';
 import { PHONE_MESSAGE, displayPhone, normalizePhone } from '@/lib/phone';
-import { saveIncompleteBooking, track } from '@/lib/track';
+import { saveIncompleteBooking, track, trackingSessionId } from '@/lib/track';
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { LoadingDots } from '@/Components/LoadingDots';
 import { SeoHead } from '@/Components/SeoHead';
@@ -440,6 +440,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
         guest_email: form.email.trim() || undefined,
         guest_phone: form.phone.trim(),
         website: form.website || undefined,
+        session_id: trackingSessionId(),
         subject: form.subject || undefined,
         notes: withLookNote(form.notes, look) || undefined,
         quote: quoteResponse.data,
