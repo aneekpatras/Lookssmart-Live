@@ -255,6 +255,39 @@ class SeoService
     }
 
     /**
+     * The public 404 page: noindex,follow, no canonical, no structured data, and a crawlable H1, text and
+     * links (Home, Services, Deals, Gallery, FAQs, Contact) in the raw HTML. Never listed in the sitemap.
+     *
+     * @return array<string, mixed>
+     */
+    public function notFound(): array
+    {
+        $intro = "The link may be old, or the page may have moved. Let's get you back to something beautiful.";
+        $seo = $this->page('Page not found', $intro, url('/'), "This page isn't here", [
+            'robots' => 'noindex,follow',
+            'intro' => $intro,
+            'links' => [
+                ['label' => 'Home', 'url' => url('/')],
+                ['label' => 'Services', 'url' => url('/services')],
+                ['label' => 'Deals', 'url' => url('/deals')],
+                ['label' => 'Gallery', 'url' => url('/gallery')],
+                ['label' => 'FAQs', 'url' => url('/faqs')],
+                ['label' => 'Contact', 'url' => url('/contact')],
+            ],
+        ]);
+
+        $seo['fullTitle'] = 'Page not found | Looks Smart Beauty Salon';
+        $seo['canonical'] = '';
+        $seo['jsonLd'] = [];
+        $seo['meta'] = [
+            ['attr' => 'name', 'key' => 'description', 'content' => $seo['description']],
+            ['attr' => 'name', 'key' => 'robots', 'content' => 'noindex,follow'],
+        ];
+
+        return $seo;
+    }
+
+    /**
      * The /faqs page. `$items` are the already-resolved FaqData items, so the raw HTML, the visible page
      * and the FAQPage schema all carry the same text. FAQPage schema is emitted here and nowhere else.
      *

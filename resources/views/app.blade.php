@@ -29,7 +29,9 @@
     plain site-name title and no extra tags. --}}
     <title>{{ $seoMeta['fullTitle'] ?? config('app.name', 'Looks Smart Beauty Salon') }}</title>
     @isset($seoMeta)
+    @if (! empty($seoMeta['canonical']))
     <link rel="canonical" href="{{ $seoMeta['canonical'] }}" data-inertia="canonical">
+    @endif
     @foreach ($seoMeta['meta'] as $seoTag)
     <meta {{ $seoTag['attr'] }}="{{ $seoTag['key'] }}" content="{{ $seoTag['content'] }}" data-inertia="{{ $seoTag['key'] }}">
     @endforeach

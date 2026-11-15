@@ -93,3 +93,7 @@ if (app()->environment('local')) {
 require __DIR__ . '/auth.php';
 require __DIR__ . '/admin.php';
 require __DIR__ . '/booking.php';
+
+// Unknown public URLs: run through the web middleware group (so shared props like the footer data exist),
+// then answer with the real 404 page (see bootstrap/app.php). Never a redirect.
+Route::fallback(fn () => abort(404));

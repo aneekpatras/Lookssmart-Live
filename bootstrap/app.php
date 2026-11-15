@@ -86,6 +86,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->respond(function (Response $response, Throwable $e, Request $request) {
             $status = $response->getStatusCode();
 
+            // Public 404: the branded page with a REAL 404 status (never a redirect). JSON/API requests and
+            // /admin* keep their existing behaviour; 403, 419, 500 and 503 are untouched.
+            if ($status === 404 && ! $request->expectsJson() && ! $request->is('admin', 'admin/*') && in_array($request->method(), ['GET', 'HEAD'], true)) {
+                $seo = app(\App\Services\SeoService::class)->notFound();
+
+                $notFound = Inertia::render('Errors/NotFound', ['seoMeta' => \Illuminate\Support\Arr::only($seo, ['title', 'fullTitle', 'canonical', 'meta'])])
+                    ->withViewData(['seoMeta' => $seo])
+                    ->toResponse($request)
+                    ->setStatusCode(404);
+
+                if (! $notFound->headers->has('Content-Security-Policy')) {
+                    SecurityHeaders::apply($notFound, Str::random(32), $request->secure());
+                }
+
+                return $notFound;
+            }
+
             if ($request->header('X-Inertia') && ! app()->environment('testing') && in_array($status, [403, 404, 419, 500, 503], true)) {
                 $page = match (true) {
                     $status === 503 => '500',
