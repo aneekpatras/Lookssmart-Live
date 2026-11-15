@@ -19,7 +19,7 @@ interface PageProps {
     user: {
       id: number;
       name: string;
-      email: string;
+      email: string | null;
       email_verified: boolean;
       two_factor_enabled: boolean;
     };
@@ -54,7 +54,7 @@ function ProfileForm() {
   const { props } = usePage<PageProps>();
   const { data, setData, put, processing, errors, recentlySuccessful } = useForm({
     name: props.auth.user.name,
-    email: props.auth.user.email,
+    email: props.auth.user.email ?? '',
   });
 
   function submit(e: React.FormEvent) {
@@ -70,7 +70,7 @@ function ProfileForm() {
         {errors.name ? <p className="text-sm text-red-600">{errors.name}</p> : null}
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">Email (optional)</Label>
         <Input
           id="email"
           type="email"
@@ -78,7 +78,7 @@ function ProfileForm() {
           onChange={(e) => setData('email', e.target.value)}
         />
         {errors.email ? <p className="text-sm text-red-600">{errors.email}</p> : null}
-        {!props.auth.user.email_verified ? (
+        {props.auth.user.email && !props.auth.user.email_verified ? (
           <p className="text-xs text-amber-600">
             Your email is not verified.{' '}
             <button
@@ -167,7 +167,7 @@ function PreferencesForm({ profile }: { profile: Preferences }) {
     put('/my-account/preferences');
   }
 
-  return <form onSubmit={submit} className="space-y-4"><div className="space-y-1.5"><Label htmlFor="phone">Phone</Label><Input id="phone" type="tel" value={data.phone ?? ''} onChange={(event) => setData('phone', event.target.value)} /></div><label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={data.marketing_opt_in} onChange={(event) => setData('marketing_opt_in', event.target.checked)} /> Receive occasional salon offers</label><p className="text-ink-muted text-xs">Service reminders remain available separately from marketing preferences.</p><div className="grid gap-3 sm:grid-cols-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={data.email_opt_out} onChange={(event) => setData('email_opt_out', event.target.checked)} /> Email opt-out</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={data.sms_opt_out} onChange={(event) => setData('sms_opt_out', event.target.checked)} /> SMS opt-out</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={data.whatsapp_opt_out} onChange={(event) => setData('whatsapp_opt_out', event.target.checked)} /> WhatsApp opt-out</label></div><div className="flex items-center gap-3"><Button type="submit" disabled={processing}>Save preferences</Button>{recentlySuccessful && <span className="text-sm text-emerald-600">Saved.</span>}</div></form>;
+  return <form onSubmit={submit} className="space-y-4"><div className="space-y-1.5"><Label htmlFor="phone">WhatsApp number</Label><Input id="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="03XX XXXXXXX" value={data.phone ?? ''} onChange={(event) => setData('phone', event.target.value)} /></div><label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={data.marketing_opt_in} onChange={(event) => setData('marketing_opt_in', event.target.checked)} /> Receive occasional salon offers</label><p className="text-ink-muted text-xs">Service reminders remain available separately from marketing preferences.</p><div className="grid gap-3 sm:grid-cols-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={data.email_opt_out} onChange={(event) => setData('email_opt_out', event.target.checked)} /> Email opt-out</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={data.sms_opt_out} onChange={(event) => setData('sms_opt_out', event.target.checked)} /> SMS opt-out</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={data.whatsapp_opt_out} onChange={(event) => setData('whatsapp_opt_out', event.target.checked)} /> WhatsApp opt-out</label></div><div className="flex items-center gap-3"><Button type="submit" disabled={processing}>Save preferences</Button>{recentlySuccessful && <span className="text-sm text-emerald-600">Saved.</span>}</div></form>;
 }
 
 function BookingRow({ booking }: { booking: Booking }) {
@@ -213,7 +213,7 @@ export default function Profile() {
           <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
-            <CardDescription>Update your name and email address.</CardDescription>
+            <CardDescription>Update your name and email address. Your account needs a WhatsApp number or an email, or both.</CardDescription>
           </CardHeader>
           <CardContent>
             <ProfileForm />

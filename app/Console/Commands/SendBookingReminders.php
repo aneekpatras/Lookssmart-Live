@@ -41,7 +41,7 @@ class SendBookingReminders extends Command
                         $customer = $booking->customer;
                         $key = "booking-reminder:{$booking->id}:{$rule->id}";
 
-                        if (! $customer || ! $this->claim($key, $customer->email)) {
+                        if (! $customer || ! $this->claim($key, $customer->email ?? $customer->phone ?? ("user#" . $customer->id))) {
                             return;
                         }
 

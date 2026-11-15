@@ -46,6 +46,7 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'phone' => $user->phone,
                     'email_verified' => $user->hasVerifiedEmail(),
                     'two_factor_enabled' => (bool) $user->two_factor_confirmed_at,
                     'roles' => $user->getRoleNames(),

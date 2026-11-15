@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { CalendarCheck, LogOut, Settings, UserRound } from 'lucide-react';
 
+import { displayPhone } from '@/lib/phone';
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import {
   DropdownMenu,
@@ -12,7 +13,7 @@ import {
 } from '@/Components/ui/dropdown-menu';
 
 interface HeaderUserMenuProps {
-  user: { name: string; email: string } | null;
+  user: { name: string; email: string | null; phone?: string | null } | null;
 }
 
 function initials(name: string): string {
@@ -57,7 +58,7 @@ export function HeaderUserMenu({ user }: HeaderUserMenuProps) {
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
           <span className="text-ink text-sm font-medium">{user.name}</span>
-          <span className="text-ink-muted text-xs">{user.email}</span>
+          <span className="text-ink-muted text-xs">{user.email ?? displayPhone(user.phone)}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

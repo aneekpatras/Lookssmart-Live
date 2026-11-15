@@ -30,7 +30,7 @@ interface RedemptionEntry {
 interface CustomerDetail {
   id: number;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   created_at: string | null;
 }
@@ -90,7 +90,10 @@ function ActivityTimeline({ timeline }: { timeline: TimelineEntry[] }) {
   return (
     <ul className="space-y-3">
       {timeline.map((entry, index) => (
-        <li key={index} className="border-border-soft flex items-start justify-between gap-4 border-b pb-3">
+        <li
+          key={index}
+          className="border-border-soft flex items-start justify-between gap-4 border-b pb-3"
+        >
           <div>
             <Badge variant="outline" className="mb-1">
               {TYPE_LABEL[entry.type]}
@@ -106,7 +109,13 @@ function ActivityTimeline({ timeline }: { timeline: TimelineEntry[] }) {
   );
 }
 
-function PreferencesAndNotes({ customerId, profile }: { customerId: number; profile: ProfileData }) {
+function PreferencesAndNotes({
+  customerId,
+  profile,
+}: {
+  customerId: number;
+  profile: ProfileData;
+}) {
   const { data, setData, patch, processing } = useForm({
     notes: profile.notes ?? '',
     tags: profile.tags,
@@ -114,7 +123,10 @@ function PreferencesAndNotes({ customerId, profile }: { customerId: number; prof
   });
 
   function toggleTag(tag: string) {
-    setData('tags', data.tags.includes(tag) ? data.tags.filter((t) => t !== tag) : [...data.tags, tag]);
+    setData(
+      'tags',
+      data.tags.includes(tag) ? data.tags.filter((t) => t !== tag) : [...data.tags, tag],
+    );
   }
 
   function submit(event: React.FormEvent) {
@@ -176,7 +188,13 @@ function PreferencesAndNotes({ customerId, profile }: { customerId: number; prof
   );
 }
 
-export default function CustomerShow({ customer, stats, profile, timeline, redemptions }: CustomerShowPageProps) {
+export default function CustomerShow({
+  customer,
+  stats,
+  profile,
+  timeline,
+  redemptions,
+}: CustomerShowPageProps) {
   const [tab, setTab] = React.useState<'timeline' | 'preferences'>('timeline');
 
   return (
@@ -203,26 +221,35 @@ export default function CustomerShow({ customer, stats, profile, timeline, redem
             <div>
               <h1 className="font-display text-ink text-2xl font-medium">{customer.name}</h1>
               <p className="text-ink-muted text-sm">
-                {customer.email}
+                {customer.email ?? 'No email'}
                 {customer.phone ? ` · ${customer.phone}` : ''}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatCard label="Lifetime value" value={formatCurrency(stats.ltv)} />
               <StatCard label="Visits" value={stats.completed_appointments} />
-              <StatCard label="Avg. rating" value={stats.average_rating > 0 ? `${stats.average_rating} / 5` : '—'} />
+              <StatCard
+                label="Avg. rating"
+                value={stats.average_rating > 0 ? `${stats.average_rating} / 5` : '—'}
+              />
               <StatCard label="Loyalty points" value={stats.loyalty_points} />
             </div>
             <div className="text-ink-muted flex flex-wrap gap-4 text-sm">
               <span>{stats.total_appointments} total appointments</span>
               <span>{stats.no_show_count} no-shows</span>
               <span>{stats.cancelled_count} cancelled</span>
-              <span>{redemptions.length} coupon redemption{redemptions.length === 1 ? '' : 's'}</span>
+              <span>
+                {redemptions.length} coupon redemption{redemptions.length === 1 ? '' : 's'}
+              </span>
             </div>
           </CardContent>
         </Card>
 
-        <div role="tablist" aria-label="Customer sections" className="border-border-soft flex gap-1 border-b pb-px">
+        <div
+          role="tablist"
+          aria-label="Customer sections"
+          className="border-border-soft flex gap-1 border-b pb-px"
+        >
           <button
             type="button"
             role="tab"
@@ -230,7 +257,9 @@ export default function CustomerShow({ customer, stats, profile, timeline, redem
             onClick={() => setTab('timeline')}
             className={cn(
               'rounded-t-md px-4 py-2 text-sm font-medium',
-              tab === 'timeline' ? 'border-accent-500 text-accent-700 border-b-2' : 'text-ink-muted hover:text-ink',
+              tab === 'timeline'
+                ? 'border-accent-500 text-accent-700 border-b-2'
+                : 'text-ink-muted hover:text-ink',
             )}
           >
             Activity Timeline
@@ -242,7 +271,9 @@ export default function CustomerShow({ customer, stats, profile, timeline, redem
             onClick={() => setTab('preferences')}
             className={cn(
               'rounded-t-md px-4 py-2 text-sm font-medium',
-              tab === 'preferences' ? 'border-accent-500 text-accent-700 border-b-2' : 'text-ink-muted hover:text-ink',
+              tab === 'preferences'
+                ? 'border-accent-500 text-accent-700 border-b-2'
+                : 'text-ink-muted hover:text-ink',
             )}
           >
             Preferences &amp; Notes

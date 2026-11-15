@@ -11,7 +11,7 @@ import { formatCurrency } from '@/lib/currency';
 interface CustomerRow {
   id: number;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   ltv: string;
   visits: number;
@@ -25,7 +25,6 @@ interface CustomersIndexPageProps {
   customers: CustomerRow[];
   filters: { search: string | null; tag: string | null };
 }
-
 
 export default function CustomersIndex({ customers, filters }: CustomersIndexPageProps) {
   const [search, setSearch] = React.useState(filters.search ?? '');
@@ -45,7 +44,9 @@ export default function CustomersIndex({ customers, filters }: CustomersIndexPag
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-ink text-2xl font-medium">Customers</h1>
-          <p className="text-ink-muted text-sm">Lifetime value, visit history, and loyalty at a glance.</p>
+          <p className="text-ink-muted text-sm">
+            Lifetime value, visit history, and loyalty at a glance.
+          </p>
         </div>
 
         <form onSubmit={submit} className="flex items-end gap-2">
@@ -82,7 +83,7 @@ export default function CustomersIndex({ customers, filters }: CustomersIndexPag
                 <tr key={customer.id} className="hover:bg-accent-50/40">
                   <td className="p-3">
                     <p className="font-medium">{customer.name}</p>
-                    <p className="text-ink-muted text-xs">{customer.email}</p>
+                    <p className="text-ink-muted text-xs">{customer.email ?? 'No email'}</p>
                   </td>
                   <td className="p-3">{formatCurrency(customer.ltv)}</td>
                   <td className="p-3">{customer.visits}</td>

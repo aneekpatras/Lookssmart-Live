@@ -37,6 +37,10 @@ class SecurityLog
     public static function mask(string $email): string
     {
         $email = trim($email);
+
+        if (! str_contains($email, '@') && preg_match('/\d{7}/', $email)) {
+            return Phone::mask(Phone::normalize($email) ?? $email);
+        }
         [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
 
         if ($domain === '') {

@@ -34,7 +34,7 @@ it('updates the authenticated customer phone and notification preferences', func
         'whatsapp_opt_out' => false,
     ])->assertRedirect();
 
-    expect($customer->fresh()->phone)->toBe('+15551234567')
+    expect($customer->fresh()->phone)->toBe('15551234567')
         ->and($customer->customerProfile->fresh()->marketing_opt_in)->toBeTrue()
         ->and($customer->customerProfile->fresh()->sms_opt_out)->toBeTrue();
 });

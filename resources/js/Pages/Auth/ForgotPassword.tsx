@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, usePage, useForm } from '@inertiajs/react';
 import * as React from 'react';
 
 import { Button } from '@/Components/ui/button';
@@ -8,6 +8,7 @@ import { LoadingDots } from '@/Components/LoadingDots';
 import AuthLayout from '@/Layouts/AuthLayout';
 
 export default function ForgotPassword({ status }: { status?: string }) {
+  const { site } = usePage<{ [key: string]: unknown; site: { whatsapp_url: string } }>().props;
   const { data, setData, post, processing, errors } = useForm({ email: '' });
 
   function submit(e: React.FormEvent) {
@@ -48,6 +49,18 @@ export default function ForgotPassword({ status }: { status?: string }) {
           {processing ? <LoadingDots dotClassName="size-1.5" /> : 'Email password reset link'}
         </Button>
       </form>
+
+      <p className="text-ink-muted mt-5 text-sm">
+        This account has no email? Message us on WhatsApp and we will help you reset your password.{' '}
+        <a
+          href={site.whatsapp_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent-700 font-medium hover:underline"
+        >
+          Open WhatsApp
+        </a>
+      </p>
     </>
   );
 }

@@ -11,6 +11,7 @@ import {
   useErrorToken,
 } from '@/Components/auth/AuthFields';
 import { Input } from '@/Components/ui/input';
+import { PHONE_MESSAGE, normalizePhone } from '@/lib/phone';
 import { Label } from '@/Components/ui/label';
 import AuthLayout from '@/Layouts/AuthLayout';
 
@@ -18,6 +19,7 @@ export default function Register() {
   // No remember key on this form: passwords are never kept in Inertia's form history.
   const { data, setData, post, processing, errors, reset } = useForm({
     name: '',
+    phone: '',
     email: '',
     password: '',
     password_confirmation: '',
@@ -63,7 +65,38 @@ export default function Register() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="phone">WhatsApp number</Label>
+          <div
+            key={errors.phone ? `phone-${token}` : 'phone'}
+            className={shakeClass(errors.phone, token)}
+          >
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="03XX XXXXXXX"
+              value={data.phone}
+              onChange={(e) => setData('phone', e.target.value)}
+              aria-invalid={!!errors.phone || (data.phone !== '' && !normalizePhone(data.phone))}
+            />
+          </div>
+          {errors.phone ? (
+            <p className="text-sm text-red-600">{errors.phone}</p>
+          ) : data.phone !== '' && !normalizePhone(data.phone) ? (
+            <p className="text-sm text-red-600">{PHONE_MESSAGE}</p>
+          ) : (
+            <p className="text-ink-muted text-xs">
+              Recommended. Add a phone number, an email, or both.
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email">
+            Email <span className="text-ink-muted font-normal">(optional)</span>
+          </Label>
           <div
             key={errors.email ? `email-${token}` : 'email'}
             className={shakeClass(errors.email, token)}
@@ -76,7 +109,6 @@ export default function Register() {
               value={data.email}
               onChange={(e) => setData('email', e.target.value)}
               aria-invalid={!!errors.email}
-              required
             />
           </div>
           {errors.email ? <p className="text-sm text-red-600">{errors.email}</p> : null}

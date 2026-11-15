@@ -39,7 +39,7 @@ class RequestBookingReviews extends Command
                         $customer = $booking->customer;
                         $key = "booking-review:{$booking->id}:{$rule->id}";
 
-                        if (! $customer || ! $this->claim($key, $customer->email)) {
+                        if (! $customer || ! $this->claim($key, $customer->email ?? $customer->phone ?? ("user#" . $customer->id))) {
                             return;
                         }
 

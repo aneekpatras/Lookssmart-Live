@@ -14,12 +14,20 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
      */
     public function update(User $user, array $input): void
     {
+        $input['email'] = filled($input['email'] ?? null) ? trim($input['email']) : null;
+
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            // Optional for phone accounts, but an account can never end up with neither phone nor email.
+            'email' => [
+                filled($user->phone) ? 'nullable' : 'required', 'string', 'email', 'max:255',
+                'unique:users,email,' . $user->id,
+            ],
+        ], [
+            'email.required' => 'Keep an email or add a WhatsApp number first: an account needs at least one.',
         ])->validate();
 
-        if ($input['email'] !== $user->email && $user instanceof MustVerifyEmail) {
+        if ($input['email'] !== $user->email && $input['email'] !== null && $user instanceof MustVerifyEmail) {
             $this->updateVerifiedUser($user, $input);
 
             return;

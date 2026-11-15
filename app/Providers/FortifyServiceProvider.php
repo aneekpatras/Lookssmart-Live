@@ -6,7 +6,13 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
+use App\Http\Responses\GenericResetLinkResponse;
 use App\Http\Responses\LoginResponse;
+use App\Models\User;
+use App\Support\Phone;
+use Illuminate\Support\Facades\Hash;
+use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Contracts\SuccessfulPasswordResetLinkRequestResponse;
 use App\Http\Responses\LogoutResponse;
 use App\Http\Responses\TwoFactorLoginResponse;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -24,6 +30,8 @@ class FortifyServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
+        $this->app->singleton(FailedPasswordResetLinkRequestResponse::class, GenericResetLinkResponse::class);
+        $this->app->singleton(SuccessfulPasswordResetLinkRequestResponse::class, GenericResetLinkResponse::class);
         $this->app->singleton(LogoutResponseContract::class, LogoutResponse::class);
         $this->app->singleton(TwoFactorLoginResponseContract::class, TwoFactorLoginResponse::class);
     }
@@ -34,6 +42,24 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+
+        // One login field: an email (contains "@") or a phone number, normalised to digits with country code.
+        // The input is still posted as "email" so the form, throttling and error keys stay the same.
+        Fortify::authenticateUsing(function (Request $request) {
+            $identifier = trim((string) $request->input(Fortify::username()));
+            $password = (string) $request->input('password');
+
+            $user = str_contains($identifier, '@')
+                ? User::where('email', $identifier)->first()
+                : (($phone = Phone::normalize($identifier)) ? User::where('phone', $phone)->first() : null);
+
+            // The same generic failure whether or not the account exists.
+            if ($user && Hash::check($password, $user->password)) {
+                return $user;
+            }
+
+            return null;
+        });
 
         Fortify::loginView(function (Request $request) {
             // The header's login link passes the page the visitor was on; send them back there after
@@ -58,9 +84,10 @@ class FortifyServiceProvider extends ServiceProvider
 
         // 5 login attempts per minute per email+IP.
         RateLimiter::for('login', function (Request $request) {
-            $email = (string) $request->input(Fortify::username());
+            $identifier = trim((string) $request->input(Fortify::username()));
+            $key = str_contains($identifier, '@') ? mb_strtolower($identifier) : (Phone::normalize($identifier) ?? $identifier);
 
-            return Limit::perMinute(5)->by(mb_strtolower($email) . '|' . $request->ip());
+            return Limit::perMinute(5)->by($key . '|' . $request->ip());
         });
 
         RateLimiter::for('two-factor', function (Request $request) {

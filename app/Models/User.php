@@ -79,13 +79,38 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function sendPasswordResetNotification($token): void
     {
+        if (! filled($this->email)) {
+            return; // phone-only account: nothing to email
+        }
+
         dispatch(fn () => $this->notify(new QueuedResetPassword($token)))->afterResponse();
     }
 
     /** See sendPasswordResetNotification() — same reasoning, for the registration verification email. */
     public function sendEmailVerificationNotification(): void
     {
+        if (! filled($this->email)) {
+            return;
+        }
+
         dispatch(fn () => $this->notify(new QueuedVerifyEmail))->afterResponse();
+    }
+
+    /** Always stored in the one normalised format (digits with country code, no plus). */
+    public function setPhoneAttribute(?string $value): void
+    {
+        $value = $value === null ? null : trim($value);
+        $this->attributes['phone'] = $value === null || $value === '' ? null : (\App\Support\Phone::normalize($value) ?? $value);
+    }
+
+    /** Email verification only applies to accounts that have an email; phone-only accounts count as verified. */
+    public function hasVerifiedEmail(): bool
+    {
+        if (! filled($this->email)) {
+            return true;
+        }
+
+        return $this->email_verified_at !== null;
     }
 
     public function staff(): HasOne

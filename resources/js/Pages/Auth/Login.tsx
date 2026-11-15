@@ -36,7 +36,7 @@ export default function Login({ status }: { status?: string }) {
 
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Phone number or email</Label>
           <div
             key={errors.email ? `email-${token}` : 'email'}
             className={shakeClass(errors.email, token)}
@@ -44,7 +44,9 @@ export default function Login({ status }: { status?: string }) {
             <Input
               id="email"
               name="email"
-              type="email"
+              type="text"
+              inputMode="email"
+              placeholder="03XX XXXXXXX or you@example.com"
               // "username" is what password managers pair with the password field.
               autoComplete="username"
               // eslint-disable-next-line jsx-a11y/no-autofocus
