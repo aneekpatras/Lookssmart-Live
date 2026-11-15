@@ -32,7 +32,7 @@ class ReviewRequest extends Notification implements ShouldQueue
     public function via(mixed $notifiable): array
     {
         return array_values(array_filter([
-            in_array('email', $this->channels, true) ? MailChannel::class : null,
+            in_array('email', $this->channels, true) && filled($notifiable->email ?? null) ? MailChannel::class : null,
             in_array('sms', $this->channels, true) && filled(config('services.twilio.sid')) && filled(config('services.twilio.auth_token')) ? SmsChannel::class : null,
             in_array('whatsapp', $this->channels, true) && filled(config('services.twilio.sid')) && filled(config('services.twilio.auth_token')) ? WhatsappChannel::class : null,
             'database',

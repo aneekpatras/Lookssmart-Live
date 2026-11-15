@@ -78,6 +78,7 @@ it('completes the full customer journey: browse, select a slot, hold it, check o
         'service_ids' => [$service->id],
         'date' => $day->toDateString(),
         'timezone' => 'UTC',
+        'guest_phone' => '03001234567',
     ]);
     $availability = $this->actingAs($customer)->getJson($availabilityUrl)->assertOk();
     $slots = collect($availability->json('slots'));
@@ -89,6 +90,7 @@ it('completes the full customer journey: browse, select a slot, hold it, check o
         'staff_id' => $staff->id,
         'starts_at' => $startsAt->toIso8601String(),
         'timezone' => 'UTC',
+        'guest_phone' => '03001234567',
     ];
     $hold = $this->actingAs($customer)->postJson('/api/booking/hold', $holdPayload)->assertCreated();
     $holdToken = $hold->json('hold_token');
@@ -118,6 +120,7 @@ it('completes the full customer journey: browse, select a slot, hold it, check o
         'staff_id' => $staff->id,
         'starts_at' => $startsAt->toIso8601String(),
         'timezone' => 'UTC',
+        'guest_phone' => '03001234567',
         'quote' => $quote,
     ])->assertCreated();
 

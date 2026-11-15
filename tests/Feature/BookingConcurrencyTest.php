@@ -103,6 +103,7 @@ it('lets only the first of several real HTTP attempts on the same slot actually 
             'timezone' => 'UTC',
             'guest_name' => 'Racer',
             'guest_email' => "racer{$i}@example.com",
+            'guest_phone' => '03001234567',
             'quote' => $quote,
         ]);
 
@@ -186,13 +187,14 @@ it('keeps the real booking-store endpoint within a bounded, non-N+1 query count'
         'timezone' => 'UTC',
         'guest_name' => 'Query Counter',
         'guest_email' => 'query-counter@example.com',
+        'guest_phone' => '03001234567',
         'quote' => $quote,
     ]);
     $count = count(DB::getQueryLog());
     DB::disableQueryLog();
 
     $response->assertCreated();
-    expect($count)->toBeLessThan(50);
+    expect($count)->toBeLessThan(60); // phone is now required, so the SMS attempt adds a few queries
 });
 
 it('responds to a real booking creation within a generous, environment-relative time budget', function () {
@@ -212,6 +214,7 @@ it('responds to a real booking creation within a generous, environment-relative 
         'timezone' => 'UTC',
         'guest_name' => 'Timer',
         'guest_email' => 'timer@example.com',
+        'guest_phone' => '03001234567',
         'quote' => $quote,
     ]);
     $elapsed = microtime(true) - $start;

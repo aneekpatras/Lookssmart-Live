@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Booking;
 
+use App\Support\Phone;
 use App\Http\Requests\BaseFormRequest;
 
 class StoreBookingRequest extends BaseFormRequest
@@ -9,6 +10,16 @@ class StoreBookingRequest extends BaseFormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        // Store one format everywhere: digits with country code, no plus (invalid input is left as typed
+        // so the rule above can reject it).
+        $this->merge([
+            'guest_phone' => Phone::normalize((string) ($this->input('guest_phone') ?: $this->user()?->phone)) ?? ($this->input('guest_phone') ?: $this->user()?->phone),
+            'guest_email' => filled($this->input('guest_email')) ? trim((string) $this->input('guest_email')) : null,
+        ]);
     }
 
     public function rules(): array
@@ -26,8 +37,13 @@ class StoreBookingRequest extends BaseFormRequest
             'starts_at' => ['required', 'date'],
             'timezone' => ['required', 'timezone'],
             'guest_name' => [$guestRequired ? 'required' : 'nullable', 'string', 'max:255'],
-            'guest_email' => [$guestRequired ? 'required' : 'nullable', 'email', 'max:255'],
-            'guest_phone' => ['nullable', 'string', 'max:30'],
+            // Email is optional (validated only when filled); the WhatsApp number is required and normalised.
+            'guest_email' => ['nullable', 'email', 'max:255'],
+            'guest_phone' => ['required', 'string', 'max:30', function ($attribute, $value, $fail) {
+                if (! Phone::isValid((string) $value)) {
+                    $fail(Phone::MESSAGE);
+                }
+            }],
             // `subject` has no dedicated column on `bookings` — folded onto `notes` in
             // `BookingController::store()`, the same precedent `submitContact()` already uses for
             // `leads.notes` (that table has no `subject` column either).

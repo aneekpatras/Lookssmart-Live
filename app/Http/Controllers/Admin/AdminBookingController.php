@@ -90,7 +90,7 @@ class AdminBookingController extends Controller
                 'notes' => $booking->notes,
                 'cancellation_reason' => $booking->cancellation_reason,
                 'guest_email' => $booking->guest_email,
-                'guest_phone' => $booking->guest_phone,
+                'guest_phone' => $booking->guest_phone ? \App\Support\Phone::display($booking->guest_phone) : null,
                 'discount' => (string) $booking->discount,
                 'tax' => (string) $booking->tax,
                 'items' => $booking->items->map(fn ($item) => [

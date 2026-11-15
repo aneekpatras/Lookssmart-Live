@@ -33,7 +33,7 @@ class BookingConfirmed extends Notification implements ShouldQueue
     public function via(mixed $notifiable): array
     {
         return array_values(array_filter([
-            MailChannel::class,
+            filled($notifiable->email ?? null) ? MailChannel::class : null,
             'database',
             filled(config('services.twilio.sid')) && filled(config('services.twilio.auth_token')) ? SmsChannel::class : null,
             filled(config('services.twilio.sid')) && filled(config('services.twilio.auth_token')) ? WhatsappChannel::class : null,

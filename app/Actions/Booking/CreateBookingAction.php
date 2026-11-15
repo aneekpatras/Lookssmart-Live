@@ -100,7 +100,7 @@ class CreateBookingAction
                     'customer_id' => $resolvedCustomerId,
                     'guest_name' => $customerId ? null : $guestName,
                     'guest_email' => $customerId ? null : $guestEmail,
-                    'guest_phone' => $customerId ? null : $guestPhone,
+                    'guest_phone' => $guestPhone,
                     'staff_id' => $staffId,
                     'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
@@ -214,6 +214,8 @@ class CreateBookingAction
             return null;
         }
 
+        // Existing email-based matching only. No phone-based linking: phone numbers are not verified, so a
+        // matching number must never attach a booking to someone else's account.
         $existing = User::where('email', $guestEmail)->first();
         if ($existing) {
             return $existing->id;

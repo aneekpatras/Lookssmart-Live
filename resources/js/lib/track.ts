@@ -78,12 +78,6 @@ export interface IncompleteBookingPayload {
   total: number;
 }
 
-/** A plausible phone: optional +, then 10 to 19 digits once spaces and dashes are removed. */
-export function normalisePhone(raw: string): string | null {
-  const cleaned = raw.replace(/[\s\-().]/g, '');
-  return /^\+?[0-9]{10,19}$/.test(cleaned) ? cleaned : null;
-}
-
 export function saveIncompleteBooking(payload: IncompleteBookingPayload): void {
   send('/track/incomplete', { session_id: trackingSessionId(), ...payload });
 }

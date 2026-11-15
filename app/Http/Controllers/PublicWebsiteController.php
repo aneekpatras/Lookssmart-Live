@@ -249,7 +249,7 @@ class PublicWebsiteController extends Controller
                 ->filter(fn (Deal $deal) => $deal->services->isNotEmpty())
                 ->map(fn (Deal $deal) => [...$this->dealShowcaseData($deal), 'code' => $deal->code])
                 ->values(),
-            'authUser' => auth()->user()?->only(['name', 'email']),
+            'authUser' => auth()->user()?->only(['name', 'email', 'phone']),
         ]), $this->seo->booking());
     }
 

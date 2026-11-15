@@ -4,7 +4,8 @@ import { ArrowLeft, Check, LoaderCircle, Search, Sparkles, Trash2 } from 'lucide
 import * as React from 'react';
 
 import { Honeypot } from '@/Components/auth/AuthFields';
-import { normalisePhone, saveIncompleteBooking, track } from '@/lib/track';
+import { PHONE_MESSAGE, displayPhone, normalizePhone } from '@/lib/phone';
+import { saveIncompleteBooking, track } from '@/lib/track';
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { LoadingDots } from '@/Components/LoadingDots';
 import { SeoHead } from '@/Components/SeoHead';
@@ -66,7 +67,7 @@ interface BookProps {
   services: Service[];
   categories: Category[];
   deals: BookableDeal[];
-  authUser: { name: string; email: string } | null;
+  authUser: { name: string; email: string | null; phone: string | null } | null;
   look?: { id: number; image_url: string; specialty: string | null } | null;
   faqHref?: string;
 }
@@ -203,12 +204,13 @@ export default function Book({ services, categories, deals, authUser, look, faqH
   const [form, setForm] = React.useState({
     name: authUser?.name ?? '',
     email: authUser?.email ?? '',
-    phone: '',
+    phone: authUser?.phone ? displayPhone(authUser.phone) : '',
     subject: '',
     notes: '',
     website: '', // honeypot: always empty for a real visitor
   });
   const [busy, setBusy] = React.useState(false);
+  const [phoneTouched, setPhoneTouched] = React.useState(false);
   const [error, setError] = React.useState('');
   const [complete, setComplete] = React.useState<string | null>(null);
   // Guards against a genuine race condition (ad hoc task 28 fix, reproduced via a real Playwright
@@ -395,8 +397,17 @@ export default function Book({ services, categories, deals, authUser, look, faqH
       setError('Please choose a date and time first.');
       return;
     }
-    if (!form.name.trim() || !form.email.trim()) {
-      setError('Please fill in your name and email.');
+    if (!form.name.trim()) {
+      setError('Please fill in your name.');
+      return;
+    }
+    if (!normalizePhone(form.phone)) {
+      setPhoneTouched(true);
+      setError(PHONE_MESSAGE);
+      return;
+    }
+    if (form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      setError('Enter a valid email address or leave it empty.');
       return;
     }
 
@@ -426,8 +437,8 @@ export default function Book({ services, categories, deals, authUser, look, faqH
         starts_at: slot.starts_at,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         guest_name: form.name,
-        guest_email: form.email,
-        guest_phone: form.phone || undefined,
+        guest_email: form.email.trim() || undefined,
+        guest_phone: normalizePhone(form.phone) ?? form.phone,
         website: form.website || undefined,
         subject: form.subject || undefined,
         notes: withLookNote(form.notes, look) || undefined,
@@ -477,7 +488,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
   // Incomplete booking: once a name and a plausible phone are filled, save the details about 2 seconds
   // after the last change so the salon can follow up. Cart snapshot only; nothing else is sent.
   React.useEffect(() => {
-    const phone = normalisePhone(form.phone);
+    const phone = normalizePhone(form.phone);
     const name = form.name.trim();
     if (!name || !phone || selectedServices.length === 0 || complete) return;
     const timer = window.setTimeout(() => {
@@ -864,22 +875,31 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                       </div>
                       <div>
                         <label className="text-sm font-medium" htmlFor="booking-phone">
-                          Phone Number
+                          WhatsApp number
                         </label>
                         <Input
                           id="booking-phone"
                           type="tel"
+                          inputMode="tel"
                           autoComplete="tel"
+                          placeholder="03XX XXXXXXX"
                           value={form.phone}
                           onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                          onBlur={() => setPhoneTouched(true)}
+                          aria-invalid={phoneTouched && !normalizePhone(form.phone)}
+                          required
                         />
+                        {phoneTouched && !normalizePhone(form.phone) && (
+                          <p className="mt-1 text-xs text-red-600">{PHONE_MESSAGE}</p>
+                        )}
                         <p className="text-ink-muted mt-1 text-xs">
                           We may contact you on WhatsApp about this booking.
                         </p>
                       </div>
                       <div className="sm:col-span-2">
                         <label className="text-sm font-medium" htmlFor="booking-email">
-                          Email Address
+                          Email Address{' '}
+                          <span className="text-ink-muted font-normal">(optional)</span>
                         </label>
                         <Input
                           id="booking-email"
@@ -887,7 +907,6 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                           autoComplete="email"
                           value={form.email}
                           onChange={(event) => setForm({ ...form, email: event.target.value })}
-                          required
                         />
                       </div>
                       <div className="sm:col-span-2">
@@ -1037,7 +1056,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                   <Button
                     variant="accent"
                     className="mt-4 w-full"
-                    disabled={busy || !slot || !form.name || !form.email}
+                    disabled={busy || !slot || !form.name || !normalizePhone(form.phone)}
                     onClick={() => void confirmBooking()}
                   >
                     {busy && <LoaderCircle className="animate-spin" />} Confirm Booking
@@ -1079,7 +1098,11 @@ export default function Book({ services, categories, deals, authUser, look, faqH
               variant="accent"
               size="sm"
               className="shrink-0"
-              disabled={step === 0 ? !selected.length : busy || !slot || !form.name || !form.email}
+              disabled={
+                step === 0
+                  ? !selected.length
+                  : busy || !slot || !form.name || !normalizePhone(form.phone)
+              }
               onClick={() => (step === 0 ? goToCheckout() : void confirmBooking())}
             >
               {step === 0 ? (

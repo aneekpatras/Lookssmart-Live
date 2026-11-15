@@ -71,6 +71,7 @@ it('persists the customer-supplied notes onto the real booking row', function ()
         'staff_id' => $staff->id,
         'starts_at' => $startsAt->toIso8601String(),
         'timezone' => 'UTC',
+        'guest_phone' => '03001234567',
         'notes' => 'Please use fragrance-free products — sensitive skin.',
         'quote' => $quote,
     ])->assertCreated();
@@ -94,6 +95,7 @@ it('folds the customer-supplied subject onto the notes field, since bookings has
         'staff_id' => $staff->id,
         'starts_at' => $startsAt->toIso8601String(),
         'timezone' => 'UTC',
+        'guest_phone' => '03001234567',
         'subject' => 'First-time visit question',
         'notes' => 'I have a nut allergy.',
         'quote' => $quote,
@@ -118,6 +120,7 @@ it('folds only the subject onto notes when no separate notes text was given', fu
         'staff_id' => $staff->id,
         'starts_at' => $startsAt->toIso8601String(),
         'timezone' => 'UTC',
+        'guest_phone' => '03001234567',
         'subject' => 'Just a subject, no notes',
         'quote' => $quote,
     ])->assertCreated();
@@ -141,6 +144,7 @@ it('creates a booking with no notes at all when the field is omitted, without er
         'staff_id' => $staff->id,
         'starts_at' => $startsAt->toIso8601String(),
         'timezone' => 'UTC',
+        'guest_phone' => '03001234567',
         'quote' => $quote,
     ])->assertCreated();
 
@@ -167,6 +171,7 @@ it('reflects a customer-created booking on the admin bookings list immediately, 
         'staff_id' => $staff->id,
         'starts_at' => $startsAt->toIso8601String(),
         'timezone' => 'UTC',
+        'guest_phone' => '03001234567',
         'quote' => $quote,
     ])->assertCreated();
     $code = $store->json('code');

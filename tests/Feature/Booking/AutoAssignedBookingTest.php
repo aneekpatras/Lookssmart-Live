@@ -108,6 +108,7 @@ it('creating a booking with no staff_id auto-resolves a real staff member and wr
         'timezone' => 'UTC',
         'guest_name' => 'Auto Assign Guest',
         'guest_email' => 'auto-assign@example.com',
+        'guest_phone' => '03001234567',
         'quote' => $quote,
     ])->assertCreated();
 
@@ -132,6 +133,7 @@ it('lets bookings up to the salon-wide capacity cap succeed across different aut
             'timezone' => 'UTC',
             'guest_name' => "Capacity Guest {$i}",
             'guest_email' => "capacity{$i}@example.com",
+            'guest_phone' => '03001234567',
             'quote' => $quote,
         ]);
         $results[] = $response->status();
@@ -189,10 +191,52 @@ it('holds and books a service combination that no single staff member offers tog
         'timezone' => 'UTC',
         'guest_name' => 'No Overlap Guest',
         'guest_email' => 'no-overlap@example.com',
+        'guest_phone' => '03001234567',
         'quote' => $quote,
     ])->assertCreated();
 
     $booking = Booking::where('starts_at', $startsAt)->first();
     expect($booking)->not->toBeNull()
         ->and($booking->staff_id)->toBeNull();
+});
+
+it('books with a WhatsApp number and no email, storing the normalised number and creating no account', function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    seedAutoAssignSettings();
+    $day = CarbonImmutable::now('UTC')->addDay();
+    [, $service] = makeStaffPoolAndService($day->dayOfWeek, 1);
+    $startsAt = $day->setTime(9, 0);
+    $quote = $this->postJson('/api/booking/quote', ['service_ids' => [$service->id]])->assertOk()->json();
+    $users = \App\Models\User::count();
+
+    $response = $this->postJson('/api/booking', [
+        'service_ids' => [$service->id],
+        'starts_at' => $startsAt->toIso8601String(),
+        'timezone' => 'UTC',
+        'guest_name' => 'Phone Only Guest',
+        'guest_phone' => '0300 123-4567',
+        'quote' => $quote,
+    ])->assertCreated();
+
+    $booking = Booking::where('code', $response->json('code'))->firstOrFail();
+    expect($booking->guest_phone)->toBe('923001234567')
+        ->and($booking->guest_email)->toBeNull()
+        ->and($booking->customer_id)->toBeNull()
+        ->and(\App\Models\User::count())->toBe($users);
+});
+
+it('rejects a booking with a missing or invalid WhatsApp number', function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    seedAutoAssignSettings();
+    $day = CarbonImmutable::now('UTC')->addDay();
+    [, $service] = makeStaffPoolAndService($day->dayOfWeek, 1);
+    $quote = $this->postJson('/api/booking/quote', ['service_ids' => [$service->id]])->assertOk()->json();
+    $base = [
+        'service_ids' => [$service->id], 'starts_at' => $day->setTime(9, 0)->toIso8601String(),
+        'timezone' => 'UTC', 'guest_name' => 'X', 'quote' => $quote,
+    ];
+
+    $this->postJson('/api/booking', $base)->assertStatus(422)->assertJsonValidationErrors('guest_phone');
+    $this->postJson('/api/booking', [...$base, 'guest_phone' => '12345'])->assertStatus(422)->assertJsonValidationErrors('guest_phone');
+    $this->postJson('/api/booking', [...$base, 'guest_phone' => '03001234567', 'guest_email' => 'not-an-email'])->assertStatus(422)->assertJsonValidationErrors('guest_email');
 });

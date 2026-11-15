@@ -71,7 +71,11 @@ class TrackController extends Controller
         $data = $request->validate([
             'session_id' => ['required', 'string', 'regex:/^[A-Za-z0-9_-]{8,64}$/'],
             'name' => ['required', 'string', 'max:100'],
-            'phone' => ['required', 'string', 'max:20', 'regex:/^\+?[0-9]{10,19}$/'],
+            'phone' => ['required', 'string', 'max:20', function ($attribute, $value, $fail) {
+                if (! \App\Support\Phone::isValid((string) $value)) {
+                    $fail('Invalid phone.');
+                }
+            }],
             'items' => ['nullable', 'array', 'max:30'],
             'items.*.id' => ['required', 'integer'],
             'items.*.name' => ['required', 'string', 'max:120'],
@@ -88,7 +92,7 @@ class TrackController extends Controller
                     ['session_id' => $data['session_id']],
                     [
                         'name' => trim(strip_tags($data['name'])),
-                        'phone' => $data['phone'],
+                        'phone' => \App\Support\Phone::normalize($data['phone']),
                         'items' => collect($data['items'] ?? [])->map(fn ($i) => [
                             'id' => (int) $i['id'],
                             'name' => strip_tags((string) $i['name']),

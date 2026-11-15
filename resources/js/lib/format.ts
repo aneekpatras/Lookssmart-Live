@@ -25,6 +25,8 @@ export function validTill(endsAt: string | null): string | null {
 export function dealTiming(endsAt: string | null, includedCount: number): string | null {
   return (
     validTill(endsAt) ??
-    (includedCount > 0 ? `${includedCount} ${includedCount === 1 ? 'service' : 'services'} included` : null)
+    (includedCount > 0
+      ? `${includedCount} ${includedCount === 1 ? 'service' : 'services'} included`
+      : null)
   );
 }
