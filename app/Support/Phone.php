@@ -49,6 +49,19 @@ class Phone
         return null;
     }
 
+    /** For numbers that are already stored: re-normalise, or accept stored digits-only international numbers. */
+    public static function fromStored(?string $value): ?string
+    {
+        $normalised = self::normalize($value);
+        if ($normalised !== null) {
+            return $normalised;
+        }
+
+        $digits = preg_replace('/\D/', '', (string) $value) ?? '';
+
+        return preg_match('/^[1-9]\d{7,14}$/', $digits) ? $digits : null;
+    }
+
     public static function isValid(?string $raw): bool
     {
         return self::normalize($raw) !== null;

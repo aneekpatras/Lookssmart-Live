@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\PosCheckoutController;
 use App\Http\Controllers\Admin\PosRegisterController;
 use App\Http\Controllers\Admin\PosSalesHistoryController;
 use App\Http\Controllers\Admin\PostCategoryController;
+use App\Http\Controllers\Admin\RemindersController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\ServiceCategoryController;
@@ -209,7 +210,9 @@ Route::prefix('admin')
         Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
         Route::patch('/customers/{customer}/notes', [CustomerController::class, 'updateNotes'])->name('customers.notes');
         Route::get('/customers/{customer}/export', [CustomerController::class, 'exportData'])->name('customers.export');
-        Route::get('/reminders', fn () => Inertia::render('Admin/Reminders'))->name('reminders');
+        Route::get('/reminders', [RemindersController::class, 'index'])->name('reminders');
+        Route::post('/reminders/log', [RemindersController::class, 'log'])->name('reminders.log');
+        Route::post('/reminders/templates', [RemindersController::class, 'saveTemplate'])->name('reminders.templates');
         // Phase 10 sub-step 4.
         Route::get('/settings', [SettingController::class, 'index'])->name('settings');
         Route::put('/settings/hours', [SettingController::class, 'updateHours'])->name('settings.hours');

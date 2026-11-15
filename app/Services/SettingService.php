@@ -87,6 +87,10 @@ class SettingService
         'wa_popup.delay' => ['group' => 'wa_popup', 'type' => 'int'],
         'wa_popup.sound' => ['group' => 'wa_popup', 'type' => 'bool'],
 
+        // Reminders page: WhatsApp message templates (plain text, max 600, placeholders filled server-side).
+        'reminder.template' => ['group' => 'reminder', 'type' => 'string'],
+        'birthday.template' => ['group' => 'reminder', 'type' => 'string'],
+
         'security.admin_ip_allowlist' => ['group' => 'security', 'type' => 'string'],
         'security.session_lifetime_minutes' => ['group' => 'security', 'type' => 'int'],
     ];
