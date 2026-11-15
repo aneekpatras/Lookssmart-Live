@@ -301,7 +301,7 @@ it('dispatches a review request once after a completed booking', function () {
 
 it('provides Google Calendar and signed ICS links for a booking', function () {
     seedP8BookingSettings();
-    $clock = CarbonImmutable::parse('2026-09-03 09:00:00', 'UTC');
+    $clock = CarbonImmutable::now('UTC')->addDay()->setTime(9, 0);
     [$staff, $service] = makeP8BookableStaff($clock->dayOfWeek);
     $booking = makeP8Booking($staff, $service, $clock, 'calendar@example.com');
 
