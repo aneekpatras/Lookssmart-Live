@@ -40,7 +40,7 @@ return new class extends Migration
         $hasUnique = collect(Schema::getIndexes('users'))->contains(
             fn ($index) => ($index['unique'] ?? false) && $index['columns'] === ['phone'],
         );
-        $hasDuplicates = DB::table('users')->whereNotNull('phone')->groupBy('phone')->havingRaw('COUNT(*) > 1')->exists();
+        $hasDuplicates = DB::table('users')->whereNotNull('phone')->select('phone')->groupBy('phone')->havingRaw('COUNT(*) > 1')->exists();
 
         if (! $hasUnique && ! $hasDuplicates) {
             Schema::table('users', function (Blueprint $table) {
