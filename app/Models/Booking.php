@@ -116,13 +116,18 @@ class Booking extends Model
     /** Whether bookings.confirmed_* exist yet (live may run this code before the SQL that adds them). */
     public static function hasConfirmationColumns(): bool
     {
-        static $has = null;
-
-        try {
-            return $has ??= \Illuminate\Support\Facades\Schema::hasColumn('bookings', 'confirmed_via');
-        } catch (\Throwable) {
-            return false;
+        // Cached once per application instance (one request), not across the process.
+        $app = app();
+        if (! $app->bound('booking.confirmation_columns')) {
+            try {
+                $has = \Illuminate\Support\Facades\Schema::hasColumn('bookings', 'confirmed_via');
+            } catch (\Throwable) {
+                $has = false;
+            }
+            $app->instance('booking.confirmation_columns', $has);
         }
+
+        return (bool) $app->make('booking.confirmation_columns');
     }
 
     public const DEFAULT_CANCEL_POLICY = 'Need to change or cancel? Message us on WhatsApp and we will help.';
