@@ -8,6 +8,8 @@ use App\Models\Booking;
 use App\Models\CustomerProfile;
 use App\Models\ManualMessageLog;
 use App\Models\ReminderRule;
+use App\Notifications\BookingReminder;
+use App\Services\BookingReminderSchedule;
 use App\Models\Setting;
 use App\Services\SeoService;
 use App\Services\SettingService;
@@ -16,6 +18,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -78,6 +81,7 @@ class RemindersController extends Controller
             'birthdays' => $this->birthdays($birthdayTemplate, $shared),
             'toConfirm' => $toConfirm,
             'emailRules' => $this->emailRules(),
+            'upcomingReminders' => $this->upcomingReminders(),
             'scheduler' => ['last_run' => $this->schedulerLastRun(), 'url' => $this->schedulerUrl()],
             'mail' => ['mailer' => (string) config('mail.default'), 'queue' => (string) config('queue.default')],
         ]);
@@ -204,6 +208,65 @@ class RemindersController extends Controller
         ReminderRule::create($this->validatedRule($request));
 
         return back()->with('success', 'Email rule created.');
+    }
+
+    /**
+     * Read-only preview of the next reminders, from the same due-logic the command uses, so the setup
+     * can be checked without waiting for the scheduler.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function upcomingReminders(): array
+    {
+        try {
+            return collect(app(BookingReminderSchedule::class)->upcoming(CarbonImmutable::now(), 20))->map(function (array $row) {
+                $booking = $row['booking'];
+
+                return [
+                    'ref' => $booking->code,
+                    'customer' => $booking->customer?->name ?: ($booking->guest_name ?: 'Customer'),
+                    'appointment' => CarbonImmutable::parse($booking->starts_at)->setTimezone(self::TZ)->format('D j M, g:i A'),
+                    'rule' => (string) ($row['rule']->template ?: 'Reminder'),
+                    'send_at' => CarbonImmutable::parse($row['planned_at'])->setTimezone(self::TZ)->format('D j M, g:i A'),
+                    'email' => $row['email'],
+                ];
+            })->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /** Sends one reminder email, to the logged-in admin's own address only, to check mail delivery. */
+    public function sendTestReminder(Request $request)
+    {
+        $this->guard($request);
+
+        $to = (string) $request->user()->email;
+        if (! filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return back()->with('error', 'Your admin account has no email address to send the test to.');
+        }
+
+        $booking = Booking::query()
+            ->whereIn('status', ['pending', 'confirmed'])->where('ends_at', '>', now())
+            ->latest('id')->first();
+
+        if (! $booking) {
+            // No upcoming booking to show: a sample one that is never saved.
+            $booking = new Booking([
+                'code' => 'LS-SAMPLE', 'status' => 'pending', 'guest_name' => 'Sample customer', 'total' => 0,
+                'starts_at' => now()->addDay()->setTime(15, 0), 'ends_at' => now()->addDay()->setTime(16, 0),
+            ]);
+            $booking->setRelation('items', collect());
+            $booking->setRelation('customer', null);
+        }
+
+        try {
+            Notification::route('mail', $to)->notifyNow(new BookingReminder($booking, ['email'], 1440, true));
+        } catch (\Throwable $e) {
+            return back()->with('error', 'The test email could not be sent: ' . mb_substr($e->getMessage(), 0, 300));
+        }
+
+        return back()->with('success', "Test reminder sent to {$to} (booking {$booking->code}). Check your inbox and spam folder.");
     }
 
     /** Creates the 24h, 12h and 6h booking-reminder email rules (active), skipping any that already exist. */

@@ -4,7 +4,7 @@ import { ChevronDown, Copy, MessageCircle } from 'lucide-react';
 import * as React from 'react';
 
 import { formatWithRelative } from '@/lib/adminFormat';
-import { EmailRulesTab, type EmailRule } from '@/Components/admin/EmailRulesTab';
+import { EmailRulesTab, type EmailRule, type UpcomingReminder } from '@/Components/admin/EmailRulesTab';
 import { MessageTemplateEditor } from '@/Components/admin/MessageTemplateEditor';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -80,6 +80,7 @@ interface RemindersProps {
   birthdays: { available: boolean; rows: BirthdayRow[] };
   toConfirm: ConfirmRow[];
   emailRules: EmailRule[];
+  upcomingReminders: UpcomingReminder[];
   scheduler: { last_run: string | null; url: string | null };
   mail: { mailer: string; queue: string };
 }
@@ -203,6 +204,7 @@ export default function Reminders({
   birthdays,
   toConfirm,
   emailRules,
+  upcomingReminders,
   scheduler,
   mail,
 }: RemindersProps) {
@@ -307,7 +309,7 @@ export default function Reminders({
         </div>
 
         {tab === 'email' ? (
-          <EmailRulesTab rules={emailRules} schedulerLastRun={scheduler.last_run} schedulerUrl={scheduler.url} mail={mail} />
+          <EmailRulesTab rules={emailRules} upcoming={upcomingReminders} schedulerLastRun={scheduler.last_run} schedulerUrl={scheduler.url} mail={mail} />
         ) : tab === 'confirm' ? (
           <div className="space-y-4">
             <p className="text-ink-muted text-sm">

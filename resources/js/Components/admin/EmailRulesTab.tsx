@@ -18,8 +18,18 @@ export interface EmailRule {
   is_active: boolean;
 }
 
+export interface UpcomingReminder {
+  ref: string;
+  customer: string;
+  appointment: string;
+  rule: string;
+  send_at: string;
+  email: string | null;
+}
+
 interface EmailRulesTabProps {
   rules: EmailRule[];
+  upcoming: UpcomingReminder[];
   schedulerLastRun: string | null;
   schedulerUrl: string | null;
   mail: { mailer: string; queue: string };
@@ -149,7 +159,7 @@ function RuleForm({ rule, onDone }: { rule: EmailRule | null; onDone: () => void
   );
 }
 
-export function EmailRulesTab({ rules, schedulerLastRun, schedulerUrl, mail }: EmailRulesTabProps) {
+export function EmailRulesTab({ rules, upcoming, schedulerLastRun, schedulerUrl, mail }: EmailRulesTabProps) {
   // `null` = form closed, 'new' = creating, otherwise the rule being edited.
   const [editing, setEditing] = React.useState<EmailRule | 'new' | null>(null);
 
@@ -159,8 +169,9 @@ export function EmailRulesTab({ rules, schedulerLastRun, schedulerUrl, mail }: E
         <CardContent className="space-y-2 p-5 text-sm">
           <p className="text-ink-muted">
             Email rules run only if the hosting Scheduled Tasks runs php artisan schedule:run every
-            minute, and only reach customers who gave an email. Customers with only a phone number
-            are not reached; use the WhatsApp tabs for them.
+            minute (or the scheduler URL below is called every 5 minutes). Reminders reach account
+            customers and guests who gave an email. Customers with only a phone number are not
+            reached; use the WhatsApp tabs for them.
           </p>
           <p className="text-ink">
             <span className="font-medium">Scheduler last ran:</span>{' '}
@@ -229,6 +240,53 @@ export function EmailRulesTab({ rules, schedulerLastRun, schedulerUrl, mail }: E
           </Button>
         </div>
       )}
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-display text-ink text-lg font-medium">Upcoming reminders</h3>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => router.post('/admin/reminders/test-email', {}, { preserveScroll: true })}
+          >
+            Send me a test reminder
+          </Button>
+        </div>
+        {upcoming.length === 0 ? (
+          <p className="text-ink-muted text-sm">
+            Nothing is planned. Add an active booking-reminder rule and make a booking for a later
+            date to see it here.
+          </p>
+        ) : (
+          <div className="border-border-soft overflow-x-auto rounded-xl border">
+            <table className="w-full text-left text-sm">
+              <thead className="text-ink-muted border-border-soft border-b text-xs uppercase">
+                <tr>
+                  <th className="px-4 py-3">Booking</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Appointment</th>
+                  <th className="px-4 py-3">Rule</th>
+                  <th className="px-4 py-3">Will send</th>
+                  <th className="px-4 py-3">To</th>
+                </tr>
+              </thead>
+              <tbody>
+                {upcoming.map((row, index) => (
+                  <tr key={`${row.ref}-${row.rule}-${index}`} className="border-border-soft border-b last:border-0">
+                    <td className="px-4 py-3 font-mono text-xs">{row.ref}</td>
+                    <td className="px-4 py-3">{row.customer}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{row.appointment}</td>
+                    <td className="px-4 py-3">{row.rule}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{row.send_at}</td>
+                    <td className="px-4 py-3">{row.email ?? 'No email, use the WhatsApp tab'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {rules.length === 0 ? (
         <p className="text-ink-muted text-sm">

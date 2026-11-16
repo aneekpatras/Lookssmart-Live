@@ -235,3 +235,47 @@ it('emails a guest their cancellation through the on-demand route', function () 
 
     Notification::assertSentOnDemand(\App\Notifications\BookingCancelled::class, fn ($n, $channels, $notifiable) => $notifiable->routes['mail'] === 'guest@example.com');
 });
+
+function reminderAdmin(): User
+{
+    test()->seed(RolesAndPermissionsSeeder::class);
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('super-admin');
+
+    return $admin;
+}
+
+it('previews the next reminders, including a guest with only an email and a booking with no email', function () {
+    reminderRule(1440);
+    $start = now()->addDays(3)->setTime(15, 0);
+    $account = reminderBooking(['starts_at' => $start, 'ends_at' => $start->copy()->addHour(), 'created_at' => now()->subDay()]);
+    $guest = reminderBooking(['customer_id' => null, 'guest_email' => 'guest@example.com', 'guest_name' => 'Guesty', 'starts_at' => $start->copy()->addHour(), 'ends_at' => $start->copy()->addHours(2), 'created_at' => now()->subDay()]);
+    $phoneOnly = reminderBooking(['customer_id' => null, 'guest_email' => null, 'guest_name' => 'Phone Only', 'starts_at' => $start->copy()->addHours(2), 'ends_at' => $start->copy()->addHours(3), 'created_at' => now()->subDay()]);
+
+    $rows = collect($this->actingAs(reminderAdmin())->get('/admin/reminders')->viewData('page')['props']['upcomingReminders'])->keyBy('ref');
+
+    expect($rows)->toHaveCount(3)
+        ->and($rows[$account->code]['email'])->toBe($account->customer->email)
+        ->and($rows[$guest->code]['email'])->toBe('guest@example.com')
+        ->and($rows[$phoneOnly->code]['email'])->toBeNull()
+        ->and($rows[$guest->code]['send_at'])->toBe(\Carbon\CarbonImmutable::parse($guest->starts_at)->subDay()->setTimezone('Asia/Karachi')->format('D j M, g:i A'));
+});
+
+it('sends a test reminder only to the logged-in admin, with sample data when there is no upcoming booking', function () {
+    Notification::fake();
+    $admin = reminderAdmin();
+
+    $this->actingAs($admin)->post('/admin/reminders/test-email')->assertRedirect()->assertSessionHas('success');
+
+    Notification::assertSentOnDemand(BookingReminder::class, fn ($n, $channels, $notifiable) => $notifiable->routes['mail'] === $admin->email);
+    Notification::assertSentOnDemandTimes(BookingReminder::class, 1);
+    expect(\App\Models\Booking::count())->toBe(0);
+});
+
+it('does not let non-admins preview or send test reminders', function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $customer = User::factory()->create(['email_verified_at' => now()]);
+    $customer->assignRole('customer');
+
+    $this->actingAs($customer)->post('/admin/reminders/test-email')->assertForbidden();
+});

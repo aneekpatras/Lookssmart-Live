@@ -216,6 +216,7 @@ Route::prefix('admin')
         Route::post('/reminders/templates', [RemindersController::class, 'saveTemplate'])->name('reminders.templates');
         Route::post('/reminders/bookings/{booking}/confirm', [RemindersController::class, 'markConfirmed'])->name('reminders.confirm');
         Route::post('/reminders/scheduler-token', [RemindersController::class, 'generateSchedulerToken'])->name('reminders.scheduler-token');
+        Route::post('/reminders/test-email', [RemindersController::class, 'sendTestReminder'])->middleware('throttle:5,1')->name('reminders.test-email');
         Route::post('/reminders/rules/suggested', [RemindersController::class, 'addSuggestedRules'])->name('reminders.rules.suggested');
         Route::post('/reminders/rules', [RemindersController::class, 'storeRule'])->name('reminders.rules.store');
         Route::put('/reminders/rules/{rule}', [RemindersController::class, 'updateRule'])->name('reminders.rules.update');
