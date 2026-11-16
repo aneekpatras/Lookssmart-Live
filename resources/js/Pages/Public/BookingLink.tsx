@@ -21,15 +21,17 @@ interface BookingLinkProps {
     total: string;
     can_confirm: boolean;
     reschedule_blocked: string | null;
+    can_cancel: boolean;
   };
-  urls?: { confirm: string; slots: string; reschedule: string };
+  cancelPolicy?: string;
+  urls?: { confirm: string; slots: string; reschedule: string; cancel: string };
 }
 
 function statusLabel(status: string): string {
   return status.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function BookingLink({ invalid, whatsapp, booking, urls }: BookingLinkProps) {
+export default function BookingLink({ invalid, whatsapp, booking, urls, cancelPolicy }: BookingLinkProps) {
   const [status, setStatus] = React.useState(booking?.status ?? '');
   const [startsAt, setStartsAt] = React.useState(booking?.starts_at ?? '');
   const [message, setMessage] = React.useState('');
@@ -63,6 +65,28 @@ export default function BookingLink({ invalid, whatsapp, booking, urls }: Bookin
   const pending = status === 'pending';
   const canReschedule =
     (status === 'pending' || status === 'confirmed') && !booking.reschedule_blocked;
+
+  const canCancel = booking.can_cancel && (status === 'pending' || status === 'confirmed');
+
+  async function cancelBooking() {
+    if (!urls || !window.confirm('Cancel this booking? This cannot be undone here.')) return;
+    setBusy(true);
+    setError('');
+    try {
+      const response = await axios.post(urls.cancel);
+      setStatus(response.data.status as string);
+      setMessage(response.data.message as string);
+    } catch (caught) {
+      setError(
+        isAxiosError(caught)
+          ? ((caught.response?.data as { message?: string } | undefined)?.message ??
+              'We could not cancel your booking. Please try again.')
+          : 'We could not cancel your booking. Please try again.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function confirm() {
     if (!urls) return;
@@ -140,6 +164,28 @@ export default function BookingLink({ invalid, whatsapp, booking, urls }: Bookin
               </Button>
             )}
           </div>
+          {canCancel && (
+            <div className="space-y-2">
+              <button
+                id="cancel"
+                type="button"
+                disabled={busy}
+                onClick={() => void cancelBooking()}
+                className="text-ink-muted text-sm underline underline-offset-2 hover:text-red-700"
+              >
+                Cancel booking
+              </button>
+              {cancelPolicy && <p className="text-ink-muted text-xs">{cancelPolicy}</p>}
+            </div>
+          )}
+          {error && (
+            <p className="text-ink-muted text-sm">
+              <a href={whatsapp} className="text-accent-700 underline">
+                Message us on WhatsApp
+              </a>{' '}
+              if you need help.
+            </p>
+          )}
           {booking.reschedule_blocked && (status === 'pending' || status === 'confirmed') && (
             <p className="text-ink-muted text-sm">
               {booking.reschedule_blocked}{' '}

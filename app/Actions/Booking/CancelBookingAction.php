@@ -39,7 +39,11 @@ class CancelBookingAction
         // individually try/caught: a notification failure must never turn a successful cancellation
         // into a 500 for the customer.
         try {
-            $booking->customer?->notify(new BookingCancelledNotification($booking));
+            if ($booking->customer) {
+                $booking->customer->notify(new BookingCancelledNotification($booking));
+            } elseif (filled($booking->guest_email)) {
+                Notification::route('mail', $booking->guest_email)->notify(new BookingCancelledNotification($booking));
+            }
         } catch (\Throwable $e) {
             Log::error("Failed to send BookingCancelled for {$booking->code}: {$e->getMessage()}", ['exception' => $e]);
         }

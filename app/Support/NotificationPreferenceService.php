@@ -19,8 +19,13 @@ class NotificationPreferenceService
         };
     }
 
-    public static function unsubscribeUrl(User $user, string $channel): string
+    /** Signed opt-out link. The opt-out is stored on the account's profile, so only accounts get one. */
+    public static function unsubscribeUrl(mixed $user, string $channel): ?string
     {
+        if (! $user instanceof User) {
+            return null;
+        }
+
         return URL::temporarySignedRoute(
             'notifications.unsubscribe',
             now()->addDays(30),

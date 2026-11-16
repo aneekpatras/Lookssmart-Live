@@ -180,3 +180,58 @@ it('adds the suggested 24h, 12h and 6h rules once, only when asked', function ()
 
     expect(ReminderRule::where('event', 'before_booking')->where('is_active', true)->pluck('offset_minutes')->sort()->values()->all())->toBe([360, 720, 1440]);
 });
+
+it('renders the reminder email with the lead time, details, policy text and the right buttons', function () {
+    \App\Models\Setting::create(['key' => 'booking.cancel_policy_text', 'value' => 'Message us before you cancel.', 'group' => 'booking']);
+    $booking = reminderBooking(['status' => 'pending', 'starts_at' => now()->addDays(3)->setTime(13, 0), 'ends_at' => now()->addDays(3)->setTime(13, 45)]);
+
+    $html = (string) (new BookingReminder($booking, ['email'], 1440))->toMail($booking->customer)->render();
+
+    expect($html)->toContain('in 24 hours')->toContain($booking->code)->toContain('Confirm my booking')
+        ->toContain('Reschedule')->toContain('Cancel booking')->toContain('Message us before you cancel.')
+        ->toContain('/b/' . $booking->code)->toContain('Total:');
+
+    $booking->forceFill(['status' => 'confirmed'])->save();
+    $html = (string) (new BookingReminder($booking->fresh(), ['email'], 360))->toMail($booking->customer)->render();
+    expect($html)->not->toContain('Confirm my booking')->toContain('in 6 hours')->toContain('Reschedule');
+});
+
+it('renders the reminder for a guest without an unsubscribe link and with mail as the only channel', function () {
+    $booking = reminderBooking(['customer_id' => null, 'guest_email' => 'guest@example.com', 'guest_name' => 'Guest', 'starts_at' => now()->addDays(3)]);
+    $notifiable = (new AnonymousNotifiable)->route('mail', 'guest@example.com');
+    $notification = new BookingReminder($booking, ['email'], 720);
+
+    expect($notification->via($notifiable))->toBe([\App\Channels\MailChannel::class]);
+    $html = (string) $notification->toMail($notifiable)->render();
+    expect($html)->toContain('Hi Guest')->toContain('in 12 hours')->not->toContain('Unsubscribe');
+});
+
+it('cancels from the signed page only on POST, once, and records it', function () {
+    Notification::fake();
+    $booking = reminderBooking(['status' => 'confirmed', 'starts_at' => now()->addDays(5), 'ends_at' => now()->addDays(5)->addMinutes(45)]);
+    $page = \App\Http\Controllers\BookingLinkController::url($booking);
+    $cancelUrl = \App\Http\Controllers\BookingLinkController::url($booking, 'booking.link.cancel');
+
+    $this->get($page)->assertOk()->assertInertia(fn ($p) => $p->where('booking.can_cancel', true)->has('cancelPolicy')->has('urls.cancel'));
+    expect($this->get($cancelUrl)->status())->toBeIn([404, 405]); // GET never cancels
+    expect($booking->fresh()->status)->toBe('confirmed');
+
+    $this->postJson(route('booking.link.cancel', $booking->code))->assertForbidden();
+    expect($booking->fresh()->status)->toBe('confirmed');
+
+    $this->postJson($cancelUrl)->assertOk()->assertJson(['status' => 'cancelled']);
+    expect($booking->fresh()->status)->toBe('cancelled');
+    expect(\App\Models\BookingStatusLog::where('booking_id', $booking->id)->where('reason', 'Cancelled by customer (email link)')->count())->toBe(1);
+
+    $this->postJson($cancelUrl)->assertStatus(422);
+    expect(\App\Models\BookingStatusLog::where('booking_id', $booking->id)->where('to_status', 'cancelled')->count())->toBe(1);
+});
+
+it('emails a guest their cancellation through the on-demand route', function () {
+    Notification::fake();
+    $booking = reminderBooking(['customer_id' => null, 'guest_email' => 'guest@example.com', 'status' => 'pending', 'starts_at' => now()->addDays(5), 'ends_at' => now()->addDays(5)->addMinutes(45)]);
+
+    $this->postJson(\App\Http\Controllers\BookingLinkController::url($booking, 'booking.link.cancel'))->assertOk();
+
+    Notification::assertSentOnDemand(\App\Notifications\BookingCancelled::class, fn ($n, $channels, $notifiable) => $notifiable->routes['mail'] === 'guest@example.com');
+});

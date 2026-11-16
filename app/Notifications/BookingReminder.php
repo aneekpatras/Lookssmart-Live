@@ -55,28 +55,56 @@ class BookingReminder extends Notification implements ShouldQueue
         return $this->toSms($notifiable);
     }
 
+    /** "30 minutes", "24 hours", "2 days": how long until the appointment, as the rule states it. */
+    public static function humanLead(?int $minutes): ?string
+    {
+        if (! $minutes || $minutes < 1) {
+            return null;
+        }
+        if ($minutes % 1440 === 0 && $minutes >= 2880) {
+            return ($minutes / 1440) . ' days';
+        }
+        if ($minutes % 60 === 0) {
+            $hours = $minutes / 60;
+
+            return $hours . ($hours === 1 ? ' hour' : ' hours');
+        }
+
+        return $minutes . ' minutes';
+    }
+
     public function toMail(mixed $notifiable): MailMessage
     {
         $booking = $this->booking->loadMissing(['items.service']);
-        $serviceNames = $booking->items->map(fn ($item) => $item->service?->name ?? 'Service')->implode(', ');
+        $services = $booking->items->map(fn ($item) => $item->service?->name ?? 'Service')->values()->all();
         $customerName = $booking->customer?->name ?? $booking->guest_name ?? 'there';
         $localStart = $booking->starts_at->clone()->setTimezone(SalonTimezone::DISPLAY);
         $links = \App\Http\Controllers\BookingLinkController::emailLinks($booking);
+        $lead = self::humanLead($this->offsetMinutes);
+
+        try {
+            $address = (string) app(\App\Services\SeoService::class)->findUs()['address'];
+        } catch (\Throwable) {
+            $address = '';
+        }
 
         return (new MailMessage)
-            ->subject("Reminder: your booking is coming up — {$booking->code}")
+            ->subject(($this->test ? '[Test] ' : '') . ($lead ? "Reminder: your appointment is in {$lead}" : 'Reminder: your appointment is coming up') . " — {$booking->code}")
             ->view('mail.booking-reminder', [
                 'customer_name' => $customerName,
-                'service_name' => $serviceNames,
+                'lead' => $lead,
+                'services' => $services,
                 'booking_code' => $booking->code,
-                'booking_date' => $localStart->format('D, M j, Y'),
-                'booking_time' => $localStart->format('g:i A'),
+                'when' => $localStart->format('D j M, g:i A'),
+                'total' => \App\Support\CurrencyFormatter::format($booking->total),
+                'address' => $address,
+                'phone' => (string) (\App\Models\Setting::get('business.phone') ?: '+92 305 9833859'),
+                'policy' => Booking::cancelPolicyText(),
                 'cta_url' => $links['page_url'] ?? url('/book'),
                 'confirm_url' => $links['confirm_url'],
                 'reschedule_url' => $links['reschedule_url'],
-                'cta_label' => 'View booking',
-                'title' => 'Your Appointment Is Coming Up',
-                'subtitle' => 'A quick reminder from your salon team.',
+                'cancel_url' => $links['cancel_url'],
+                'test' => $this->test,
                 'unsubscribe_url' => NotificationPreferenceService::unsubscribeUrl($notifiable, 'mail'),
             ]);
     }

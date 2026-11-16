@@ -27,6 +27,11 @@ class BookingRescheduled extends Notification implements ShouldQueue
     /** @return array<int, string> */
     public function via(mixed $notifiable): array
     {
+        // A guest reached through an on-demand mail route: mail only (no database or phone channel).
+        if ($notifiable instanceof \Illuminate\Notifications\AnonymousNotifiable) {
+            return [MailChannel::class];
+        }
+
         return array_values(array_filter([
             MailChannel::class,
             'database',
