@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { AlertTriangle } from 'lucide-react';
 import * as React from 'react';
@@ -28,10 +29,8 @@ interface CancelBookingDialogProps {
 }
 
 /**
- * The task's exact-wording fee warning, shown only when
- * `booking.within_cancellation_fee_window` is true — the same 24h (admin-configurable) check
- * `CancelBookingAction` itself applies (`Booking::isWithinCancellationWindow()`), so this modal can
- * never show a warning the backend would then silently disagree with, or vice versa.
+ * Cancel confirmation. The note in it is the admin-editable cancellation text (Settings, Booking
+ * Rules), shared as `site.cancel_policy`; the salon states no fee or deadline of its own here.
  */
 export function CancelBookingDialog({
   booking,
@@ -39,6 +38,7 @@ export function CancelBookingDialog({
   onOpenChange,
   onCancelled,
 }: CancelBookingDialogProps) {
+  const policy = usePage<{ site?: { cancel_policy?: string } }>().props.site?.cancel_policy;
   const [reason, setReason] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -78,13 +78,10 @@ export function CancelBookingDialog({
           <DialogDescription>Booking {booking.code}</DialogDescription>
         </DialogHeader>
 
-        {booking.within_cancellation_fee_window && (
+        {policy && (
           <div className="flex gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
             <AlertTriangle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-            <p>
-              Cancellations within 24 hours incur a cancellation charge (or forfeiture of advance
-              deposit). Are you sure you wish to proceed?
-            </p>
+            <p>{policy}</p>
           </div>
         )}
 

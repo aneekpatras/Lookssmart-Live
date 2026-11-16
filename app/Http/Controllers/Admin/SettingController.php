@@ -103,6 +103,12 @@ class SettingController extends Controller
                 $valid = false;
             }
 
+            // Cancellation sentence shown to customers: plain text, at most 300 characters.
+            if ($valid && $key === 'booking.cancel_policy_text' && ! $blank
+                && (mb_strlen((string) $value) > 300 || strip_tags((string) $value) !== (string) $value)) {
+                $valid = false;
+            }
+
             // The countdown end is a datetime-local value ("2026-12-31T20:00") or empty.
             if ($valid && $key === 'deals_bar.ends_at' && ! $blank && strtotime((string) $value) === false) {
                 $valid = false;

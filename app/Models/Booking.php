@@ -113,6 +113,20 @@ class Booking extends Model
         return in_array($this->status, ['pending', 'confirmed'], true);
     }
 
+    public const DEFAULT_CANCEL_POLICY = 'Need to change or cancel? Message us on WhatsApp and we will help.';
+
+    /** Admin-editable sentence shown wherever cancelling is mentioned (booking.cancel_policy_text). */
+    public static function cancelPolicyText(): string
+    {
+        try {
+            $text = trim((string) Setting::get('booking.cancel_policy_text'));
+        } catch (\Throwable) {
+            $text = '';
+        }
+
+        return $text !== '' ? $text : self::DEFAULT_CANCEL_POLICY;
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

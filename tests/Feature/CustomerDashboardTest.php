@@ -59,7 +59,14 @@ it('shows only the authenticated customer\'s own bookings on the dedicated My Bo
         ->has('bookings.data', 2)
         ->where('bookings.data.0.code', 'LS-NEWER01')
         ->where('bookings.data.1.code', 'LS-OLDER01')
-        ->where('cancellationWindowHours', 24));
+        ->where('site.cancel_policy', 'Need to change or cancel? Message us on WhatsApp and we will help.'));
+});
+
+it('shows the admin-set cancellation text and never the old fee claim', function () {
+    $customer = User::factory()->create(['email_verified_at' => now()]);
+    \App\Models\Setting::create(['key' => 'booking.cancel_policy_text', 'value' => 'Call us before you cancel.', 'group' => 'booking', 'is_encrypted' => false]);
+
+    $this->actingAs($customer)->get('/my-bookings')->assertInertia(fn ($page) => $page->where('site.cancel_policy', 'Call us before you cancel.'));
 });
 
 it('marks a booking cancellable and outside the fee window when it starts well beyond 24 hours away', function () {

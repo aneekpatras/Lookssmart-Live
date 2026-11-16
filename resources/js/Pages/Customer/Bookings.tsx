@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import * as React from 'react';
 
 import { CancelBookingDialog } from '@/Components/CancelBookingDialog';
@@ -23,7 +23,6 @@ interface Booking {
 
 interface BookingsProps {
   bookings: { data: Booking[]; current_page: number; last_page: number; total: number };
-  cancellationWindowHours: number;
 }
 
 const STATUS_VARIANT: Record<string, 'outline' | 'success' | 'destructive'> = {
@@ -80,7 +79,9 @@ function BookingCard({ booking }: { booking: Booking }) {
   );
 }
 
-export default function Bookings({ bookings, cancellationWindowHours }: BookingsProps) {
+export default function Bookings({ bookings }: BookingsProps) {
+  const cancelPolicy = usePage<{ site?: { cancel_policy?: string } }>().props.site?.cancel_policy;
+
   return (
     <>
       <Head title="My Bookings" />
@@ -92,8 +93,7 @@ export default function Bookings({ bookings, cancellationWindowHours }: Bookings
           </p>
           <h1 className="font-display text-ink mt-2 text-4xl font-medium">My Bookings</h1>
           <p className="text-ink-muted mt-3 text-sm">
-            Free cancellation up to {cancellationWindowHours} hours before your appointment. Later
-            cancellations may incur a cancellation charge or forfeit your advance deposit.
+            {cancelPolicy}
           </p>
         </div>
 

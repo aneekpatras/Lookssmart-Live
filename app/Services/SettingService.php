@@ -45,6 +45,7 @@ class SettingService
         'booking.max_advance_days' => ['group' => 'booking', 'type' => 'int'],
         'booking.hold_minutes' => ['group' => 'booking', 'type' => 'int'],
         'booking.min_lead_minutes' => ['group' => 'booking', 'type' => 'int'],
+        'booking.cancel_policy_text' => ['group' => 'booking', 'type' => 'string'],
         'booking.cancellation_window_hours' => ['group' => 'booking', 'type' => 'int'],
         'booking.tax_rate' => ['group' => 'booking', 'type' => 'float'],
         // Ad hoc task 30: max simultaneous active/confirmed bookings the salon-wide capacity grid

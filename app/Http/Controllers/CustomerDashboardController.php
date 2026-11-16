@@ -62,7 +62,6 @@ class CustomerDashboardController extends Controller
 
         return Inertia::render('Customer/Bookings', [
             'bookings' => $bookings->through(fn (Booking $booking) => $this->bookingData($booking)),
-            'cancellationWindowHours' => (int) (Setting::get('booking.cancellation_window_hours', 24) ?? 24),
         ]);
     }
 

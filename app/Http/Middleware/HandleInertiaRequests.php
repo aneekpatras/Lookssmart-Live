@@ -106,6 +106,7 @@ class HandleInertiaRequests extends Middleware
             // undefined. Found by actually inspecting the serialised page payload for these two
             // routes rather than assuming the merge was deep.
             'site' => fn () => [
+                'cancel_policy' => \App\Models\Booking::cancelPolicyText(),
                 'name' => Setting::get('business.name') ?: config('app.name'),
                 'phone' => Setting::get('business.phone') ?: null,
                 'email' => Setting::get('business.email') ?: null,
