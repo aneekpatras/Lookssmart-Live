@@ -173,4 +173,20 @@ class User extends Authenticatable implements MustVerifyEmail
             ->dontSubmitEmptyLogs()
             ->useLogName('users');
     }
+
+    /**
+     * Users who receive admin alerts (new lead / booking / cancellation). Guarded: Spatie throws
+     * RoleDoesNotExist when a role row is missing (fresh database, tests), and a public form
+     * submission must never fail because of that.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, static>
+     */
+    public static function adminRecipients(): \Illuminate\Database\Eloquent\Collection
+    {
+        try {
+            return static::role(['admin', 'super-admin'])->get();
+        } catch (\Throwable) {
+            return (new static)->newCollection();
+        }
+    }
 }

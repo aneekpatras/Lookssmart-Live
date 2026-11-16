@@ -44,7 +44,7 @@ class CancelBookingAction
             Log::error("Failed to send BookingCancelled for {$booking->code}: {$e->getMessage()}", ['exception' => $e]);
         }
 
-        $admins = User::role(['admin', 'super-admin'])->get();
+        $admins = User::adminRecipients();
 
         try {
             if ($admins->isNotEmpty()) {

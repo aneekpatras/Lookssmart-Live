@@ -616,7 +616,7 @@ class PublicWebsiteController extends Controller
      */
     private function sendLeadNotifications(Lead $lead): void
     {
-        $admins = User::role(['admin', 'super-admin'])->get();
+        $admins = User::adminRecipients();
 
         try {
             if ($admins->isNotEmpty()) {
