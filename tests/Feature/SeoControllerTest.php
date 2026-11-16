@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Deal;
 use App\Models\Post;
 use App\Models\Service;
 use App\Models\ServiceCategory;
@@ -60,4 +61,25 @@ it('generates a robots.txt disallowing admin/private areas and pointing at the s
         ->toContain('Disallow: /admin')
         ->toContain('Disallow: /my-account')
         ->toContain('Sitemap: ' . route('sitemap'));
+});
+
+it('lists active deal detail pages with lastmod and leaves out inactive or expired deals', function () {
+    $window = ['starts_at' => now()->subDay(), 'ends_at' => now()->addWeek()];
+    $live = Deal::factory()->create([...$window, 'slug' => 'bridal-glow', 'is_active' => true]);
+    Deal::factory()->create([...$window, 'slug' => 'switched-off', 'is_active' => false]);
+    Deal::factory()->create(['starts_at' => now()->subWeek(), 'ends_at' => now()->subDay(), 'slug' => 'ended-deal', 'is_active' => true]);
+
+    $xml = simplexml_load_string($this->get('/sitemap.xml')->getContent());
+    $locs = [];
+    $lastmods = [];
+    foreach ($xml->url as $node) {
+        $locs[] = (string) $node->loc;
+        $lastmods[(string) $node->loc] = (string) $node->lastmod;
+    }
+
+    expect($locs)->toContain(route('faqs.index'))
+        ->toContain(route('deals.show', 'bridal-glow'))
+        ->not->toContain(route('deals.show', 'switched-off'))
+        ->not->toContain(route('deals.show', 'ended-deal'));
+    expect($lastmods[route('deals.show', 'bridal-glow')])->not->toBe('');
 });

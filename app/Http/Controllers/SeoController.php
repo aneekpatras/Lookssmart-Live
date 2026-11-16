@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Deal;
 use App\Models\Post;
 use App\Models\Service;
 use App\Models\Setting;
@@ -69,6 +70,16 @@ class SeoController extends Controller
                 Url::create(route('blog.show', $post->slug))
                     ->setLastModificationDate($post->updated_at)
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
+                    ->setPriority(0.6),
+            ));
+
+        // Same visibility rule as the public detail page (`Deal::active()`): inactive, not-yet-started
+        // and expired deals are left out so crawlers are never pointed at a 404.
+        Deal::active()->select(['slug', 'updated_at'])->orderBy('id')
+            ->each(fn (Deal $deal) => $sitemap->add(
+                Url::create(route('deals.show', $deal->slug))
+                    ->setLastModificationDate($deal->updated_at)
+                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                     ->setPriority(0.6),
             ));
 
