@@ -94,6 +94,7 @@ class SettingService
         // Reminders page: WhatsApp message templates (plain text, max 600, placeholders filled server-side).
         'reminder.template' => ['group' => 'reminder', 'type' => 'string'],
         'birthday.template' => ['group' => 'reminder', 'type' => 'string'],
+        'confirm.template' => ['group' => 'reminder', 'type' => 'string'],
 
         // Follow-ups page: WhatsApp message templates (plain text, max 600).
         'followup.booking_template' => ['group' => 'followup', 'type' => 'string'],

@@ -207,3 +207,28 @@ it('puts a confirm button in the booking email for pending bookings only', funct
     $html = (string) (new \App\Notifications\BookingConfirmed($booking->fresh()))->toMail(User::factory()->create())->render();
     expect($html)->not->toContain('Confirm my booking')->toContain('Reschedule');
 });
+
+it('lists pending bookings on the To confirm tab, logs the WhatsApp ask, and lets staff mark confirmed', function () {
+    [$booking] = confirmFixture();
+    $admin = adminUserForConfirm();
+
+    $this->actingAs($admin)->get('/admin/reminders')->assertOk()->assertInertia(fn ($page) => $page
+        ->has('toConfirm', 1)
+        ->where('toConfirm.0.ref', $booking->code)
+        ->where('toConfirm.0.has_email', true)
+        ->where('templates.defaults.confirm', fn ($text) => str_contains($text, '{ref}')));
+
+    $this->actingAs($admin)->postJson('/admin/reminders/log', [
+        'type' => 'confirm', 'booking_id' => $booking->id, 'phone' => '923001234567', 'message' => 'Please confirm',
+    ])->assertNoContent();
+    expect(\App\Models\ManualMessageLog::where('type', 'confirm')->where('booking_id', $booking->id)->exists())->toBeTrue();
+
+    $this->actingAs($admin)->post("/admin/reminders/bookings/{$booking->id}/confirm")->assertRedirect();
+    $fresh = $booking->fresh();
+    expect($fresh->status)->toBe('confirmed')
+        ->and($fresh->confirmed_via)->toBe('staff')
+        ->and($fresh->confirmed_by)->toBe($admin->id);
+
+    $this->actingAs($admin)->get('/admin/reminders')->assertInertia(fn ($page) => $page->has('toConfirm', 0));
+    $this->actingAs($admin)->get("/admin/bookings/{$booking->id}")->assertInertia(fn ($page) => $page->where('booking.confirmation.by', $admin->name));
+});

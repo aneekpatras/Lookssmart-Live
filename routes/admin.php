@@ -214,6 +214,7 @@ Route::prefix('admin')
         Route::get('/reminders', [RemindersController::class, 'index'])->name('reminders');
         Route::post('/reminders/log', [RemindersController::class, 'log'])->name('reminders.log');
         Route::post('/reminders/templates', [RemindersController::class, 'saveTemplate'])->name('reminders.templates');
+        Route::post('/reminders/bookings/{booking}/confirm', [RemindersController::class, 'markConfirmed'])->name('reminders.confirm');
         Route::post('/reminders/rules', [RemindersController::class, 'storeRule'])->name('reminders.rules.store');
         Route::put('/reminders/rules/{rule}', [RemindersController::class, 'updateRule'])->name('reminders.rules.update');
         Route::delete('/reminders/rules/{rule}', [RemindersController::class, 'destroyRule'])->name('reminders.rules.destroy');

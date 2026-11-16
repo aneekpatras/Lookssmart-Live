@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Actions\Booking\ConfirmBookingAction;
 use App\Models\Booking;
 use App\Models\CustomerProfile;
 use App\Models\ManualMessageLog;
@@ -32,6 +33,8 @@ class RemindersController extends Controller
 
     public const DEFAULT_REMINDER = 'Assalam o Alaikum {name}, yeh Looks Smart Beauty Salon ki taraf se yaad dehani hai. Aap ki appointment {date} ko {time} par hai ({services}). Address: {address}. Agar waqt badalna ho to is chat mein bata dein. Shukriya!';
 
+    public const DEFAULT_CONFIRM = 'Assalam o Alaikum {name}, aap ki Looks Smart Beauty Salon par booking {ref} ({services}) {date} ko {time} par hai. Kya hum aap ki booking confirm kar dein?';
+
     public const DEFAULT_BIRTHDAY = 'Salgirah mubarak {name}! Looks Smart Beauty Salon ki taraf se aap ko dili mubarakbad. Aap ka din khoobsurat guzray.';
 
     private function guard(Request $request): void
@@ -58,6 +61,8 @@ class RemindersController extends Controller
         $shared = $this->sharedVars();
         $reminderTemplate = $this->template('reminder.template', self::DEFAULT_REMINDER);
         $birthdayTemplate = $this->template('birthday.template', self::DEFAULT_BIRTHDAY);
+        $confirmTemplate = $this->template('confirm.template', self::DEFAULT_CONFIRM);
+        $toConfirm = $this->toConfirm($confirmTemplate, $shared);
 
         return Inertia::render('Admin/Reminders', [
             'logsReady' => $this->logsReady(),
@@ -66,10 +71,12 @@ class RemindersController extends Controller
             'templates' => [
                 'reminder' => $reminderTemplate,
                 'birthday' => $birthdayTemplate,
-                'defaults' => ['reminder' => self::DEFAULT_REMINDER, 'birthday' => self::DEFAULT_BIRTHDAY],
+                'confirm' => $confirmTemplate,
+                'defaults' => ['reminder' => self::DEFAULT_REMINDER, 'birthday' => self::DEFAULT_BIRTHDAY, 'confirm' => self::DEFAULT_CONFIRM],
             ],
             'appointments' => $this->appointments($range, $reminderTemplate, $shared),
             'birthdays' => $this->birthdays($birthdayTemplate, $shared),
+            'toConfirm' => $toConfirm,
             'emailRules' => $this->emailRules(),
             'scheduler' => ['last_run' => $this->schedulerLastRun()],
             'mail' => ['mailer' => (string) config('mail.default'), 'queue' => (string) config('queue.default')],
@@ -244,6 +251,60 @@ class RemindersController extends Controller
         })->values()->all();
     }
 
+    // --- To confirm ----------------------------------------------------------------------------
+
+    /** Upcoming pending bookings, so staff can ask customers who do not use email to confirm. */
+    private function toConfirm(string $template, array $shared): array
+    {
+        $bookings = Booking::query()
+            ->with(['items.service:id,name', 'customer:id,name,phone,email'])
+            ->where('status', 'pending')
+            ->where('starts_at', '>=', now())
+            ->orderBy('starts_at')
+            ->limit(300)
+            ->get();
+
+        $sent = $this->latestLogs('confirm', 'booking_id', $bookings->pluck('id')->all());
+
+        return $bookings->map(function (Booking $booking) use ($template, $shared, $sent) {
+            $starts = CarbonImmutable::parse($booking->starts_at)->setTimezone(self::TZ);
+            $name = $booking->customer?->name ?: ($booking->guest_name ?: 'Customer');
+            $services = $booking->items->map(fn ($item) => $item->service?->name)->filter()->implode(', ');
+            $phone = Phone::fromStored($booking->guest_phone ?: $booking->customer?->phone);
+            $vars = ['name' => $name, 'ref' => $booking->code, 'services' => $services, 'date' => $starts->format('D j M'), 'time' => $starts->format('g:i A')];
+            $log = $sent[$booking->id] ?? null;
+
+            return [
+                'id' => $booking->id,
+                'time' => $starts->format('D j M, g:i A'),
+                'ref' => $booking->code,
+                'name' => $name,
+                'phone' => $phone ? Phone::display($phone) : null,
+                'wa_phone' => $phone,
+                'services' => $services,
+                'source' => $booking->source ?: '—',
+                'has_email' => filled($booking->guest_email) || filled($booking->customer?->email),
+                'message' => $this->fill($template, $vars + $shared),
+                'vars' => $vars,
+                'sent' => $log ? ['at' => $log->sent_at?->toIso8601String(), 'by' => $log->sender?->name] : null,
+            ];
+        })->values()->all();
+    }
+
+    /** "Mark confirmed": the same confirm path as the customer's email link, recorded as done by staff. */
+    public function markConfirmed(Request $request, Booking $booking, ConfirmBookingAction $action)
+    {
+        $this->guard($request);
+
+        try {
+            $result = $action->execute($booking, ConfirmBookingAction::VIA_STAFF, $request->user()->id);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', $result === 'already' ? 'Already confirmed.' : "Booking {$booking->code} marked confirmed.");
+    }
+
     // --- Birthdays ----------------------------------------------------------------------------
 
     private function birthdays(string $template, array $shared): array
@@ -337,21 +398,21 @@ class RemindersController extends Controller
         $this->guard($request);
 
         $data = $request->validate([
-            'type' => ['required', 'in:reminder,birthday'],
+            'type' => ['required', 'in:reminder,birthday,confirm'],
             'booking_id' => ['nullable', 'integer', 'exists:bookings,id'],
             'customer_id' => ['nullable', 'integer', 'exists:users,id'],
             'phone' => ['required', 'string', 'max:20'],
             'message' => ['required', 'string', 'max:2000'],
         ]);
 
-        abort_if($data['type'] === 'reminder' && empty($data['booking_id']), 422);
+        abort_if(in_array($data['type'], ['reminder', 'confirm'], true) && empty($data['booking_id']), 422);
         abort_if($data['type'] === 'birthday' && empty($data['customer_id']), 422);
 
         try {
             if ($this->logsReady()) {
                 ManualMessageLog::create([
                     'type' => $data['type'],
-                    'booking_id' => $data['type'] === 'reminder' ? $data['booking_id'] : null,
+                    'booking_id' => in_array($data['type'], ['reminder', 'confirm'], true) ? $data['booking_id'] : null,
                     'customer_id' => $data['type'] === 'birthday' ? $data['customer_id'] : null,
                     'phone' => preg_replace('/\D/', '', $data['phone']),
                     'message' => $data['message'],
@@ -371,7 +432,7 @@ class RemindersController extends Controller
         $this->guard($request);
 
         $data = $request->validate([
-            'key' => ['required', 'in:reminder,birthday'],
+            'key' => ['required', 'in:reminder,birthday,confirm'],
             'value' => ['nullable', 'string', 'max:600'],
         ]);
 

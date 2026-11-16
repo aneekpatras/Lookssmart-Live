@@ -18,6 +18,7 @@ interface Sent {
 
 interface Vars {
   name: string;
+  ref?: string;
   services: string;
   date: string;
   time: string;
@@ -31,6 +32,21 @@ interface AppointmentRow {
   wa_phone: string | null;
   services: string;
   status: string;
+  message: string;
+  vars: Vars;
+  sent: Sent | null;
+}
+
+interface ConfirmRow {
+  id: number;
+  time: string;
+  ref: string;
+  name: string;
+  phone: string | null;
+  wa_phone: string | null;
+  services: string;
+  source: string;
+  has_email: boolean;
   message: string;
   vars: Vars;
   sent: Sent | null;
@@ -57,16 +73,19 @@ interface RemindersProps {
   templates: {
     reminder: string;
     birthday: string;
-    defaults: { reminder: string; birthday: string };
+    confirm: string;
+    defaults: { reminder: string; birthday: string; confirm: string };
   };
   appointments: AppointmentRow[];
   birthdays: { available: boolean; rows: BirthdayRow[] };
+  toConfirm: ConfirmRow[];
   emailRules: EmailRule[];
   scheduler: { last_run: string | null };
   mail: { mailer: string; queue: string };
 }
 
 const PLACEHOLDERS = ['name', 'services', 'date', 'time', 'salon', 'address', 'phone'];
+const CONFIRM_PLACEHOLDERS = ['name', 'ref', ...PLACEHOLDERS.slice(1)];
 
 const RANGES = [
   { id: 'today', label: 'Today' },
@@ -98,7 +117,7 @@ function fillPreview(
   shared: RemindersProps['shared'],
 ): string {
   const all: Record<string, string> = {
-    ...(vars ?? { name: 'Ayesha', services: 'Facial', date: 'Mon 16 Nov', time: '3:00 PM' }),
+    ...(vars ?? { name: 'Ayesha', ref: 'LS-1234', services: 'Facial', date: 'Mon 16 Nov', time: '3:00 PM' }),
     ...shared,
   };
   return template.replace(/\{(\w+)\}/g, (match, key: string) => all[key] ?? match);
@@ -182,11 +201,12 @@ export default function Reminders({
   templates,
   appointments,
   birthdays,
+  toConfirm,
   emailRules,
   scheduler,
   mail,
 }: RemindersProps) {
-  const [tab, setTab] = React.useState<'appointments' | 'birthdays' | 'email'>('appointments');
+  const [tab, setTab] = React.useState<'appointments' | 'birthdays' | 'confirm' | 'email'>('appointments');
   const [chip, setChip] = React.useState<(typeof BIRTHDAY_CHIPS)[number]['id']>('next');
   const [showTemplates, setShowTemplates] = React.useState(false);
 
@@ -250,13 +270,23 @@ export default function Reminders({
                   placeholders={PLACEHOLDERS}
                   preview={(text) => fillPreview(text, birthdays.rows[0]?.vars, shared)}
                 />
+                <MessageTemplateEditor
+                  id="template-confirm"
+                  label="Ask to confirm a booking"
+                  value={templates.confirm}
+                  defaultValue={templates.defaults.confirm}
+                  saveUrl="/admin/reminders/templates"
+                  payloadKey="confirm"
+                  placeholders={CONFIRM_PLACEHOLDERS}
+                  preview={(text) => fillPreview(text, toConfirm[0]?.vars, shared)}
+                />
               </div>
             )}
           </CardContent>
         </Card>
 
         <div role="tablist" aria-label="Reminder types" className="flex gap-2">
-          {(['appointments', 'birthdays', 'email'] as const).map((key) => (
+          {(['appointments', 'birthdays', 'confirm', 'email'] as const).map((key) => (
             <button
               key={key}
               type="button"
@@ -265,13 +295,85 @@ export default function Reminders({
               onClick={() => setTab(key)}
               className={pill(tab === key)}
             >
-              {key === 'appointments' ? 'Appointments' : key === 'birthdays' ? 'Birthdays' : 'Email rules'}
+              {key === 'appointments'
+                ? 'Appointments'
+                : key === 'birthdays'
+                  ? 'Birthdays'
+                  : key === 'confirm'
+                    ? `To confirm (${toConfirm.length})`
+                    : 'Email rules'}
             </button>
           ))}
         </div>
 
         {tab === 'email' ? (
           <EmailRulesTab rules={emailRules} schedulerLastRun={scheduler.last_run} mail={mail} />
+        ) : tab === 'confirm' ? (
+          <div className="space-y-4">
+            <p className="text-ink-muted text-sm">
+              Upcoming bookings that are still pending. Ask the customer on WhatsApp, then press
+              Mark confirmed once they agree. Customers with an email also get a Confirm button in
+              their booking email.
+            </p>
+            {toConfirm.length === 0 ? (
+              <p className="text-ink-muted py-10 text-center text-sm">Nothing waiting to be confirmed.</p>
+            ) : (
+              <div className="border-border-soft overflow-x-auto rounded-xl border">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-accent-50 text-ink-muted">
+                    <tr>
+                      <th className="p-3">Time</th>
+                      <th className="p-3">Customer</th>
+                      <th className="p-3">Phone</th>
+                      <th className="p-3">Services</th>
+                      <th className="p-3">Booked via</th>
+                      <th className="p-3">Email</th>
+                      <th className="p-3">Asked</th>
+                      <th className="p-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {toConfirm.map((row) => (
+                      <tr key={row.id} className="border-border-soft border-t align-top">
+                        <td className="p-3 whitespace-nowrap">{row.time}</td>
+                        <td className="p-3">
+                          {row.name}
+                          <span className="text-ink-muted block font-mono text-xs">{row.ref}</span>
+                        </td>
+                        <td className="p-3 whitespace-nowrap">{row.phone ?? '—'}</td>
+                        <td className="max-w-xs p-3">{row.services || '—'}</td>
+                        <td className="p-3">{row.source}</td>
+                        <td className="p-3">{row.has_email ? 'Yes' : 'No'}</td>
+                        <td className="p-3">
+                          <SentLabel sent={row.sent} />
+                        </td>
+                        <td className="space-y-2 p-3">
+                          <WhatsAppCell
+                            phone={row.wa_phone}
+                            message={row.message}
+                            label="Ask on WhatsApp"
+                            logBody={{ type: 'confirm', booking_id: row.id }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (confirm(`Mark booking ${row.ref} for ${row.name} as confirmed?`)) {
+                                router.post(`/admin/reminders/bookings/${row.id}/confirm`, {}, { preserveScroll: true });
+                              }
+                            }}
+                          >
+                            Mark confirmed
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         ) : tab === 'appointments' ? (
           <div className="space-y-4">
             <div role="group" aria-label="Date range" className="flex flex-wrap gap-2">
