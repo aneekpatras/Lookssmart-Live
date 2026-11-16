@@ -492,8 +492,7 @@ export default function Contact({
                   <h2 className="font-display text-ink text-lg font-medium">Prefer to chat?</h2>
                 </div>
                 <p className="text-ink-muted mt-3 text-sm leading-6">
-                  Message us on WhatsApp for the fastest reply — usually within minutes during
-                  opening hours.
+                  Message us on WhatsApp and we will get back to you as soon as we can.
                 </p>
                 <Button asChild variant="accent" className="mt-4 w-full">
                   <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
