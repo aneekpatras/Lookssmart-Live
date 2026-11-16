@@ -23,6 +23,7 @@ Route::get('/', [PublicWebsiteController::class, 'home'])->name('home');
 // Phase 13 sub-step 1. `public/robots.txt` was deleted — a physical file in `public/` is served
 // directly (by the webserver, and by `artisan serve`'s own built-in router) before any Laravel route
 // is ever reached, so the dynamic route below would otherwise be permanently unreachable.
+Route::get('/theme.css', \App\Http\Controllers\ThemeCssController::class)->name('theme.css');
 Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');
 // Phase 13 sub-step 2.

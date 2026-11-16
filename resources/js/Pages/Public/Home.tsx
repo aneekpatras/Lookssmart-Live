@@ -402,7 +402,7 @@ export default function Home({
         {/* Two stacked layers: a warm champagne wash for brand tone, then a dark vertical gradient
             that guarantees text contrast regardless of what the video frame underneath is doing. */}
         <div
-          className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_75%_22%,rgba(201,166,107,0.28),transparent_45%),linear-gradient(180deg,rgba(23,19,17,0.72)_0%,rgba(23,19,17,0.58)_45%,rgba(23,19,17,0.86)_100%)]"
+          className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_75%_22%,color-mix(in_srgb,var(--gold)_28%,transparent),transparent_45%),linear-gradient(180deg,rgba(23,19,17,0.72)_0%,rgba(23,19,17,0.58)_45%,rgba(23,19,17,0.86)_100%)]"
           aria-hidden="true"
         />
         <div className="mx-auto w-full max-w-6xl text-center">

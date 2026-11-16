@@ -12,30 +12,44 @@
 @source '../**/*.ts';
 
 /* Brief §6 — minimal luxury: soft neutral base + one warm accent (rose-gold / champagne). */
+/* The three base colours of the public site. Every shade below derives from them; Admin > Settings > Theme
+   colours can override these (and the shades) through /theme.css, which is linked on public pages only. */
+:root {
+    --gold: #c9a66b;
+    --espresso: #2a2420;
+    --ivory: #faf7f2;
+}
+
 @theme {
     --font-display: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 
-    --color-ivory: #faf7f2;
+    --color-ivory: var(--ivory);
     --color-surface: #ffffff;
-    --color-ink: #2a2420;
+    --color-ink: var(--espresso);
     --color-ink-muted: #6b6157;
     --color-border-soft: #e8e1d6;
 
     --color-accent-50: #f8f1e2;
     --color-accent-100: #f0e6d2;
     --color-accent-300: #ddc08c;
-    --color-accent-500: #c9a66b;
+    --color-accent-500: var(--gold);
     --color-accent-600: #b08d4f;
     --color-accent-700: #8f7140;
+    /* Cream selected state and the four soft card tints (were hardcoded hex in BookItemCard). */
+    --color-cream: #fbf5e8;
+    --color-tint-a: #f3ece0;
+    --color-tint-b: #efe6d6;
+    --color-tint-c: #f6efe2;
+    --color-tint-d: #ece3d3;
 
     --radius-md: 0.625rem;
     --radius-lg: 1rem;
     --radius-xl: 1.5rem;
 
-    --shadow-soft: 0 2px 16px 0 rgb(42 36 32 / 0.06);
-    --shadow-glass: 0 8px 32px 0 rgb(42 36 32 / 0.10);
+    --shadow-soft: 0 2px 16px 0 color-mix(in srgb, var(--espresso) 6%, transparent);
+    --shadow-glass: 0 8px 32px 0 color-mix(in srgb, var(--espresso) 10%, transparent);
 
     --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }

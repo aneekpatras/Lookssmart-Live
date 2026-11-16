@@ -29,9 +29,9 @@ export default function NotFound() {
         <div className="mx-auto flex max-w-xl flex-col items-center text-center">
           <div
             aria-hidden="true"
-            className="bg-ink relative h-[186px] w-[150px] rounded-t-full rounded-b-lg border-[1.5px] border-[#c9a66b] motion-safe:animate-[auth-rise_0.5s_ease-out_both]"
+            className="bg-ink relative h-[186px] w-[150px] rounded-t-full rounded-b-lg border-[1.5px] border-accent-500 motion-safe:animate-[auth-rise_0.5s_ease-out_both]"
           >
-            <div className="absolute inset-[7px] rounded-t-full rounded-b-md border border-[#c9a66b]/40" />
+            <div className="absolute inset-[7px] rounded-t-full rounded-b-md border border-accent-500/40" />
             <div className="relative flex h-full flex-col items-center justify-center gap-1">
               <Sparkles className="text-accent-500 size-5" />
               <span className="font-display text-accent-500 text-[46px] leading-none font-medium">

@@ -105,10 +105,10 @@ export default function AuthLayout({
             className="absolute -top-32 -right-32 size-[34rem] rounded-full bg-[radial-gradient(closest-side,rgb(201_166_107/0.30),transparent)]"
           />
           <div className="relative flex flex-col items-center px-10">
-            <div className="relative h-[190px] w-[150px] rounded-t-full rounded-b-lg border-[1.5px] border-[#c9a66b] bg-white/[0.04] motion-safe:animate-[auth-rise_0.5s_ease-out_both]">
+            <div className="relative h-[190px] w-[150px] rounded-t-full rounded-b-lg border-[1.5px] border-accent-500 bg-white/[0.04] motion-safe:animate-[auth-rise_0.5s_ease-out_both]">
               <div
                 aria-hidden="true"
-                className="absolute inset-[7px] rounded-t-full rounded-b-md border border-[#c9a66b]/40"
+                className="absolute inset-[7px] rounded-t-full rounded-b-md border border-accent-500/40"
               />
               <div className="relative flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
                 <Sparkles className="text-accent-500 size-7" aria-hidden="true" />

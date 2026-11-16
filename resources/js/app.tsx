@@ -108,6 +108,6 @@ createInertiaApp({
     dismissBootLayer();
   },
   progress: {
-    color: '#c9a66b',
+    color: 'var(--gold)',
   },
 });

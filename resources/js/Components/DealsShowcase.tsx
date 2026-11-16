@@ -71,7 +71,7 @@ export function DealsBar({ bar }: { bar: DealsBarData }) {
       className="bg-ink text-ivory relative isolate overflow-hidden"
     >
       <div
-        className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_88%_0%,rgba(201,166,107,0.30),transparent_55%),radial-gradient(circle_at_0%_100%,rgba(201,166,107,0.12),transparent_45%)]"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_88%_0%,color-mix(in_srgb,var(--gold)_30%,transparent),transparent_55%),radial-gradient(circle_at_0%_100%,color-mix(in_srgb,var(--gold)_12%,transparent),transparent_45%)]"
         aria-hidden="true"
       />
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10 lg:px-10">

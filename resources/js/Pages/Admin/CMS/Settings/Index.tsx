@@ -723,6 +723,190 @@ function HeroTab({ hero, media }: { hero: Record<string, SettingValue>; media: H
   );
 }
 
+const THEME_DEFAULTS = { gold: '#c9a66b', espresso: '#2a2420', ivory: '#faf7f2' };
+
+const THEME_PRESETS: { name: string; values: typeof THEME_DEFAULTS }[] = [
+  { name: 'Classic gold', values: THEME_DEFAULTS },
+  { name: 'Rose gold', values: { gold: '#b76e79', espresso: '#2d1f21', ivory: '#fbf6f4' } },
+  { name: 'Deep emerald', values: { gold: '#2f7a62', espresso: '#1d2a26', ivory: '#f6f8f5' } },
+];
+
+const HEX = /^#[0-9A-Fa-f]{6}$/;
+
+function luminance(hex: string): number {
+  const channel = (start: number) => {
+    const value = parseInt(hex.slice(start, start + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+/** WCAG 2 contrast ratio between two #RRGGBB colours. */
+function contrast(a: string, b: string): number {
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (light + 0.05) / (dark + 0.05);
+}
+
+const THEME_FIELDS: { key: 'gold' | 'espresso' | 'ivory'; label: string; hint: string }[] = [
+  { key: 'gold', label: 'Gold (accent)', hint: 'Buttons, links, highlights.' },
+  { key: 'espresso', label: 'Espresso (dark)', hint: 'Headings, body text and dark bands.' },
+  { key: 'ivory', label: 'Ivory (page background)', hint: 'The background of every page.' },
+];
+
+function ThemeFields({
+  data,
+  setField,
+  fieldError,
+}: {
+  data: Record<string, string>;
+  setField: (key: string, value: string) => void;
+  fieldError: (key: string) => string | undefined;
+}) {
+  const previewRef = React.useRef<HTMLDivElement>(null);
+  const colours = {
+    gold: HEX.test(data.gold ?? '') ? data.gold! : THEME_DEFAULTS.gold,
+    espresso: HEX.test(data.espresso ?? '') ? data.espresso! : THEME_DEFAULTS.espresso,
+    ivory: HEX.test(data.ivory ?? '') ? data.ivory! : THEME_DEFAULTS.ivory,
+  };
+
+  // The preview is coloured through the CSSOM (CSS variables on its own container), never an inline style attribute.
+  React.useEffect(() => {
+    const node = previewRef.current;
+    if (!node) return;
+    node.style.setProperty('--gold', colours.gold);
+    node.style.setProperty('--espresso', colours.espresso);
+    node.style.setProperty('--ivory', colours.ivory);
+  }, [colours.gold, colours.espresso, colours.ivory]);
+
+  const warnings: string[] = [];
+  if (contrast('#ffffff', colours.gold) < 3) {
+    warnings.push('White text on the gold colour is hard to read (below 3:1). Buttons may be difficult to read.');
+  }
+  if (contrast(colours.espresso, colours.ivory) < 4.5) {
+    warnings.push('The espresso text colour on the ivory background is below 4.5:1, so body text may be hard to read.');
+  }
+  if (contrast(colours.gold, colours.ivory) < 3) {
+    warnings.push('Gold text on the ivory background is below 3:1, so gold links and labels may be hard to read.');
+  }
+
+  function applyPreset(values: typeof THEME_DEFAULTS) {
+    setField('gold', values.gold);
+    setField('espresso', values.espresso);
+    setField('ivory', values.ivory);
+  }
+
+  function reset() {
+    applyPreset(THEME_DEFAULTS);
+    router.put(
+      '/admin/settings/theme',
+      {
+        settings: {
+          'theme.gold': THEME_DEFAULTS.gold,
+          'theme.espresso': THEME_DEFAULTS.espresso,
+          'theme.ivory': THEME_DEFAULTS.ivory,
+        },
+      },
+      { preserveScroll: true, onSuccess: () => toast.success('Theme reset to the default colours.') },
+    );
+  }
+
+  return (
+    <>
+      <p className="text-ink-muted text-sm">
+        Changes apply to the public website after saving. Emails and the app icon keep the original
+        colours.
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        {THEME_PRESETS.map((preset) => (
+          <Button
+            key={preset.name}
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => applyPreset(preset.values)}
+          >
+            {preset.name}
+          </Button>
+        ))}
+        <Button type="button" variant="ghost" size="sm" onClick={reset}>
+          Reset to default
+        </Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {THEME_FIELDS.map((field) => (
+          <div key={field.key} className="space-y-1.5">
+            <Label htmlFor={`theme-${field.key}-hex`}>{field.label}</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                aria-label={`${field.label} colour picker`}
+                value={colours[field.key]}
+                onChange={(e) => setField(field.key, e.target.value)}
+                className="border-input size-10 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5"
+              />
+              <Input
+                id={`theme-${field.key}-hex`}
+                value={data[field.key] ?? ''}
+                maxLength={7}
+                placeholder={THEME_DEFAULTS[field.key]}
+                onChange={(e) => setField(field.key, e.target.value.trim())}
+                aria-invalid={!!fieldError(field.key) || (!!data[field.key] && !HEX.test(data[field.key]!))}
+                className="font-mono"
+              />
+            </div>
+            <p className="text-ink-muted text-xs">{field.hint}</p>
+            {fieldError(field.key) && (
+              <p className="text-sm text-red-600">Use a colour like #c9a66b (six hex digits).</p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {warnings.length > 0 && (
+        <ul className="space-y-1 rounded-md bg-amber-50 p-3 text-sm text-amber-900" role="status">
+          {warnings.map((warning) => (
+            <li key={warning}>{warning} You can still save.</li>
+          ))}
+        </ul>
+      )}
+
+      <div ref={previewRef} className="overflow-hidden rounded-xl border bg-(--ivory) p-5">
+        <p className="text-xs font-semibold tracking-wider text-(--gold) uppercase">Preview</p>
+        <div className="mt-3 rounded-lg bg-(--espresso) p-4 text-(--ivory)">
+          <p className="font-display text-xl">Bridal artistry, and everyday beauty.</p>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <span className="inline-block rounded-md bg-(--gold) px-4 py-2 text-sm font-semibold text-white">
+            Book appointment
+          </span>
+          <span className="text-sm text-(--espresso)">Body text on the page background.</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ThemeTab({ theme }: { theme: Record<string, SettingValue> }) {
+  return (
+    <GroupForm
+      group="theme"
+      title="Theme colours"
+      description="Three base colours drive the whole public website. Other shades are worked out from them."
+      fields={{
+        gold: toFieldValue(theme['theme.gold']) || THEME_DEFAULTS.gold,
+        espresso: toFieldValue(theme['theme.espresso']) || THEME_DEFAULTS.espresso,
+        ivory: toFieldValue(theme['theme.ivory']) || THEME_DEFAULTS.ivory,
+      }}
+    >
+      {(data, setField, fieldError) => (
+        <ThemeFields data={data} setField={setField} fieldError={fieldError} />
+      )}
+    </GroupForm>
+  );
+}
+
 function AnalyticsTab({ analytics }: { analytics: Record<string, SettingValue> }) {
   return (
     <GroupForm
@@ -918,6 +1102,7 @@ export default function SettingsIndex({ settings, businessHours, dealOptions, he
           {tab === 'integrations' && <IntegrationsTab integrations={settings.integrations} />}
           {tab === 'wa-popup' && <WaPopupTab popup={settings.wa_popup} />}
           {tab === 'hero' && <HeroTab hero={settings.hero} media={heroMedia} />}
+          {tab === 'theme' && <ThemeTab theme={settings.theme} />}
           {tab === 'analytics' && <AnalyticsTab analytics={settings.analytics} />}
           {tab === 'deals-bar' && <DealsBarTab bar={settings.deals_bar} dealOptions={dealOptions} />}
           {tab === 'seo-security' && <SeoSecurityTab seo={settings.seo} security={settings.security} />}

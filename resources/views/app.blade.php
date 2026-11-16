@@ -17,7 +17,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {{-- Phase 13 sub-step 2: real brand accent (resources/css/app.css --color-accent-500), not a
     placeholder — tints supporting browsers' UI chrome and the PWA-lite splash/task-switcher card. --}}
-    <meta name="theme-color" content="#c9a66b">
+    <meta name="theme-color" content="{{ request()->is('admin', 'admin/*') ? '#c9a66b' : \App\Support\Theme::values()['gold'] }}">
     {{-- Google Search Console ownership verification (public by design, not a secret). Keep it in place
     after verification succeeds, or Google will un-verify the property. --}}
     <meta name="google-site-verification" content="7eXs5Yo8XWjW7Fl2pYjKCHfY1nxQzLoz4g0AUoO7EvU" />
@@ -82,12 +82,12 @@
     Every other public page: a plain page-coloured layer, no logo, no image. The site is light-only
     (dark mode is admin-only and toggled after mount), so that colour is --color-ivory (#faf7f2). --}}
     <style nonce="{{ $cspNonce ?? '' }}">
-        #boot-screen{position:fixed;inset:0;z-index:9999;background:#faf7f2;opacity:1;transition:opacity .45s ease;animation:boot-failsafe .01s linear 8s forwards}
+        #boot-screen{position:fixed;inset:0;z-index:9999;background:var(--ivory,#faf7f2);opacity:1;transition:opacity .45s ease;animation:boot-failsafe .01s linear 8s forwards}
         #boot-screen.is-done{opacity:0;pointer-events:none}
         @if (request()->routeIs('home'))
         /* Same box as the React hero section: PublicLayout's <main> has pt-24 (96px, room for the floating header), and the
            hero is min-h-[88svh]. The espresso base colour sits behind the image only; the strip above and below stays page-coloured. */
-        #boot-screen .boot-hero-box{position:absolute;top:96px;left:0;width:100%;height:88vh;height:88svh;overflow:hidden;background:#2a2420}
+        #boot-screen .boot-hero-box{position:absolute;top:96px;left:0;width:100%;height:88vh;height:88svh;overflow:hidden;background:var(--espresso,#2a2420)}
         #boot-screen picture{display:block;position:absolute;inset:0}
         #boot-screen img{display:block;position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 50%}
         #boot-screen .boot-hero-overlay{position:absolute;inset:0;background:radial-gradient(circle at 75% 22%,rgba(201,166,107,.28),transparent 45%),linear-gradient(180deg,rgba(23,19,17,.72) 0%,rgba(23,19,17,.58) 45%,rgba(23,19,17,.86) 100%)}
@@ -103,6 +103,10 @@
     @routes(null, $cspNonce ?? null)
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
+    {{-- Admin > Settings > Theme colours: re-colours the public site and the auth pages (never the admin panel). Linked after the main CSS; ?v= changes on every save. --}}
+    @unless (request()->is('admin', 'admin/*'))
+    <link rel="stylesheet" href="/theme.css?v={{ \App\Support\Theme::version() }}">
+    @endunless
     @inertiaHead
 </head>
 <body class="font-sans antialiased">

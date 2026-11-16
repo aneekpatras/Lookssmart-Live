@@ -21,7 +21,7 @@ interface BookItemCardProps {
   onToggle: () => void;
 }
 
-const TINTS = ['bg-[#f3ece0]', 'bg-[#efe6d6]', 'bg-[#f6efe2]', 'bg-[#ece3d3]'];
+const TINTS = ['bg-tint-a', 'bg-tint-b', 'bg-tint-c', 'bg-tint-d'];
 
 /** Picks a lucide icon from the category label — purely decorative, no network request. */
 function categoryIcon(label: string | null): React.ReactElement {
@@ -53,7 +53,7 @@ export function BookItemCard({
     <div
       className={`flex min-w-0 flex-col overflow-hidden rounded-[14px] transition-colors ${
         selected
-          ? 'border-accent-500 border-[1.5px] bg-[#fbf5e8]'
+          ? 'border-accent-500 border-[1.5px] bg-cream'
           : 'border-border-soft border-[0.5px] bg-white'
       }`}
     >
