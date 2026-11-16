@@ -7543,6 +7543,10 @@ Built:
 - Accounts with phone or email: register and log in with a WhatsApp number or an email; users.email is nullable and users.phone is unique.
 - Login and register: split-layout pages, shared password policy, login throttle, honeypot on register and booking.
 - Tracking and Follow-ups: anonymous visitor sessions, page views, incomplete bookings and contact-form drafts; admin Follow-ups page with journey panel, message templates and a badge.
+- Home showcase: new section under the deals banner (two columns, "mirror arch" auto-sliding image slider, quick-pick category chips, current-deal card, trust row); texts and slides edited in Admin > Home showcase (table showcase_slides, settings showcase.*); Home order is hero video, deals banner, showcase, Special Deals, Services, then the rest.
+- Hero video: Admin > Settings > Home hero (video file, poster, on/off; settings hero.video_path, hero.poster_path, hero.video_enabled; same-origin files only); new default video public/images/Brides_showcasing.mp4 (used as is: no ffmpeg here), poster only for reduced motion, data saver or 2g.
+- Theme colours: three base CSS variables (--gold, --espresso, --ivory); Admin > Settings > Theme colours saves theme.gold/espresso/ivory and GET /theme.css re-derives the shades with color-mix() (empty when defaults; never linked on admin pages).
+- Privacy Policy rewritten from what the code collects and keeps (tracking, drafts, retention 90/180 days, Google, Brevo, WhatsApp links); owner review needed.
 - Reminders by WhatsApp: admin Reminders page with WhatsApp reminder and birthday buttons, editable templates and clicks logged in manual_message_logs.
 - 404: branded public 404 page (real 404 status, noindex).
 - PWA icons: square app icons (any and maskable), apple-touch-icon, updated manifest.
@@ -7573,8 +7577,8 @@ Guest reminders: guests with a booking email are reached through an on-demand ma
 Cancel from the signed page: /b/<code> has a Cancel booking action (POST only, throttled, same CancelBookingAction as everywhere, logged as Cancelled by customer (email link)).
 
 Open items:
-- Privacy Policy: only a short note on anonymous visit statistics was added earlier; a full review for tracking, drafts and phone accounts is still to do.
+- Privacy Policy: rewritten on 2026-11-16 from the code; the owner must still review it (see the list of unverified statements in the task report).
 - TRUSTED_PROXIES to check on live so visitor IPs and rate limits use the real client address.
 - Cron is optional: the host's Scheduled Tasks must run php artisan schedule:run every minute for any scheduled command.
 - Fixed here: the 3 PublicWebsiteTest contact-form failures (admin role lookup now guarded).
-- Mention Google Analytics in the Privacy Policy later (do not edit it yet).
+- Google Tag Manager and Analytics are now described in the Privacy Policy.
