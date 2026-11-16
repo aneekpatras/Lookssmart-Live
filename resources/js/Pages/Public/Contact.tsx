@@ -213,7 +213,7 @@ export default function Contact({
     {
       icon: MessageCircle,
       title: 'WhatsApp',
-      body: 'Instant replies. Book, inquire, or send anything.',
+      body: 'Book, inquire, or send us anything.',
       action: 'Chat now',
       href: whatsappHref,
       external: true,
