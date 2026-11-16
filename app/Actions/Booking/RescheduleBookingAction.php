@@ -68,6 +68,7 @@ class RescheduleBookingAction
             $booking->items->pluck('service_id')->all(),
             $startsAt,
             $timezone,
+            $booking->id,
         );
 
         if (! $isAvailable) {
@@ -126,7 +127,11 @@ class RescheduleBookingAction
     private function sendNotifications(Booking $booking, CarbonInterface $originalStart): void
     {
         try {
-            $booking->customer?->notify(new BookingRescheduledNotification($booking, $originalStart));
+            if ($booking->customer) {
+                $booking->customer->notify(new BookingRescheduledNotification($booking, $originalStart));
+            } elseif (filled($booking->guest_email)) {
+                Notification::route('mail', $booking->guest_email)->notify(new BookingRescheduledNotification($booking, $originalStart));
+            }
         } catch (\Throwable $e) {
             Log::error("Failed to send BookingRescheduled for {$booking->code}: {$e->getMessage()}", ['exception' => $e]);
         }

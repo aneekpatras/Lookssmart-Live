@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 
+import { formatKarachi } from '@/lib/adminFormat';
 import { displayPhone } from '@/lib/phone';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -39,6 +40,7 @@ interface BookingDetail {
   source: string | null;
   notes: string | null;
   cancellation_reason: string | null;
+  confirmation: { by: string; at: string } | null;
   guest_email: string | null;
   guest_phone: string | null;
   items: { service: string; price: string }[];
@@ -139,6 +141,12 @@ export default function BookingShow({ booking }: { booking: BookingDetail }) {
                 {booking.notes && (
                   <p>
                     <span className="text-ink-muted">Notes:</span> {booking.notes}
+                  </p>
+                )}
+                {booking.confirmation && (
+                  <p>
+                    <span className="text-ink-muted">Confirmed:</span> by {booking.confirmation.by} at{' '}
+                    {formatKarachi(booking.confirmation.at, true)}
                   </p>
                 )}
                 {booking.cancellation_reason && (

@@ -167,9 +167,10 @@ it('renders a branded booking confirmation email with the salon identity and boo
 
     expect($rendered)
         ->toContain('Looks Smart Beauty Salon')
-        ->toContain('Booking Confirmed')
+        // A new booking is still pending: the email says so and carries the Confirm button.
+        ->toContain('Booking Received')
         ->toContain($booking->code)
-        ->toContain('Manage this booking');
+        ->toContain('Confirm my booking');
 });
 
 it('broadcasts a booking created event to admin and staff dashboard channels', function () {

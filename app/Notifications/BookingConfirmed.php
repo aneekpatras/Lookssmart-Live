@@ -68,8 +68,11 @@ class BookingConfirmed extends Notification implements ShouldQueue
         $customerName = $booking->customer?->name ?? $booking->guest_name ?? 'there';
         $localStart = $booking->starts_at->clone()->setTimezone(SalonTimezone::DISPLAY);
 
+        $links = \App\Http\Controllers\BookingLinkController::emailLinks($booking);
+        $pending = $booking->status === 'pending';
+
         return (new MailMessage)
-            ->subject("Booking confirmed — {$booking->code}")
+            ->subject(($pending ? 'Booking received' : 'Booking confirmed') . " — {$booking->code}")
             ->view('mail.booking-confirmation', [
                 'customer_name' => $customerName,
                 'service_name' => $serviceNames,
@@ -78,12 +81,14 @@ class BookingConfirmed extends Notification implements ShouldQueue
                 'booking_time' => $localStart->format('g:i A'),
                 'total_duration' => DurationFormatter::format((int) $booking->items->sum('duration_snapshot')),
                 'total' => CurrencyFormatter::format($booking->total),
-                'cta_url' => GuestBookingLinkGenerator::generate($booking),
+                'cta_url' => $links['page_url'] ?? GuestBookingLinkGenerator::generate($booking),
+                'confirm_url' => $links['confirm_url'],
+                'reschedule_url' => $links['reschedule_url'],
                 'cta_label' => 'Manage this booking',
                 'google_calendar_url' => CalendarLinkGenerator::googleForBooking($booking),
                 'ics_url' => CalendarLinkGenerator::icsForBooking($booking),
-                'title' => 'Booking Confirmed',
-                'subtitle' => 'Your appointment is locked in and ready to go.',
+                'title' => $pending ? 'Booking Received' : 'Booking Confirmed',
+                'subtitle' => $pending ? 'Please confirm your appointment with the button below.' : 'Your appointment is locked in and ready to go.',
                 'notes' => $booking->notes ?: null,
                 'unsubscribe_url' => NotificationPreferenceService::unsubscribeUrl($notifiable, 'mail'),
             ])

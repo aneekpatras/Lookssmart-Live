@@ -20,6 +20,19 @@
         </tr>
     </table>
 
+    @if (!empty($confirm_url))
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+        <tr>
+            <td align="center" bgcolor="#c9a66b" style="border-radius:999px;">
+                <a href="{{ $confirm_url }}" style="display:inline-block; padding:16px 32px; font-size:17px; font-weight:bold; color:#1d1d1d; text-decoration:none;">Confirm my booking</a>
+            </td>
+        </tr>
+    </table>
+    @endif
+    @if (!empty($reschedule_url))
+        <p style="margin:0 0 24px; font-size:14px; line-height:1.7; color:#4f4a46;">Need another time? <a href="{{ $reschedule_url }}" style="color:#8a6a34;">Reschedule</a></p>
+    @endif
+    @if (empty($confirm_url))
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
         <tr>
             <td align="center" bgcolor="#c9a66b" style="border-radius:999px;">
@@ -27,6 +40,7 @@
             </td>
         </tr>
     </table>
+    @endif
 
     <p style="margin:0; font-size:13px; line-height:1.7; color:#6d655f;">
         We’ll see you soon — please arrive 5–10 minutes early if you can.

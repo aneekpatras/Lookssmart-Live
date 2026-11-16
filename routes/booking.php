@@ -55,6 +55,17 @@ Route::prefix('booking/{booking:code}/manage')
         Route::post('/reschedule', [BookingManageController::class, 'reschedule'])->name('reschedule');
     });
 
+/*
+| Signed email page ("Confirm my booking" / "Reschedule"). Temporary signed URLs that expire when the
+| appointment ends; GET never changes anything, the POSTs are throttled. See BookingLinkController.
+*/
+Route::prefix('b/{booking:code}')->name('booking.link.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\BookingLinkController::class, 'show'])->middleware('throttle:60,1')->name('show');
+    Route::post('/slots', [\App\Http\Controllers\BookingLinkController::class, 'slots'])->middleware('throttle:60,1')->name('slots');
+    Route::post('/confirm', [\App\Http\Controllers\BookingLinkController::class, 'confirm'])->middleware('throttle:10,1')->name('confirm');
+    Route::post('/reschedule', [\App\Http\Controllers\BookingLinkController::class, 'reschedule'])->middleware('throttle:10,60')->name('reschedule');
+});
+
 Route::get('booking/{booking:code}/calendar.ics', [BookingCalendarController::class, 'ics'])
     ->middleware('signed')
     ->name('booking.calendar.ics');

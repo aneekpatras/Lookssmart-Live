@@ -13,16 +13,24 @@ use Illuminate\Support\Facades\DB;
  */
 class TransitionBookingStatusAction
 {
-    public function execute(Booking $booking, string $toStatus, ?string $reason = null, ?int $changedBy = null): Booking
+    public function execute(Booking $booking, string $toStatus, ?string $reason = null, ?int $changedBy = null, ?string $confirmedVia = null): Booking
     {
         BookingStateMachine::assertTransition($booking->status, $toStatus);
 
-        return DB::transaction(function () use ($booking, $toStatus, $reason, $changedBy) {
+        return DB::transaction(function () use ($booking, $toStatus, $reason, $changedBy, $confirmedVia) {
             $fromStatus = $booking->status;
 
             $booking->status = $toStatus;
             if ($toStatus === 'cancelled' && $reason) {
                 $booking->cancellation_reason = $reason;
+            }
+            // How a booking was confirmed (customer email link, customer account, or staff).
+            if ($toStatus === 'confirmed' && Booking::hasConfirmationColumns()) {
+                $booking->forceFill([
+                    'confirmed_at' => now(),
+                    'confirmed_via' => $confirmedVia ?? 'staff',
+                    'confirmed_by' => ($confirmedVia ?? 'staff') === 'staff' ? $changedBy : null,
+                ]);
             }
             $booking->save();
 

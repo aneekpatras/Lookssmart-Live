@@ -61,6 +61,8 @@ Route::get('/privacy-policy', [PublicWebsiteController::class, 'privacyPolicy'])
 Route::middleware('auth')->group(function () {
     Route::get('/my-account', [CustomerDashboardController::class, 'index'])->name('my-account');
     Route::get('/my-bookings', [CustomerDashboardController::class, 'bookings'])->name('my-bookings');
+    Route::post('/my-bookings/{booking:code}/slots', [\App\Http\Controllers\CustomerRescheduleController::class, 'slots'])->middleware('throttle:60,1')->name('my-bookings.slots');
+    Route::post('/my-bookings/{booking:code}/reschedule', [\App\Http\Controllers\CustomerRescheduleController::class, 'reschedule'])->middleware('throttle:10,60')->name('my-bookings.reschedule');
     Route::put('/my-account/preferences', [CustomerDashboardController::class, 'updatePreferences'])
         ->name('my-account.preferences');
 });

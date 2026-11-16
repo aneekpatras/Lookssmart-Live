@@ -97,7 +97,12 @@ class CustomerDashboardController extends Controller
             // `isWithinCancellationWindow()` are the exact same checks `CancelBookingAction` itself
             // applies, so the frontend's cancel button and fee-warning modal can never disagree with
             // what the API will actually accept.
-            'can_cancel' => $booking->isCustomerCancellable(),
+            'can_cancel' => $booking->isCustomerCancellable() && $booking->starts_at?->isFuture(),
+            'can_reschedule' => \App\Actions\Booking\CustomerRescheduleAction::blockedReason($booking) === null,
+            // Why an upcoming pending/confirmed booking cannot be moved online (shown with the WhatsApp link).
+            'reschedule_note' => $booking->isCustomerCancellable() && $booking->starts_at?->isFuture()
+                ? \App\Actions\Booking\CustomerRescheduleAction::blockedReason($booking)
+                : null,
             'within_cancellation_fee_window' => $booking->isWithinCancellationWindow(),
         ];
     }

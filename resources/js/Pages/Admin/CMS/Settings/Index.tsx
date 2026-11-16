@@ -369,6 +369,7 @@ function BookingTab({ booking }: { booking: Record<string, SettingValue> }) {
         min_lead_minutes: toFieldValue(booking['booking.min_lead_minutes']),
         cancellation_window_hours: toFieldValue(booking['booking.cancellation_window_hours']),
         cancel_policy_text: toFieldValue(booking['booking.cancel_policy_text']),
+        reschedule_min_hours: toFieldValue(booking['booking.reschedule_min_hours']),
         tax_rate: toFieldValue(booking['booking.tax_rate']),
         max_bookings_per_slot: toFieldValue(booking['booking.max_bookings_per_slot']),
       }}
@@ -381,6 +382,7 @@ function BookingTab({ booking }: { booking: Record<string, SettingValue> }) {
           <TextField id="booking.hold_minutes" label="Slot hold (minutes)" value={data.hold_minutes ?? ''} onChange={(v) => setField('hold_minutes', v)} />
           <TextField id="booking.min_lead_minutes" label="Minimum lead time (minutes)" value={data.min_lead_minutes ?? ''} onChange={(v) => setField('min_lead_minutes', v)} />
           <TextField id="booking.cancellation_window_hours" label="Cancellation window (hours)" value={data.cancellation_window_hours ?? ''} onChange={(v) => setField('cancellation_window_hours', v)} />
+          <TextField id="booking.reschedule_min_hours" label="Customers can reschedule up to (hours before the start; 0 = no limit)" value={data.reschedule_min_hours ?? ''} onChange={(v) => setField('reschedule_min_hours', v)} placeholder="0" />
           <div className="space-y-1.5 sm:col-span-2">
             <TextField id="booking.cancel_policy_text" label="Cancellation text shown to customers (max 300 characters)" value={data.cancel_policy_text ?? ''} onChange={(v) => setField('cancel_policy_text', v.slice(0, 300))} placeholder="Need to change or cancel? Message us on WhatsApp and we will help." />
             <p className="text-ink-muted text-xs">Plain text. Shown on My Bookings and in the cancel window. Leave empty for the default. Only write a fee or deadline here if the salon really has one.</p>

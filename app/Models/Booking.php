@@ -113,6 +113,18 @@ class Booking extends Model
         return in_array($this->status, ['pending', 'confirmed'], true);
     }
 
+    /** Whether bookings.confirmed_* exist yet (live may run this code before the SQL that adds them). */
+    public static function hasConfirmationColumns(): bool
+    {
+        static $has = null;
+
+        try {
+            return $has ??= \Illuminate\Support\Facades\Schema::hasColumn('bookings', 'confirmed_via');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     public const DEFAULT_CANCEL_POLICY = 'Need to change or cancel? Message us on WhatsApp and we will help.';
 
     /** Admin-editable sentence shown wherever cancelling is mentioned (booking.cancel_policy_text). */

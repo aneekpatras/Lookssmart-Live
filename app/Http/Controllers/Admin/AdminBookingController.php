@@ -89,6 +89,7 @@ class AdminBookingController extends Controller
                 'staff_name' => $booking->staff?->user?->name,
                 'notes' => $booking->notes,
                 'cancellation_reason' => $booking->cancellation_reason,
+                'confirmation' => $this->confirmationSummary($booking),
                 'guest_email' => $booking->guest_email,
                 'guest_phone' => $booking->guest_phone ? \App\Support\Phone::display($booking->guest_phone) : null,
                 'discount' => (string) $booking->discount,
@@ -134,13 +135,29 @@ class AdminBookingController extends Controller
                 // bypassed here the same way an admin override is elsewhere in this app.
                 $cancel->execute($booking, $data['reason'] ?? null, $request->user()->id, bypassPolicyWindow: true);
             } else {
-                $transition->execute($booking, $data['status'], $data['reason'] ?? null, $request->user()->id);
+                $transition->execute($booking, $data['status'], $data['reason'] ?? null, $request->user()->id, 'staff');
             }
         } catch (InvalidBookingTransitionException $exception) {
             throw ValidationException::withMessages(['status' => $exception->getMessage()]);
         }
 
         return back()->with('success', "Booking marked \"{$data['status']}\".");
+    }
+
+    /** Who confirmed the booking and when ("the customer (email)", "the customer (account)" or a staff name). */
+    private function confirmationSummary(Booking $booking): ?array
+    {
+        if (! Booking::hasConfirmationColumns() || ! $booking->confirmed_at) {
+            return null;
+        }
+
+        $by = match ($booking->confirmed_via) {
+            'customer_email' => 'the customer (email)',
+            'customer_account' => 'the customer (account)',
+            default => \App\Models\User::find($booking->confirmed_by)?->name ?? 'staff',
+        };
+
+        return ['by' => $by, 'at' => \Illuminate\Support\Carbon::parse($booking->confirmed_at)->toIso8601String()];
     }
 
     public function destroy(Booking $booking): RedirectResponse

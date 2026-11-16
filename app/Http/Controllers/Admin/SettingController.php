@@ -103,6 +103,11 @@ class SettingController extends Controller
                 $valid = false;
             }
 
+            // Customer reschedule lead time: 0 (no limit) to 720 hours.
+            if ($valid && $key === 'booking.reschedule_min_hours' && ! $blank && ((int) $value < 0 || (int) $value > 720)) {
+                $valid = false;
+            }
+
             // Cancellation sentence shown to customers: plain text, at most 300 characters.
             if ($valid && $key === 'booking.cancel_policy_text' && ! $blank
                 && (mb_strlen((string) $value) > 300 || strip_tags((string) $value) !== (string) $value)) {

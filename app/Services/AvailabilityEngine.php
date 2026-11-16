@@ -42,7 +42,7 @@ class AvailabilityEngine
      * @param int[] $serviceIds
      * @return Collection<int, array{starts_at: string, ends_at: string, is_available: bool, booked_count: int}>
      */
-    public function getSlots(array $serviceIds, string $date, ?string $timezone = null): Collection
+    public function getSlots(array $serviceIds, string $date, ?string $timezone = null, ?int $excludeBookingId = null): Collection
     {
         $timezone = $timezone ?: (Setting::get('business.timezone') ?: 'UTC');
         $day = CarbonImmutable::createFromFormat('Y-m-d', $date, $timezone)->startOfDay();
@@ -98,6 +98,7 @@ class AvailabilityEngine
         // past closing so a booking overlapping that final, intentionally-overflowing mark is still
         // correctly counted.
         $activeBookings = Booking::whereNotIn('status', ['cancelled', 'no_show'])
+            ->when($excludeBookingId, fn ($query) => $query->where('id', '!=', $excludeBookingId))
             ->where('starts_at', '<', $windowEndUtc->addMinutes($slotMinutes))
             ->where('ends_at', '>', $windowStartUtc)
             ->get(['starts_at', 'ends_at']);
@@ -149,7 +150,7 @@ class AvailabilityEngine
      * @param int[] $serviceIds
      * @return Collection<int, int> staff ids
      */
-    public function resolveStaffCandidates(array $serviceIds, CarbonImmutable $startsAt, ?string $timezone = null): Collection
+    public function resolveStaffCandidates(array $serviceIds, CarbonImmutable $startsAt, ?string $timezone = null, ?int $excludeBookingId = null): Collection
     {
         $timezone = $timezone ?: (Setting::get('business.timezone') ?: 'UTC');
 
@@ -166,7 +167,7 @@ class AvailabilityEngine
             ));
 
         return $staffMembers
-            ->filter(fn (Staff $staff) => $this->staffCanTake($staff, $services, $startsAt, $timezone))
+            ->filter(fn (Staff $staff) => $this->staffCanTake($staff, $services, $startsAt, $timezone, $excludeBookingId))
             ->pluck('id')
             ->sort()
             ->values();
@@ -175,7 +176,7 @@ class AvailabilityEngine
     /** Same check as `resolveStaffCandidates()`, for exactly one already-known staff member (the
      * explicit-staff hold/reschedule path, kept for backward compatibility with callers that still
      * want a specific staff member rather than an auto-assigned one). */
-    public function isStaffFreeAt(int $staffId, array $serviceIds, CarbonImmutable $startsAt, ?string $timezone = null): bool
+    public function isStaffFreeAt(int $staffId, array $serviceIds, CarbonImmutable $startsAt, ?string $timezone = null, ?int $excludeBookingId = null): bool
     {
         $timezone = $timezone ?: (Setting::get('business.timezone') ?: 'UTC');
 
@@ -189,10 +190,10 @@ class AvailabilityEngine
             return false;
         }
 
-        return $this->staffCanTake($staff, $services, $startsAt, $timezone);
+        return $this->staffCanTake($staff, $services, $startsAt, $timezone, $excludeBookingId);
     }
 
-    private function staffCanTake(Staff $staff, Collection $services, CarbonImmutable $startsAt, string $timezone): bool
+    private function staffCanTake(Staff $staff, Collection $services, CarbonImmutable $startsAt, string $timezone, ?int $excludeBookingId = null): bool
     {
         $day = $startsAt->setTimezone($timezone)->startOfDay();
         $weekday = $day->dayOfWeek;
@@ -250,6 +251,7 @@ class AvailabilityEngine
 
         $hasBookingConflict = Booking::where('staff_id', $staff->id)
             ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->when($excludeBookingId, fn ($query) => $query->where('id', '!=', $excludeBookingId))
             ->where('starts_at', '<', $slotEndUtc)
             ->where('ends_at', '>', $slotStartUtc)
             ->exists();

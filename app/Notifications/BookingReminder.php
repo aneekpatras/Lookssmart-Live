@@ -54,6 +54,7 @@ class BookingReminder extends Notification implements ShouldQueue
         $serviceNames = $booking->items->map(fn ($item) => $item->service?->name ?? 'Service')->implode(', ');
         $customerName = $booking->customer?->name ?? $booking->guest_name ?? 'there';
         $localStart = $booking->starts_at->clone()->setTimezone(SalonTimezone::DISPLAY);
+        $links = \App\Http\Controllers\BookingLinkController::emailLinks($booking);
 
         return (new MailMessage)
             ->subject("Reminder: your booking is coming up — {$booking->code}")
@@ -63,7 +64,9 @@ class BookingReminder extends Notification implements ShouldQueue
                 'booking_code' => $booking->code,
                 'booking_date' => $localStart->format('D, M j, Y'),
                 'booking_time' => $localStart->format('g:i A'),
-                'cta_url' => url('/book'),
+                'cta_url' => $links['page_url'] ?? url('/book'),
+                'confirm_url' => $links['confirm_url'],
+                'reschedule_url' => $links['reschedule_url'],
                 'cta_label' => 'View booking',
                 'title' => 'Your Appointment Is Coming Up',
                 'subtitle' => 'A quick reminder from your salon team.',
