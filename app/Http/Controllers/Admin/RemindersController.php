@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\CustomerProfile;
 use App\Models\ManualMessageLog;
+use App\Models\ReminderRule;
 use App\Models\Setting;
 use App\Services\SeoService;
 use App\Services\SettingService;
@@ -13,7 +14,9 @@ use App\Support\Phone;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -67,7 +70,133 @@ class RemindersController extends Controller
             ],
             'appointments' => $this->appointments($range, $reminderTemplate, $shared),
             'birthdays' => $this->birthdays($birthdayTemplate, $shared),
+            'emailRules' => $this->emailRules(),
+            'scheduler' => ['last_run' => $this->schedulerLastRun()],
+            'mail' => ['mailer' => (string) config('mail.default'), 'queue' => (string) config('queue.default')],
         ]);
+    }
+
+    // --- Email rules (reminder_rules table, read by bookings:send-reminders and bookings:request-reviews) ----
+
+    /** Events the two scheduled commands understand, with the direction each one filters on. */
+    public const RULE_EVENTS = ['before_booking' => 'before', 'review_request' => 'after'];
+
+    /** bookings:send-reminders only fires for these offsets (minutes). */
+    public const BOOKING_REMINDER_OFFSETS = [120, 1440];
+
+    private const UNIT_MINUTES = ['minutes' => 1, 'hours' => 60, 'days' => 1440];
+
+    /** The rule's name is stored in the (otherwise unused) `template` column, so no new column is needed. */
+    private function emailRules(): array
+    {
+        try {
+            if (! Schema::hasTable('reminder_rules')) {
+                return [];
+            }
+
+            return ReminderRule::query()
+                ->whereIn('event', array_keys(self::RULE_EVENTS))
+                ->orderBy('id')
+                ->get()
+                ->map(function (ReminderRule $rule) {
+                    [$amount, $unit] = $this->splitOffset((int) $rule->offset_minutes);
+
+                    return [
+                        'id' => $rule->id,
+                        'name' => (string) $rule->template,
+                        'event' => $rule->event,
+                        'amount' => $amount,
+                        'unit' => $unit,
+                        'is_active' => (bool) $rule->is_active,
+                    ];
+                })->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /** @return array{0:int,1:string} the largest unit that divides the offset exactly */
+    private function splitOffset(int $minutes): array
+    {
+        foreach (['days', 'hours'] as $unit) {
+            if ($minutes >= self::UNIT_MINUTES[$unit] && $minutes % self::UNIT_MINUTES[$unit] === 0) {
+                return [intdiv($minutes, self::UNIT_MINUTES[$unit]), $unit];
+            }
+        }
+
+        return [$minutes, 'minutes'];
+    }
+
+    /** ISO time of the last scheduler heartbeat, or null when it never ran (or the cache is unavailable). */
+    private function schedulerLastRun(): ?string
+    {
+        try {
+            $value = Cache::get('scheduler.heartbeat');
+
+            return is_string($value) && $value !== '' ? $value : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** @return array<string, mixed> validated data ready for ReminderRule */
+    private function validatedRule(Request $request): array
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'event' => ['required', 'in:' . implode(',', array_keys(self::RULE_EVENTS))],
+            'amount' => ['required', 'integer', 'min:1', 'max:100000'],
+            'unit' => ['required', 'in:' . implode(',', array_keys(self::UNIT_MINUTES))],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $minutes = (int) $data['amount'] * self::UNIT_MINUTES[$data['unit']];
+
+        if ($data['event'] === 'before_booking' && ! in_array($minutes, self::BOOKING_REMINDER_OFFSETS, true)) {
+            throw ValidationException::withMessages([
+                'amount' => 'Booking reminders can only be sent 2 hours or 1 day before the appointment.',
+            ]);
+        }
+        if ($data['event'] === 'review_request' && ($minutes < 60 || $minutes > 60 * 24 * 30)) {
+            throw ValidationException::withMessages([
+                'amount' => 'Review requests go out between 1 hour and 30 days after the appointment.',
+            ]);
+        }
+
+        return [
+            'event' => $data['event'],
+            'direction' => self::RULE_EVENTS[$data['event']],
+            'offset_minutes' => $minutes,
+            'channels' => ['email'],
+            'template' => trim(strip_tags($data['name'])),
+            'is_active' => (bool) $data['is_active'],
+        ];
+    }
+
+    public function storeRule(Request $request)
+    {
+        $this->guard($request);
+        ReminderRule::create($this->validatedRule($request));
+
+        return back()->with('success', 'Email rule created.');
+    }
+
+    public function updateRule(Request $request, ReminderRule $rule)
+    {
+        $this->guard($request);
+        abort_unless(array_key_exists($rule->event, self::RULE_EVENTS), 404);
+        $rule->update($this->validatedRule($request));
+
+        return back()->with('success', 'Email rule saved.');
+    }
+
+    public function destroyRule(Request $request, ReminderRule $rule)
+    {
+        $this->guard($request);
+        abort_unless(array_key_exists($rule->event, self::RULE_EVENTS), 404);
+        $rule->delete();
+
+        return back()->with('success', 'Email rule deleted.');
     }
 
     // --- Appointments -------------------------------------------------------------------------

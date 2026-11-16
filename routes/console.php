@@ -19,5 +19,15 @@ Schedule::command('app:send-staff-daily-schedules')->dailyAt('07:00')->withoutOv
 Schedule::command('bookings:send-reminders')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('bookings:request-reviews')->dailyAt('10:00')->withoutOverlapping();
 
+// Scheduler heartbeat: proves the host's Scheduled Tasks really runs `schedule:run` every minute.
+// The admin Reminders > Email rules tab shows when it last ran. Never throws.
+Schedule::call(function () {
+    try {
+        \Illuminate\Support\Facades\Cache::forever('scheduler.heartbeat', now()->toIso8601String());
+    } catch (\Throwable) {
+        // A cache problem must never break the scheduler run.
+    }
+})->everyMinute()->name('scheduler-heartbeat');
+
 // Phase 10 sub-step 2: promote scheduled blog posts once their scheduled time passes.
 Schedule::command('posts:publish-scheduled')->everyFiveMinutes()->withoutOverlapping();

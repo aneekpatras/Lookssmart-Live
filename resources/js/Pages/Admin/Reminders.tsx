@@ -4,6 +4,7 @@ import { ChevronDown, Copy, MessageCircle } from 'lucide-react';
 import * as React from 'react';
 
 import { formatWithRelative } from '@/lib/adminFormat';
+import { EmailRulesTab, type EmailRule } from '@/Components/admin/EmailRulesTab';
 import { MessageTemplateEditor } from '@/Components/admin/MessageTemplateEditor';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -60,6 +61,9 @@ interface RemindersProps {
   };
   appointments: AppointmentRow[];
   birthdays: { available: boolean; rows: BirthdayRow[] };
+  emailRules: EmailRule[];
+  scheduler: { last_run: string | null };
+  mail: { mailer: string; queue: string };
 }
 
 const PLACEHOLDERS = ['name', 'services', 'date', 'time', 'salon', 'address', 'phone'];
@@ -178,8 +182,11 @@ export default function Reminders({
   templates,
   appointments,
   birthdays,
+  emailRules,
+  scheduler,
+  mail,
 }: RemindersProps) {
-  const [tab, setTab] = React.useState<'appointments' | 'birthdays'>('appointments');
+  const [tab, setTab] = React.useState<'appointments' | 'birthdays' | 'email'>('appointments');
   const [chip, setChip] = React.useState<(typeof BIRTHDAY_CHIPS)[number]['id']>('next');
   const [showTemplates, setShowTemplates] = React.useState(false);
 
@@ -193,8 +200,8 @@ export default function Reminders({
         <div>
           <h1 className="font-display text-ink text-2xl font-medium">Reminders</h1>
           <p className="text-ink-muted mt-1 text-sm">
-            Messages are never sent automatically. Press the WhatsApp button, then press send in
-            WhatsApp.
+            WhatsApp messages are never sent automatically. Press the WhatsApp button, then press
+            send in WhatsApp. Email rules (third tab) are the only automatic messages.
           </p>
         </div>
 
@@ -249,7 +256,7 @@ export default function Reminders({
         </Card>
 
         <div role="tablist" aria-label="Reminder types" className="flex gap-2">
-          {(['appointments', 'birthdays'] as const).map((key) => (
+          {(['appointments', 'birthdays', 'email'] as const).map((key) => (
             <button
               key={key}
               type="button"
@@ -258,12 +265,14 @@ export default function Reminders({
               onClick={() => setTab(key)}
               className={pill(tab === key)}
             >
-              {key === 'appointments' ? 'Appointments' : 'Birthdays'}
+              {key === 'appointments' ? 'Appointments' : key === 'birthdays' ? 'Birthdays' : 'Email rules'}
             </button>
           ))}
         </div>
 
-        {tab === 'appointments' ? (
+        {tab === 'email' ? (
+          <EmailRulesTab rules={emailRules} schedulerLastRun={scheduler.last_run} mail={mail} />
+        ) : tab === 'appointments' ? (
           <div className="space-y-4">
             <div role="group" aria-label="Date range" className="flex flex-wrap gap-2">
               {RANGES.map((item) => (
