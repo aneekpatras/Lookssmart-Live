@@ -82,12 +82,12 @@
     Every other public page: a plain page-coloured layer, no logo, no image. The site is light-only
     (dark mode is admin-only and toggled after mount), so that colour is --color-ivory (#faf7f2). --}}
     <style nonce="{{ $cspNonce ?? '' }}">
-        #boot-screen{position:fixed;inset:0;z-index:9999;background:var(--ivory,#faf7f2);opacity:1;transition:opacity .45s ease;animation:boot-failsafe .01s linear 8s forwards}
+        #boot-screen{position:fixed;inset:0;z-index:9999;background:#faf7f2;opacity:1;transition:opacity .45s ease;animation:boot-failsafe .01s linear 8s forwards}
         #boot-screen.is-done{opacity:0;pointer-events:none}
         @if (request()->routeIs('home'))
         /* Same box as the React hero section: PublicLayout's <main> has pt-24 (96px, room for the floating header), and the
            hero is min-h-[88svh]. The espresso base colour sits behind the image only; the strip above and below stays page-coloured. */
-        #boot-screen .boot-hero-box{position:absolute;top:96px;left:0;width:100%;height:88vh;height:88svh;overflow:hidden;background:var(--espresso,#2a2420)}
+        #boot-screen .boot-hero-box{position:absolute;top:96px;left:0;width:100%;height:88vh;height:88svh;overflow:hidden;background:#2a2420}
         #boot-screen picture{display:block;position:absolute;inset:0}
         #boot-screen img{display:block;position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 50%}
         #boot-screen .boot-hero-overlay{position:absolute;inset:0;background:radial-gradient(circle at 75% 22%,rgba(201,166,107,.28),transparent 45%),linear-gradient(180deg,rgba(23,19,17,.72) 0%,rgba(23,19,17,.58) 45%,rgba(23,19,17,.86) 100%)}

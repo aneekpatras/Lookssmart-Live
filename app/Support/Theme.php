@@ -97,6 +97,9 @@ class Theme
         }
 
         $lines[] = '}';
+        // The first-paint boot layer (inline CSS in the page head) uses the default colours; follow the theme.
+        $lines[] = '#boot-screen { background: var(--ivory); }';
+        $lines[] = '#boot-screen .boot-hero-box { background: var(--espresso); }';
 
         return implode("\n", $lines) . "\n";
     }
