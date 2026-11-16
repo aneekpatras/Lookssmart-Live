@@ -7527,3 +7527,42 @@ RULES:
 | 3 | 2026-10-01 | Claude Sonnet 5.5 | Perf Group 1 (audit #1,#2,#3,#5,#7,#11) | ✅ See §3 "Perf Group 1". Lazy Recharts/TipTap, one cached settings array, hero LCP hints, CSS auth fade, vendor chunks. #24 found unnecessary. Groups 2-5 pending user "go". || 3 | 2026-10-01 | Claude Sonnet 5.5 | Ad hoc: founder photo on About page | ✅ `public/images/founder-dua.webp` (786x1024) wired via `PublicWebsiteController::founder()`; `About.tsx` img gets width/height + object-top; PublicWebsiteTest and about-page e2e updated; Known Issue #42 resolved and removed. |
 
 | 4 | 2026-11-09 | Claude Sonnet 5.5 | SEO Phase 1 (technical, raw HTML) | ✅ Decision: hosting is shared (Rabhost, FTP only, no Node) so Inertia SSR cannot run on live (confirmed: live raw HTML had no meta/H1). Chose "Route C": `SeoService::page()` builds per-page title/description/canonical/OG/robots from DB on every request; controllers attach it via `PublicWebsiteController::withSeo()` (Blade view data + `seoMeta` prop); `resources/views/app.blade.php` writes tags + a crawlable `#seo-fallback` (h1/intro/links) into raw HTML; `SeoHead.tsx` re-emits same tags under same `head-key`s; `app.tsx` removes the fallback on mount. Render-time description fallbacks use "Central Park Housing Scheme, Lahore" (DB rows untouched). Sitemap hub lastmod + robots auth disallows. Fixed latent bug: React Fragment inside Inertia `<Head>` (GA4 block). Tests: `tests/Feature/SeoRawHtmlTest.php` (29). Verified in real Edge/Playwright: 1 of each tag after hydration, fallback removed. Known: 3 pre-existing contact-form test failures (PublicWebsiteTest) unrelated. Phases 2-9 pending user approval. |
+
+
+## 14. Work since e8d3812 (local, not yet live)
+
+Everything below exists only in the local repo. Live still runs the Phase 1 version. Run the single SQL file (backup first), then upload the files.
+
+Built:
+- Home and deals: admin-controlled deals bar, auto-scrolling deal cards, /deals/<slug> detail pages (active deals are in the sitemap with lastmod), Visit us section.
+- Gallery: specialty text and optional link to a service or deal on each image.
+- Blog: category sections with a sticky category and search bar.
+- FAQ with admin: /faqs page backed by faq_categories and faqs, edited in the admin; built-in default answers are used when the tables are empty or missing.
+- Footer and menus: redesigned footer; mobile menu with Book Now, FAQs and WhatsApp; WhatsApp popup bubble.
+- Cart and booking cards: cart drawer and booking cards for services and deals.
+- Accounts with phone or email: register and log in with a WhatsApp number or an email; users.email is nullable and users.phone is unique.
+- Login and register: split-layout pages, shared password policy, login throttle, honeypot on register and booking.
+- Tracking and Follow-ups: anonymous visitor sessions, page views, incomplete bookings and contact-form drafts; admin Follow-ups page with journey panel, message templates and a badge.
+- Reminders by WhatsApp: admin Reminders page with WhatsApp reminder and birthday buttons, editable templates and clicks logged in manual_message_logs.
+- 404: branded public 404 page (real 404 status, noindex).
+- PWA icons: square app icons (any and maskable), apple-touch-icon, updated manifest.
+- Contact page: "Prefer to chat?" text no longer promises a reply time.
+
+Key helpers:
+- Phone (app/Support/Phone.php): one normalised phone format; Phone::accountsSupported() says whether users.phone exists.
+- ClientIp: client address behind a proxy, driven by TRUSTED_PROXIES.
+- FaqData: FAQ items for the page, the SEO data and the home preview, with a fallback when the tables are missing.
+- GeoLocator: optional city lookup from storage/app/geoip/GeoLite2-City.mmdb using the vendored MaxMind DB reader; without the file, location stays empty and nothing breaks.
+- User::adminRecipients(): admin alert recipients; returns nobody instead of throwing when the admin role does not exist.
+
+Conventions:
+- Tailwind classes only (the CSP blocks inline styles); site theme and existing components.
+- Idempotent migrations and one idempotent SQL file (lookssmart-ALL-SQL.sql, kept outside the repo) that is safe to run twice.
+- Public database access is guarded (Schema::hasTable / hasColumn, cached per request, or try/catch) so the public site renders before the new tables and columns exist. tests/Feature/PreLiveSchemaTest.php proves it.
+- No automatic WhatsApp sending: WhatsApp reminders are opened by staff as links.
+
+Open items:
+- Privacy Policy: only a short note on anonymous visit statistics was added earlier; a full review for tracking, drafts and phone accounts is still to do.
+- TRUSTED_PROXIES to check on live so visitor IPs and rate limits use the real client address.
+- Cron is optional: the host's Scheduled Tasks must run php artisan schedule:run every minute for any scheduled command.
+- Fixed here: the 3 PublicWebsiteTest contact-form failures (admin role lookup now guarded).
