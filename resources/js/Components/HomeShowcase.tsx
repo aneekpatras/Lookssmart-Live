@@ -131,7 +131,9 @@ function ArchSlider({
     <>
       <span className="font-display block text-sm leading-tight font-medium">{current.title}</span>
       {current.subtitle && (
-        <span className="text-ink-muted mt-0.5 block text-[11px] leading-snug">{current.subtitle}</span>
+        <span className="text-ink-muted mt-0.5 block text-[11px] leading-snug">
+          {current.subtitle}
+        </span>
       )}
     </>
   );
@@ -181,28 +183,28 @@ function ArchSlider({
           aria-hidden="true"
           className="border-accent-500/40 pointer-events-none absolute inset-[7px] rounded-t-full rounded-b-lg border"
         />
-        {count > 1 && (
-          <div className="absolute inset-x-0 bottom-2 z-10 flex justify-center gap-0.5">
-            {slides.map((slide, i) => (
-              <button
-                key={slide.id}
-                type="button"
-                aria-label={`Show image ${i + 1}`}
-                aria-current={i === index ? 'true' : undefined}
-                onClick={() => setIndex(i)}
-                className="focus-visible:ring-accent-500 flex size-6 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:outline-none"
-              >
-                <span
-                  className={cn(
-                    'block size-2 rounded-full transition-colors',
-                    i === index ? 'bg-accent-500' : 'bg-ivory/70',
-                  )}
-                />
-              </button>
-            ))}
-          </div>
-        )}
       </div>
+      {count > 1 && (
+        <div className="mt-2 flex justify-center gap-0.5">
+          {slides.map((slide, i) => (
+            <button
+              key={slide.id}
+              type="button"
+              aria-label={`Show image ${i + 1}`}
+              aria-current={i === index ? 'true' : undefined}
+              onClick={() => setIndex(i)}
+              className="focus-visible:ring-accent-500 flex size-6 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <span
+                className={cn(
+                  'block h-2 rounded-full transition-all motion-reduce:transition-none',
+                  i === index ? 'bg-accent-500 w-5' : 'bg-accent-500/40 w-2',
+                )}
+              />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Caption of the current slide (bottom-left) and a static note (top-right). Both stay inside the
           arch's own column, so nothing overflows at 320px. */}
