@@ -23,6 +23,7 @@ interface SettingsGroups {
   seo: Record<string, SettingValue>;
   deals_bar: Record<string, SettingValue>;
   wa_popup: Record<string, SettingValue>;
+  analytics: Record<string, SettingValue>;
   security: Record<string, SettingValue>;
 }
 
@@ -47,6 +48,7 @@ const TABS = [
   { id: 'integrations', label: 'Integrations' },
   { id: 'deals-bar', label: 'Deals Bar' },
   { id: 'wa-popup', label: 'WhatsApp popup' },
+  { id: 'analytics', label: 'Analytics' },
   { id: 'seo-security', label: 'SEO & Security' },
 ] as const;
 
@@ -474,8 +476,8 @@ function IntegrationsTab({ integrations }: { integrations: Record<string, Settin
         <div>
           <h2 className="font-display text-ink text-lg font-medium">Integrations</h2>
           <p className="text-ink-muted text-sm">
-            Google Analytics, Tag Manager, and Search Console verification are live on every public
-            page (Phase 13) as soon as they&rsquo;re saved here. Mail/SMS/WhatsApp delivery and Google
+            Search Console verification is live on every public page as soon as it&rsquo;s saved here
+            (Google Analytics and Tag Manager now live in the Analytics tab). Mail/SMS/WhatsApp delivery and Google
             Maps still read from server environment configuration until a later phase wires those
             through.
           </p>
@@ -488,10 +490,6 @@ function IntegrationsTab({ integrations }: { integrations: Record<string, Settin
             <TextField id="twilio_whatsapp_from" label="WhatsApp from number" value={data.twilio_whatsapp_from ?? ''} onChange={(v) => setData('twilio_whatsapp_from', v)} />
           </div>
           <SecretField id="google_maps_api_key" label="Google Maps API key" value={data.google_maps_api_key ?? ''} onChange={(v) => setData('google_maps_api_key', v)} isSet={integrations['integrations.google_maps_api_key'] === MASK} />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField id="google_analytics_id" label="Google Analytics 4 ID" value={data.google_analytics_id ?? ''} onChange={(v) => setData('google_analytics_id', v)} placeholder="G-XXXXXXXXXX" />
-            <TextField id="google_tag_manager_id" label="Google Tag Manager ID" value={data.google_tag_manager_id ?? ''} onChange={(v) => setData('google_tag_manager_id', v)} placeholder="GTM-XXXXXXX" />
-          </div>
           <TextField id="google_site_verification" label="Google Search Console verification code" value={data.google_site_verification ?? ''} onChange={(v) => setData('google_site_verification', v)} />
           <Button type="submit" disabled={processing}>
             Save
@@ -558,6 +556,47 @@ function DealsBarTab({ bar, dealOptions }: { bar: Record<string, SettingValue>; 
           </div>
           <TextField id="deals_bar.claim_label" label="Claim button text (default: Claim offer)" value={data.claim_label ?? ''} onChange={(v) => setField('claim_label', v)} error={fieldError('claim_label')} />
           <TextField id="deals_bar.button_label" label="Button text (default: View all deals)" value={data.button_label ?? ''} onChange={(v) => setField('button_label', v)} error={fieldError('button_label')} />
+        </>
+      )}
+    </GroupForm>
+  );
+}
+
+function AnalyticsTab({ analytics }: { analytics: Record<string, SettingValue> }) {
+  return (
+    <GroupForm
+      group="analytics"
+      title="Analytics"
+      description="Google Tag Manager (or a Google Analytics 4 tag) is added to every public page, never to the admin. It only loads on the live site, not on a local copy."
+      fields={{
+        enabled: analytics['analytics.enabled'] === false ? 'false' : 'true',
+        gtm_id: toFieldValue(analytics['analytics.gtm_id']) || 'GTM-WJLPSKGR',
+      }}
+    >
+      {(data, setField, fieldError) => (
+        <>
+          <ToggleField
+            id="analytics.enabled"
+            label="Enable Google Tag Manager"
+            checked={data.enabled === 'true'}
+            onChange={(v) => setField('enabled', v ? 'true' : 'false')}
+          />
+          <div className="space-y-1.5">
+            <Label htmlFor="analytics.gtm_id">GTM container ID</Label>
+            <Input
+              id="analytics.gtm_id"
+              value={data.gtm_id ?? ''}
+              onChange={(e) => setField('gtm_id', e.target.value.trim().toUpperCase())}
+              aria-invalid={!!fieldError('gtm_id')}
+              placeholder="GTM-WJLPSKGR"
+              className="max-w-xs"
+            />
+            {fieldError('gtm_id') && <p className="text-sm text-red-600">{fieldError('gtm_id')}</p>}
+            <p className="text-ink-muted text-xs">
+              Find it in Google Analytics: Admin, Data streams, your site, Configure tag settings.
+              A GTM-... container ID or a G-... measurement ID is accepted.
+            </p>
+          </div>
         </>
       )}
     </GroupForm>
@@ -717,6 +756,7 @@ export default function SettingsIndex({ settings, businessHours, dealOptions }: 
           {tab === 'payments' && <PaymentsTab payments={settings.payments} />}
           {tab === 'integrations' && <IntegrationsTab integrations={settings.integrations} />}
           {tab === 'wa-popup' && <WaPopupTab popup={settings.wa_popup} />}
+          {tab === 'analytics' && <AnalyticsTab analytics={settings.analytics} />}
           {tab === 'deals-bar' && <DealsBarTab bar={settings.deals_bar} dealOptions={dealOptions} />}
           {tab === 'seo-security' && <SeoSecurityTab seo={settings.seo} security={settings.security} />}
         </div>

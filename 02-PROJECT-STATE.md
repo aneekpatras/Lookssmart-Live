@@ -7561,8 +7561,11 @@ Conventions:
 - Public database access is guarded (Schema::hasTable / hasColumn, cached per request, or try/catch) so the public site renders before the new tables and columns exist. tests/Feature/PreLiveSchemaTest.php proves it.
 - No automatic WhatsApp sending: WhatsApp reminders are opened by staff as links.
 
+Google Tag Manager (container GTM-WJLPSKGR): server-rendered script tags in the head of app.blade.php, no inline script. Files: app/Support/Analytics.php, public/js/gtm-init.js, public/js/gtag-config.js, SecurityHeaders (CSP), Admin Settings > Analytics tab (analytics.enabled, analytics.gtm_id), resources/js/lib/analytics.ts (inertia_page_view events), tests/Feature/GtmTagTest.php. The old client-side GA4/GTM injection in SeoHead was removed.
+
 Open items:
 - Privacy Policy: only a short note on anonymous visit statistics was added earlier; a full review for tracking, drafts and phone accounts is still to do.
 - TRUSTED_PROXIES to check on live so visitor IPs and rate limits use the real client address.
 - Cron is optional: the host's Scheduled Tasks must run php artisan schedule:run every minute for any scheduled command.
 - Fixed here: the 3 PublicWebsiteTest contact-form failures (admin role lookup now guarded).
+- Mention Google Analytics in the Privacy Policy later (do not edit it yet).

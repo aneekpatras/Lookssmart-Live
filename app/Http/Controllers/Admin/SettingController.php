@@ -17,7 +17,7 @@ use Inertia\Response;
 
 class SettingController extends Controller
 {
-    private const GROUPS = ['business', 'booking', 'payments', 'integrations', 'seo', 'deals_bar', 'wa_popup', 'security'];
+    private const GROUPS = ['business', 'booking', 'payments', 'integrations', 'seo', 'deals_bar', 'wa_popup', 'analytics', 'security'];
 
     public function index(): Response
     {
@@ -93,6 +93,13 @@ class SettingController extends Controller
             }
 
             if ($valid && $key === 'integrations.google_tag_manager_id' && ! $blank && ! preg_match('/^GTM-[A-Z0-9]{5,}$/', $value)) {
+                $valid = false;
+            }
+
+            // Analytics: a GTM container id or a GA4 measurement id; it is written into a script URL.
+            if ($valid && $key === 'analytics.gtm_id' && ! $blank
+                && ! preg_match(\App\Support\Analytics::GTM_PATTERN, (string) $value)
+                && ! preg_match(\App\Support\Analytics::GA_PATTERN, (string) $value)) {
                 $valid = false;
             }
 

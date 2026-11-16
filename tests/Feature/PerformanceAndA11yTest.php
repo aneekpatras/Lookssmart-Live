@@ -6,37 +6,26 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
-it('shares real GTM, GA4, and GSC verification values on a public page once configured', function () {
-    Setting::create(['key' => 'integrations.google_tag_manager_id', 'value' => 'GTM-ABC1234', 'group' => 'integrations', 'is_encrypted' => false]);
-    Setting::create(['key' => 'integrations.google_analytics_id', 'value' => 'G-ABCDEF1234', 'group' => 'integrations', 'is_encrypted' => false]);
+it('shares the Search Console verification value on a public page once configured, and no analytics ids', function () {
     Setting::create(['key' => 'integrations.google_site_verification', 'value' => 'real-verification-token', 'group' => 'integrations', 'is_encrypted' => false]);
 
-    $response = $this->get('/');
-
-    $response->assertOk()->assertInertia(fn ($page) => $page
-        ->where('seo.gtmId', 'GTM-ABC1234')
-        ->where('seo.ga4Id', 'G-ABCDEF1234')
-        ->where('seo.gscVerification', 'real-verification-token'));
+    $this->get('/')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('seo.gscVerification', 'real-verification-token')
+        ->missing('seo.gtmId')
+        ->missing('seo.ga4Id'));
 });
 
-it('shares null GTM, GA4, and GSC values when none are configured, never a fabricated placeholder', function () {
-    $response = $this->get('/');
-
-    $response->assertOk()->assertInertia(fn ($page) => $page
-        ->where('seo.gtmId', null)
-        ->where('seo.ga4Id', null)
-        ->where('seo.gscVerification', null));
+it('shares a null Search Console value when none is configured, never a fabricated placeholder', function () {
+    $this->get('/')->assertOk()->assertInertia(fn ($page) => $page->where('seo.gscVerification', null));
 });
 
-it('keeps the locked-down CSP unchanged when no analytics is configured', function () {
-    $response = $this->get('/');
+it('keeps the locked-down CSP unchanged when analytics is switched off', function () {
+    Setting::create(['key' => 'analytics.enabled', 'value' => false, 'group' => 'analytics', 'is_encrypted' => false]);
 
-    $csp = $response->headers->get('Content-Security-Policy');
+    $csp = $this->get('/')->headers->get('Content-Security-Policy');
 
-    // `frame-src` is deliberately NOT `'none'` any more: the Contact page's keyless Google Maps
-    // embed needs `https://www.google.com` whether or not analytics is configured, and `'none'`
-    // had been silently blocking that iframe since Phase 9 (content-sync task, §4/§10). The
-    // analytics-only loosening must still be absent here, which is what this test guards.
+    // `frame-src` is deliberately NOT `'none'`: the Contact page's keyless Google Maps embed needs
+    // `https://www.google.com`. The analytics-only loosening must be absent here.
     expect($csp)->not->toContain('googletagmanager.com')
         ->not->toContain('google-analytics.com')
         ->not->toContain('strict-dynamic')
@@ -45,18 +34,12 @@ it('keeps the locked-down CSP unchanged when no analytics is configured', functi
         ->not->toContain('unsafe-inline');
 });
 
-it('loosens only script/frame/img/connect-src to the real Google domains once GTM or GA4 is configured', function () {
-    Setting::create(['key' => 'integrations.google_tag_manager_id', 'value' => 'GTM-ABC1234', 'group' => 'integrations', 'is_encrypted' => false]);
-
-    $response = $this->get('/');
-
-    $csp = $response->headers->get('Content-Security-Policy');
+it('loosens only script/frame/img/connect-src to the Google domains while the tag is active', function () {
+    $csp = $this->get('/')->headers->get('Content-Security-Policy');
 
     expect($csp)->toContain("script-src 'self' 'nonce-")
-        ->toContain("'strict-dynamic'")
         ->toContain('https://www.googletagmanager.com')
-        // GTM's `<noscript>` iframe host is added ALONGSIDE the maps host, not instead of it —
-        // asserted as a whole directive so neither can silently drop out.
+        ->not->toContain("'strict-dynamic'")
         ->toContain('frame-src https://www.google.com https://www.googletagmanager.com')
         ->toContain('https://www.google-analytics.com')
         ->toContain("frame-ancestors 'none'")

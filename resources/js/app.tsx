@@ -6,6 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 
 import { ErrorBoundary } from '@/Components/ErrorBoundary';
+import { trackInertiaPageViews } from '@/lib/analytics';
 import { formatTitle } from '@/lib/title';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Looks Smart Beauty Salon';
@@ -88,6 +89,7 @@ createInertiaApp({
     // real app is about to mount it has done its job — remove it so it never shows alongside the app.
     if (typeof document !== 'undefined') {
       document.getElementById('seo-fallback')?.remove();
+      trackInertiaPageViews();
     }
 
     const app = (

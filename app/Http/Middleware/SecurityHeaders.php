@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Setting;
+use App\Support\Analytics;
 use Closure;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
@@ -85,37 +85,22 @@ class SecurityHeaders
     }
 
     /**
-     * Phase 13 sub-step 2: GTM/GA4 are only ever loosened in here for the two directives that
-     * literally cannot work otherwise, and only when a real Setting value is actually configured —
-     * a site that never sets up analytics keeps the original, fully locked-down CSP unchanged.
-     *
-     * GTM's standard snippet dynamically `document.createElement('script')`s the real `gtm.js`
-     * tag from inside an already-nonce'd inline script — under CSP3, a nonce on the PARENT script
-     * does not automatically carry over to a child it creates unless `'strict-dynamic'` is present
-     * (this is precisely the case it exists for; it's Google's own documented pattern for strict CSP
-     * + GTM). The explicit `https://www.googletagmanager.com`/`https://www.google-analytics.com`
-     * host entries alongside it are inert once a browser honors `'strict-dynamic'` (which then trusts
-     * only by nonce propagation, ignoring the host list) and exist purely as a fallback for older
-     * browsers that don't. `frame-src`/`img-src`/`connect-src` need the same two domains for GTM's
-     * `<noscript>` iframe fallback and GA4's own beacon/fetch calls respectively — CSP has no
-     * `'strict-dynamic'` equivalent for those directives, so there's no way around listing them
-     * explicitly.
+     * Google Tag Manager / GA4 are only ever allowed when Analytics::tag() says a tag is active for this
+     * request (enabled, valid id, not local, not /admin*). A site without one keeps the original,
+     * locked-down CSP. The tag is plain external script tags in the raw HTML, so script-src just gets
+     * the Google Tag Manager host (no 'strict-dynamic', which would make browsers ignore 'self', and no
+     * 'unsafe-inline' / 'unsafe-eval'). connect-src, img-src and frame-src get the hosts GTM and GA4
+     * need for their beacons and the noscript iframe; CSP has no shortcut for those directives.
      */
     private static function buildCsp(string $nonce): string
     {
-        // A response header must never fail to generate. Setting::get() is database-cached (5 min), so
-        // this is not a fresh query on every request in practice — but if the database is ever
-        // briefly unreachable, the CSP header (needed on literally every response, not just
-        // analytics-related ones) must still be produced; fail safe to the strictest policy rather
-        // than let an unrelated DB hiccup take the whole site down via its own security headers.
-        try {
-            $analyticsEnabled = (bool) (Setting::get('integrations.google_tag_manager_id') || Setting::get('integrations.google_analytics_id'));
-        } catch (Throwable) {
-            $analyticsEnabled = false;
-        }
+        // Only when a Google tag is really configured and active for this request (see Analytics::tag(),
+        // which already excludes /admin* and fails closed). Its host list is added to script-src, with no
+        // 'strict-dynamic' (that would make browsers ignore 'self') and no 'unsafe-inline'/'unsafe-eval'.
+        $analyticsEnabled = Analytics::tag() !== null;
 
         $scriptSrc = "script-src 'self' 'nonce-{$nonce}'"
-            . ($analyticsEnabled ? " 'strict-dynamic' https://www.googletagmanager.com https://www.google-analytics.com" : '');
+            . ($analyticsEnabled ? ' https://www.googletagmanager.com' : '');
         // `stock_image_url` (service categories, services, and deals) lets an admin paste ANY
         // remote image URL as a fallback/feature image instead of uploading a file — see
         // ServiceController::applyImage()/DealController::applyImage(). That started as a single
@@ -128,8 +113,8 @@ class SecurityHeaders
         // embeds already accepts (e.g. IP/analytics leakage to the image host on page render).
         // `data:` stays for small inline assets already used elsewhere in the app.
         $imgSrc = "img-src 'self' data: https:"
-            . ($analyticsEnabled ? ' https://www.google-analytics.com https://www.googletagmanager.com' : '');
-        $connectSrc = "connect-src 'self'" . ($analyticsEnabled ? ' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com' : '');
+            . ($analyticsEnabled ? ' https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com' : '');
+        $connectSrc = "connect-src 'self'" . ($analyticsEnabled ? ' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://stats.g.doubleclick.net' : '');
         // The Contact page embeds a Google Maps iframe (`https://www.google.com/maps?...&output=embed`,
         // keyless). `frame-src 'none'` silently blocked it outright — the map had never actually
         // rendered on any environment enforcing this policy, confirmed by curling the real header.

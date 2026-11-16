@@ -22,8 +22,6 @@ interface SharedSeoProps {
   seo?: {
     siteName?: string;
     defaultImage?: string | null;
-    gtmId?: string | null;
-    ga4Id?: string | null;
     gscVerification?: string | null;
   };
   ziggy?: {
@@ -55,7 +53,7 @@ interface SeoHeadProps {
  * "X - Site Name - Site Name"). OG/Twitter `*:title` aren't covered by that template — a shared
  * social card has no templating context of its own — so those two intentionally use the branded form.
  *
- * Phase 13 sub-step 2 added GA4/GTM/GSC — all read from the shared `seo` prop (never a page prop), so
+ * Phase 13 sub-step 2 added GSC (GA4/GTM now load server-side from app.blade.php, see App\Support\Analytics) — all read from the shared `seo` prop (never a page prop), so
  * they render exactly once no matter which public page mounts `SeoHead` (it's already only ever used
  * once per page — see every `Public/*.tsx`), and every one is entirely absent, not a fabricated
  * placeholder id, until its matching Setting is actually configured. GA4/GTM's `<script>` tags carry
@@ -71,9 +69,6 @@ export function SeoHead({ title, description, image, type = 'website', jsonLd }:
   const resolvedImage = image ?? props.seo?.defaultImage ?? null;
   const brandedTitle = title.includes(siteName) ? title : `${title} - ${siteName}`;
   const schemas = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
-  const nonce = props.cspNonce;
-  const gtmId = props.seo?.gtmId;
-  const ga4Id = props.seo?.ga4Id;
   const gscVerification = props.seo?.gscVerification;
   const serverMeta = props.seoMeta;
 
@@ -123,21 +118,6 @@ export function SeoHead({ title, description, image, type = 'website', jsonLd }:
           {JSON.stringify(schema)}
         </script>
       ))}
-
-      {gtmId && (
-        <script nonce={nonce}>
-          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtmId}');`}
-        </script>
-      )}
-
-      {ga4Id && (
-        <script async nonce={nonce} src={`https://www.googletagmanager.com/gtag/js?id=${ga4Id}`} />
-      )}
-      {ga4Id && (
-        <script nonce={nonce}>
-          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${ga4Id}');`}
-        </script>
-      )}
     </Head>
   );
   /* eslint-enable react/no-unknown-property */

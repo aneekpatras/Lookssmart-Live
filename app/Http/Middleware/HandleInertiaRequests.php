@@ -88,8 +88,6 @@ class HandleInertiaRequests extends Middleware
             'seo' => fn () => [
                 'siteName' => Setting::get('business.name') ?: config('app.name'),
                 'defaultImage' => $this->defaultOgImage(),
-                'gtmId' => Setting::get('integrations.google_tag_manager_id') ?: null,
-                'ga4Id' => Setting::get('integrations.google_analytics_id') ?: null,
                 'gscVerification' => Setting::get('integrations.google_site_verification') ?: null,
             ],
             // Contact details, trading hours and social profiles for the public footer, which renders

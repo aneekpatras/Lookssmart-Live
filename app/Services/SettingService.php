@@ -82,6 +82,8 @@ class SettingService
         'deals_bar.deal_id' => ['group' => 'deals_bar', 'type' => 'int'],
 
         // Floating WhatsApp popup bubble: on/off, message (max 140), delay in seconds (3-60), sound on/off.
+        'analytics.enabled' => ['group' => 'analytics', 'type' => 'bool'],
+        'analytics.gtm_id' => ['group' => 'analytics', 'type' => 'string'],
         'wa_popup.enabled' => ['group' => 'wa_popup', 'type' => 'bool'],
         'wa_popup.message' => ['group' => 'wa_popup', 'type' => 'string'],
         'wa_popup.delay' => ['group' => 'wa_popup', 'type' => 'int'],
