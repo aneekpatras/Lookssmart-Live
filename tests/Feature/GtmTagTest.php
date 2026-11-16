@@ -26,6 +26,14 @@ it('puts the init script and the GTM script in the raw HTML of public pages and 
     }
 });
 
+it('has the standard gtm.start line in gtm-init.js', function () {
+    $js = file_get_contents(public_path('js/gtm-init.js'));
+
+    expect($js)->toContain('window.dataLayer = window.dataLayer || []')
+        ->toContain("gtag('js', new Date())")
+        ->toContain("window.dataLayer.push({'gtm.start': new Date().getTime(), event: 'gtm.js'});");
+});
+
 it('uses the configured container id, escaped', function () {
     analyticsSetting('analytics.gtm_id', 'GTM-ABC1234');
 

@@ -7563,6 +7563,11 @@ Conventions:
 
 Google Tag Manager (container GTM-WJLPSKGR): server-rendered script tags in the head of app.blade.php, no inline script. Files: app/Support/Analytics.php, public/js/gtm-init.js, public/js/gtag-config.js, SecurityHeaders (CSP), Admin Settings > Analytics tab (analytics.enabled, analytics.gtm_id), resources/js/lib/analytics.ts (inertia_page_view events), tests/Feature/GtmTagTest.php. The old client-side GA4/GTM injection in SeoHead was removed.
 
+Signed confirm links: booking emails (created and reminder) carry a gold Confirm my booking button for pending bookings and a Reschedule link; both open /b/<code>, a temporary signed page (expires when the appointment ends) where only the POST confirms. How it was confirmed is stored in bookings.confirmed_at, confirmed_via and confirmed_by (admin booking page shows it).
+Customer reschedule: My Bookings and the signed page share one date and time dialog; the booking's own slot counts as free, status is kept, and the reschedule is logged and notified. Settings: booking.reschedule_min_hours (0 = no limit) and booking.cancel_policy_text (replaces the old fee and 24-hour claims).
+To confirm tab (Admin > Reminders): pending upcoming bookings, WhatsApp ask logged as type confirm (template confirm.template), and Mark confirmed (staff).
+Scheduler URL: GET /scheduler/run/<token> runs schedule:run for hosts without cron access; the token (setting scheduler.token, encrypted) is generated in the Email rules tab.
+
 Open items:
 - Privacy Policy: only a short note on anonymous visit statistics was added earlier; a full review for tracking, drafts and phone accounts is still to do.
 - TRUSTED_PROXIES to check on live so visitor IPs and rate limits use the real client address.
