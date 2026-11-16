@@ -436,8 +436,8 @@ export default function Home({
       {/* 3. Deals — an admin-controlled bar (Settings > Deals Bar), then the offers as an auto-scrolling
           strip of cards at the gallery card size (one row on desktop, two opposing rows on phones and
           tablets). A card opens that deal's own page; the full catalog lives at /deals. */}
-      {dealsBar && <DealsBar bar={dealsBar} />}
       {showcase && <HomeShowcase showcase={showcase} />}
+      {dealsBar && <DealsBar bar={dealsBar} />}
       {offers.length > 0 && (
         <section className="border-border-soft bg-accent-50 overflow-hidden border-y py-16 lg:py-20">
           <div className="mx-auto max-w-6xl px-6 text-center lg:px-10">

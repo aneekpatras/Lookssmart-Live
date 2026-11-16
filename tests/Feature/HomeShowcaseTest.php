@@ -79,10 +79,10 @@ it('hides the whole section when switched off and ignores an invalid saved link'
     $this->get('/')->assertInertia(fn ($page) => $page->where('showcase', null));
 });
 
-it('keeps the Home sections in order: banner, showcase, Special Deals, Services', function () {
+it('keeps the Home sections in order: showcase, banner, Special Deals, Services', function () {
     $source = file_get_contents(resource_path('js/Pages/Public/Home.tsx'));
     $positions = array_map(fn ($needle) => strpos($source, $needle), [
-        '<DealsBar bar={dealsBar}', '<HomeShowcase', 'Special Deals', 'Our Specialized Services', 'Why Choose Us',
+        '<HomeShowcase', '<DealsBar bar={dealsBar}', 'Special Deals', 'Our Specialized Services', 'Why Choose Us',
     ]);
 
     expect($positions)->each->not->toBeFalse();
