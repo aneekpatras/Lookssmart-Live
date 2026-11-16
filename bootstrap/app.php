@@ -53,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // exemption in the app, scoped as narrowly as possible.
         $middleware->validateCsrfTokens(except: [
             'csp-report',
+            'scheduler/run/*',
         ]);
 
         // spatie/laravel-permission's built-in role gate — applied to routes/admin.php as a stopgap

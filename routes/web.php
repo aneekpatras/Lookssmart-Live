@@ -58,6 +58,20 @@ Route::get('/privacy-policy', [PublicWebsiteController::class, 'privacyPolicy'])
 // Customer portal (Phase 3) — profile/password/2FA/sessions now; "my bookings" is an empty state
 // until Phase 7 (Booking Engine) exists. Guests get magic-link booking access instead of an
 // account — see 02-PROJECT-STATE.md Decision #21 (implemented in Phase 7).
+// Secret scheduler trigger (see SchedulerRunController): no session, cookies or Inertia, throttled.
+Route::get('/scheduler/run/{token}', \App\Http\Controllers\SchedulerRunController::class)
+    ->middleware('throttle:20,1')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\HandleInertiaRequests::class,
+    ])
+    ->name('scheduler.run');
+
 Route::middleware('auth')->group(function () {
     Route::get('/my-account', [CustomerDashboardController::class, 'index'])->name('my-account');
     Route::get('/my-bookings', [CustomerDashboardController::class, 'bookings'])->name('my-bookings');

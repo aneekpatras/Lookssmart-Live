@@ -78,7 +78,7 @@ class RemindersController extends Controller
             'birthdays' => $this->birthdays($birthdayTemplate, $shared),
             'toConfirm' => $toConfirm,
             'emailRules' => $this->emailRules(),
-            'scheduler' => ['last_run' => $this->schedulerLastRun()],
+            'scheduler' => ['last_run' => $this->schedulerLastRun(), 'url' => $this->schedulerUrl()],
             'mail' => ['mailer' => (string) config('mail.default'), 'queue' => (string) config('queue.default')],
         ]);
     }
@@ -132,6 +132,27 @@ class RemindersController extends Controller
         }
 
         return [$minutes, 'minutes'];
+    }
+
+    /** The full secret trigger URL, or null until a token has been generated. */
+    private function schedulerUrl(): ?string
+    {
+        try {
+            $token = (string) app(SettingService::class)->get('scheduler.token');
+
+            return $token !== '' ? url('/scheduler/run/' . $token) : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** Creates (or replaces) the scheduler token. Regenerating invalidates the old URL at once. */
+    public function generateSchedulerToken(Request $request)
+    {
+        $this->guard($request);
+        app(SettingService::class)->set('scheduler.token', bin2hex(random_bytes(24)), 'scheduler', true);
+
+        return back()->with('success', 'New scheduler URL created. Update your cron job with it.');
     }
 
     /** ISO time of the last scheduler heartbeat, or null when it never ran (or the cache is unavailable). */

@@ -80,7 +80,7 @@ interface RemindersProps {
   birthdays: { available: boolean; rows: BirthdayRow[] };
   toConfirm: ConfirmRow[];
   emailRules: EmailRule[];
-  scheduler: { last_run: string | null };
+  scheduler: { last_run: string | null; url: string | null };
   mail: { mailer: string; queue: string };
 }
 
@@ -307,7 +307,7 @@ export default function Reminders({
         </div>
 
         {tab === 'email' ? (
-          <EmailRulesTab rules={emailRules} schedulerLastRun={scheduler.last_run} mail={mail} />
+          <EmailRulesTab rules={emailRules} schedulerLastRun={scheduler.last_run} schedulerUrl={scheduler.url} mail={mail} />
         ) : tab === 'confirm' ? (
           <div className="space-y-4">
             <p className="text-ink-muted text-sm">

@@ -21,6 +21,7 @@ export interface EmailRule {
 interface EmailRulesTabProps {
   rules: EmailRule[];
   schedulerLastRun: string | null;
+  schedulerUrl: string | null;
   mail: { mailer: string; queue: string };
 }
 
@@ -148,7 +149,7 @@ function RuleForm({ rule, onDone }: { rule: EmailRule | null; onDone: () => void
   );
 }
 
-export function EmailRulesTab({ rules, schedulerLastRun, mail }: EmailRulesTabProps) {
+export function EmailRulesTab({ rules, schedulerLastRun, schedulerUrl, mail }: EmailRulesTabProps) {
   // `null` = form closed, 'new' = creating, otherwise the rule being edited.
   const [editing, setEditing] = React.useState<EmailRule | 'new' | null>(null);
 
@@ -165,6 +166,33 @@ export function EmailRulesTab({ rules, schedulerLastRun, mail }: EmailRulesTabPr
             <span className="font-medium">Scheduler last ran:</span>{' '}
             {schedulerLastRun ? formatWithRelative(schedulerLastRun) : 'never'}
           </p>
+          <div className="border-border-soft space-y-2 rounded-md border p-3">
+            <p className="text-ink font-medium">Scheduler URL (for hosts without cron access)</p>
+            {schedulerUrl ? (
+              <p className="bg-ivory text-ink rounded px-2 py-1 font-mono text-xs break-all select-all">
+                {schedulerUrl}
+              </p>
+            ) : (
+              <p className="text-ink-muted">No URL yet. Generate one below.</p>
+            )}
+            <p className="text-ink-muted text-xs">
+              Call this URL every 5 minutes from cron-job.org or the hosting Scheduled Tasks (wget or
+              curl). Keep it secret: anyone with it can run the scheduler. Generating a new one
+              stops the old one working.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (!schedulerUrl || confirm('Create a new URL? The current one will stop working.')) {
+                  router.post('/admin/reminders/scheduler-token', {}, { preserveScroll: true });
+                }
+              }}
+            >
+              {schedulerUrl ? 'Generate a new URL' : 'Generate token'}
+            </Button>
+          </div>
           <p className="text-ink-muted">
             Mail driver: {mail.mailer || 'not set'} · Queue connection: {mail.queue || 'not set'}
           </p>
