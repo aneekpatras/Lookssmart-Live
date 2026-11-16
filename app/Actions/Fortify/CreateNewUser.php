@@ -20,7 +20,8 @@ class CreateNewUser implements CreatesNewUsers
     public function create(array $input): User
     {
         // One normalised phone format for the uniqueness check and for storage.
-        $input['phone'] = filled($input['phone'] ?? null) ? trim($input['phone']) : null;
+        $phoneSupported = Phone::accountsSupported();
+        $input['phone'] = $phoneSupported && filled($input['phone'] ?? null) ? trim($input['phone']) : null;
         $input['email'] = filled($input['email'] ?? null) ? trim($input['email']) : null;
 
         Validator::make($input, [
@@ -48,11 +49,11 @@ class CreateNewUser implements CreatesNewUsers
             'email.unique' => 'That email is already registered. Try logging in instead.',
         ])->validate();
 
-        return DB::transaction(function () use ($input) {
+        return DB::transaction(function () use ($input, $phoneSupported) {
             $user = User::create([
                 'name' => $input['name'],
                 'email' => $input['email'],
-                'phone' => Phone::normalize($input['phone']),
+                ...($phoneSupported ? ['phone' => Phone::normalize($input['phone'])] : []),
                 'password' => Hash::make($input['password']),
             ]);
 

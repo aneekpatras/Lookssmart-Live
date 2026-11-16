@@ -12,6 +12,25 @@ class Phone
 {
     public const MESSAGE = 'Enter a valid WhatsApp number, for example 0300 1234567.';
 
+    private static ?bool $accountsSupported = null;
+
+    /**
+     * Whether users.phone exists. Live may run this code before the SQL that adds it, so every public
+     * code path that touches the column (register, login) checks this first. Cached for the request.
+     */
+    public static function accountsSupported(): bool
+    {
+        if (self::$accountsSupported === null) {
+            try {
+                self::$accountsSupported = \Illuminate\Support\Facades\Schema::hasColumn('users', 'phone');
+            } catch (\Throwable) {
+                self::$accountsSupported = false;
+            }
+        }
+
+        return self::$accountsSupported;
+    }
+
     public static function normalize(?string $raw): ?string
     {
         $raw = trim((string) $raw);

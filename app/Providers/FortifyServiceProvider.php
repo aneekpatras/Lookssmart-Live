@@ -51,7 +51,7 @@ class FortifyServiceProvider extends ServiceProvider
 
             $user = str_contains($identifier, '@')
                 ? User::where('email', $identifier)->first()
-                : (($phone = Phone::normalize($identifier)) ? User::where('phone', $phone)->first() : null);
+                : ((Phone::accountsSupported() && ($phone = Phone::normalize($identifier))) ? User::where('phone', $phone)->first() : null);
 
             // The same generic failure whether or not the account exists.
             if ($user && Hash::check($password, $user->password)) {
