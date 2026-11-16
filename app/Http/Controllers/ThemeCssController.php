@@ -21,7 +21,7 @@ class ThemeCssController extends Controller
 
         $response = response($css, $request->header('If-None-Match') === $etag ? 304 : 200, [
             'Content-Type' => 'text/css; charset=UTF-8',
-            'Cache-Control' => 'public, max-age=3600',
+            'Cache-Control' => 'public, max-age=0, must-revalidate',
             'ETag' => $etag,
         ]);
 

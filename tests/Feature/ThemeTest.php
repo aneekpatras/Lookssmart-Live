@@ -27,7 +27,7 @@ it('serves an empty default stylesheet with cache headers when nothing is saved'
     $response = $this->get('/theme.css')->assertOk();
 
     expect($response->headers->get('Content-Type'))->toContain('text/css');
-    expect($response->headers->get('Cache-Control'))->toContain('public')->toContain('max-age=3600');
+    expect($response->headers->get('Cache-Control'))->toContain('public')->toContain('max-age=0')->toContain('must-revalidate');
     expect($response->headers->get('ETag'))->not->toBeNull();
     expect($response->getContent())->not->toContain('--gold:');
 

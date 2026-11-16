@@ -54,13 +54,13 @@ class Theme
         return $out;
     }
 
-    /** Timestamp of the last theme change, used as the ?v= cache-buster on the stylesheet link. */
+    /** Cache-buster for the ?v= on the stylesheet link: a hash of the saved values, so it changes on every real change. */
     public static function version(): int
     {
         try {
             $latest = Setting::query()->where('group', 'theme')->max('updated_at');
 
-            return $latest ? (int) strtotime((string) $latest) : 0;
+            return $latest ? crc32(json_encode(self::values()) . '|' . $latest) : 0;
         } catch (\Throwable) {
             return 0;
         }
