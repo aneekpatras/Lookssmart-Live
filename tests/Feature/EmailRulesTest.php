@@ -69,7 +69,7 @@ it('rejects offsets the scheduled commands would never send and bad input', func
     $admin = emailRulesAdmin();
 
     $this->actingAs($admin)->post('/admin/reminders/rules', [
-        'name' => 'Odd', 'event' => 'before_booking', 'amount' => 5, 'unit' => 'hours', 'is_active' => true,
+        'name' => 'Too soon', 'event' => 'before_booking', 'amount' => 10, 'unit' => 'minutes', 'is_active' => true,
     ])->assertSessionHasErrors('amount');
 
     $this->actingAs($admin)->post('/admin/reminders/rules', [

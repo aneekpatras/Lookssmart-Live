@@ -118,7 +118,7 @@ function RuleForm({ rule, onDone }: { rule: EmailRule | null; onDone: () => void
           {form.errors.amount && <p className="text-sm text-red-600">{form.errors.amount}</p>}
           {form.data.event === 'before_booking' && (
             <p className="text-ink-muted text-xs">
-              Booking reminders can be sent 2 hours or 1 day before the appointment.
+              Booking reminders can be sent from 30 minutes to 7 days before the appointment.
             </p>
           )}
         </div>
@@ -212,9 +212,22 @@ export function EmailRulesTab({ rules, schedulerLastRun, schedulerUrl, mail }: E
           onDone={() => setEditing(null)}
         />
       ) : (
-        <Button type="button" onClick={() => setEditing('new')}>
-          New email rule
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => setEditing('new')}>
+            New email rule
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (confirm('Create active email reminder rules for 24, 12 and 6 hours before the appointment? Rules that already exist are skipped.')) {
+                router.post('/admin/reminders/rules/suggested', {}, { preserveScroll: true });
+              }
+            }}
+          >
+            Add suggested rules (24h, 12h, 6h before)
+          </Button>
+        </div>
       )}
 
       {rules.length === 0 ? (

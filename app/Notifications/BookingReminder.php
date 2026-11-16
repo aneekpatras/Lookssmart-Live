@@ -25,11 +25,18 @@ class BookingReminder extends Notification implements ShouldQueue
     public function __construct(
         private readonly Booking $booking,
         private readonly array $channels = ['email', 'sms', 'whatsapp'],
+        private readonly ?int $offsetMinutes = null,
+        private readonly bool $test = false,
     ) {}
 
     /** @return array<int, string> */
     public function via(mixed $notifiable): array
     {
+        // Guests are reached through an on-demand mail route: mail only (no database or phone channels).
+        if ($notifiable instanceof \Illuminate\Notifications\AnonymousNotifiable) {
+            return filled($notifiable->routeNotificationFor('mail')) ? [MailChannel::class] : [];
+        }
+
         return array_values(array_filter([
             in_array('email', $this->channels, true) && filled($notifiable->email ?? null) ? MailChannel::class : null,
             in_array('sms', $this->channels, true) && filled(config('services.twilio.sid')) && filled(config('services.twilio.auth_token')) ? SmsChannel::class : null,

@@ -88,9 +88,6 @@ class RemindersController extends Controller
     /** Events the two scheduled commands understand, with the direction each one filters on. */
     public const RULE_EVENTS = ['before_booking' => 'before', 'review_request' => 'after'];
 
-    /** bookings:send-reminders only fires for these offsets (minutes). */
-    public const BOOKING_REMINDER_OFFSETS = [120, 1440];
-
     private const UNIT_MINUTES = ['minutes' => 1, 'hours' => 60, 'days' => 1440];
 
     /** The rule's name is stored in the (otherwise unused) `template` column, so no new column is needed. */
@@ -180,9 +177,9 @@ class RemindersController extends Controller
 
         $minutes = (int) $data['amount'] * self::UNIT_MINUTES[$data['unit']];
 
-        if ($data['event'] === 'before_booking' && ! in_array($minutes, self::BOOKING_REMINDER_OFFSETS, true)) {
+        if ($data['event'] === 'before_booking' && ($minutes < \App\Services\BookingReminderSchedule::MIN_MINUTES || $minutes > \App\Services\BookingReminderSchedule::MAX_MINUTES)) {
             throw ValidationException::withMessages([
-                'amount' => 'Booking reminders can only be sent 2 hours or 1 day before the appointment.',
+                'amount' => 'Booking reminders can be sent from 30 minutes to 7 days before the appointment.',
             ]);
         }
         if ($data['event'] === 'review_request' && ($minutes < 60 || $minutes > 60 * 24 * 30)) {
@@ -207,6 +204,31 @@ class RemindersController extends Controller
         ReminderRule::create($this->validatedRule($request));
 
         return back()->with('success', 'Email rule created.');
+    }
+
+    /** Creates the 24h, 12h and 6h booking-reminder email rules (active), skipping any that already exist. */
+    public function addSuggestedRules(Request $request)
+    {
+        $this->guard($request);
+
+        $created = 0;
+        foreach ([1440 => '24 hours', 720 => '12 hours', 360 => '6 hours'] as $minutes => $label) {
+            $exists = ReminderRule::where('event', 'before_booking')->where('offset_minutes', $minutes)->exists();
+            if ($exists) {
+                continue;
+            }
+            ReminderRule::create([
+                'event' => 'before_booking',
+                'direction' => 'before',
+                'offset_minutes' => $minutes,
+                'channels' => ['email'],
+                'template' => "Reminder {$label} before",
+                'is_active' => true,
+            ]);
+            $created++;
+        }
+
+        return back()->with('success', $created === 0 ? 'The 24h, 12h and 6h rules already exist.' : "Added {$created} reminder rule(s).");
     }
 
     public function updateRule(Request $request, ReminderRule $rule)

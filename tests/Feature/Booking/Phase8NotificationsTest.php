@@ -259,6 +259,8 @@ it('dispatches a due reminder once and records its idempotency key', function ()
     $clock = CarbonImmutable::parse('2026-09-01 08:00:00', 'UTC');
     [$staff, $service] = makeP8BookableStaff($clock->dayOfWeek);
     $booking = makeP8Booking($staff, $service, $clock->addHours(2), 'reminder@example.com');
+    // The fixed test clock is in the past: the booking must look like it existed before the reminder time.
+    $booking->forceFill(['created_at' => $clock->subDay()])->save();
     $customer = $booking->customer;
     $rule = ReminderRule::create([
         'event' => 'before_booking',
@@ -273,7 +275,7 @@ it('dispatches a due reminder once and records its idempotency key', function ()
     $this->artisan('bookings:send-reminders', ['--now' => $clock->toIso8601String()])->assertExitCode(0);
 
     expect(Notification::sent($customer, BookingReminder::class))->toHaveCount(1)
-        ->and(NotificationLog::where('reminder_key', "booking-reminder:{$booking->id}:{$rule->id}")->count())->toBe(1);
+        ->and(NotificationLog::where('reminder_key', "booking-reminder:{$booking->id}:{$rule->id}:{$booking->starts_at->getTimestamp()}")->count())->toBe(1);
 });
 
 it('dispatches a review request once after a completed booking', function () {
