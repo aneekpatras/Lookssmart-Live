@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import * as React from 'react';
 import { toast } from 'sonner';
 
@@ -25,6 +25,8 @@ interface SettingsGroups {
   wa_popup: Record<string, SettingValue>;
   analytics: Record<string, SettingValue>;
   security: Record<string, SettingValue>;
+  hero: Record<string, SettingValue>;
+  theme: Record<string, SettingValue>;
 }
 
 interface BusinessHourRow {
@@ -38,6 +40,15 @@ interface SettingsIndexPageProps {
   settings: SettingsGroups;
   businessHours: BusinessHourRow[];
   dealOptions: { id: number; title: string }[];
+  heroMedia: HeroMediaInfo;
+}
+
+interface HeroMediaInfo {
+  videos: string[];
+  posters: string[];
+  limits: { upload_max_filesize: number; post_max_size: number };
+  defaultVideo: string;
+  defaultPoster: string;
 }
 
 const TABS = [
@@ -48,6 +59,8 @@ const TABS = [
   { id: 'integrations', label: 'Integrations' },
   { id: 'deals-bar', label: 'Deals Bar' },
   { id: 'wa-popup', label: 'WhatsApp popup' },
+  { id: 'hero', label: 'Home hero' },
+  { id: 'theme', label: 'Theme colours' },
   { id: 'analytics', label: 'Analytics' },
   { id: 'seo-security', label: 'SEO & Security' },
 ] as const;
@@ -569,6 +582,147 @@ function DealsBarTab({ bar, dealOptions }: { bar: Record<string, SettingValue>; 
   );
 }
 
+function HeroTab({ hero, media }: { hero: Record<string, SettingValue>; media: HeroMediaInfo }) {
+  const mb = (bytes: number) => Math.round((bytes / 1048576) * 10) / 10;
+  const limit = Math.min(media.limits.upload_max_filesize, media.limits.post_max_size);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+
+  function upload(kind: 'video' | 'poster', file: File | undefined) {
+    setUploadError(null);
+    if (!file) return;
+    if (kind === 'video' && file.size > 25 * 1024 * 1024) {
+      setUploadError('The video must be 25 MB or smaller.');
+      return;
+    }
+    if (file.size > limit) {
+      setUploadError(
+        `This file is ${mb(file.size)} MB but this server accepts up to ${mb(limit)} MB. On this host large files must be uploaded by FTP into public/images, then choose them below.`,
+      );
+      return;
+    }
+    router.post(
+      '/admin/hero-media/upload',
+      { kind, file },
+      {
+        forceFormData: true,
+        preserveScroll: true,
+        onError: (errors) => setUploadError(errors.file ?? 'Upload failed.'),
+      },
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <GroupForm
+        group="hero"
+        title="Home hero video"
+        description="The muted looping video behind the Home page heading. The heading, text and buttons do not change."
+        fields={{
+          video_enabled: hero['hero.video_enabled'] === false ? 'false' : 'true',
+          video_path: toFieldValue(hero['hero.video_path']),
+          poster_path: toFieldValue(hero['hero.poster_path']),
+        }}
+      >
+        {(data, setField, fieldError) => (
+          <>
+            <ToggleField
+              id="hero.video_enabled"
+              label="Play the video (off shows the poster picture only)"
+              checked={data.video_enabled === 'true'}
+              onChange={(v) => setField('video_enabled', v ? 'true' : 'false')}
+            />
+            <div className="space-y-1.5">
+              <Label htmlFor="hero.video_path">Use existing file</Label>
+              <select
+                id="hero.video_path"
+                value={data.video_path ?? ''}
+                onChange={(e) => setField('video_path', e.target.value)}
+                className="border-input bg-background h-10 w-full max-w-md rounded-md border px-3 text-sm"
+              >
+                <option value="">Default ({media.defaultVideo})</option>
+                {media.videos.map((path) => (
+                  <option key={path} value={path}>
+                    {path}
+                  </option>
+                ))}
+                {data.video_path && !media.videos.includes(data.video_path) && (
+                  <option value={data.video_path}>{data.video_path}</option>
+                )}
+              </select>
+              {fieldError('video_path') && (
+                <p className="text-sm text-red-600">That file is not available on this site.</p>
+              )}
+              <p className="text-ink-muted text-xs">
+                Lists the .mp4 and .webm files found in public/images.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="hero.poster_path">Poster picture</Label>
+              <select
+                id="hero.poster_path"
+                value={data.poster_path ?? ''}
+                onChange={(e) => setField('poster_path', e.target.value)}
+                className="border-input bg-background h-10 w-full max-w-md rounded-md border px-3 text-sm"
+              >
+                <option value="">Default ({media.defaultPoster})</option>
+                {media.posters.map((path) => (
+                  <option key={path} value={path}>
+                    {path}
+                  </option>
+                ))}
+                {data.poster_path && !media.posters.includes(data.poster_path) && (
+                  <option value={data.poster_path}>{data.poster_path}</option>
+                )}
+              </select>
+              {fieldError('poster_path') && (
+                <p className="text-sm text-red-600">That file is not available on this site.</p>
+              )}
+              <p className="text-ink-muted text-xs">
+                Shown first on every device and kept when the video cannot play. Use a 16:9
+                picture, jpg or webp.
+              </p>
+            </div>
+          </>
+        )}
+      </GroupForm>
+
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <div>
+            <h2 className="font-display text-ink text-lg font-medium">Upload a file</h2>
+            <p className="text-ink-muted text-sm">
+              Video: mp4 or webm, up to 25 MB. Poster: jpg or webp, up to 3 MB. This server accepts
+              uploads up to {mb(limit)} MB. On this host large files must be uploaded by FTP into
+              public/images, then choose them above.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="hero-upload-video">Video file</Label>
+              <Input
+                id="hero-upload-video"
+                type="file"
+                accept="video/mp4,video/webm"
+                onChange={(e) => upload('video', e.target.files?.[0])}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="hero-upload-poster">Poster image</Label>
+              <Input
+                id="hero-upload-poster"
+                type="file"
+                accept="image/jpeg,image/webp"
+                onChange={(e) => upload('poster', e.target.files?.[0])}
+              />
+            </div>
+          </div>
+          {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function AnalyticsTab({ analytics }: { analytics: Record<string, SettingValue> }) {
   return (
     <GroupForm
@@ -722,7 +876,7 @@ function SeoSecurityTab({ seo, security }: { seo: Record<string, SettingValue>; 
   );
 }
 
-export default function SettingsIndex({ settings, businessHours, dealOptions }: SettingsIndexPageProps) {
+export default function SettingsIndex({ settings, businessHours, dealOptions, heroMedia }: SettingsIndexPageProps) {
   const [tab, setTab] = React.useState<TabId>('general');
 
   return (
@@ -763,6 +917,7 @@ export default function SettingsIndex({ settings, businessHours, dealOptions }: 
           {tab === 'payments' && <PaymentsTab payments={settings.payments} />}
           {tab === 'integrations' && <IntegrationsTab integrations={settings.integrations} />}
           {tab === 'wa-popup' && <WaPopupTab popup={settings.wa_popup} />}
+          {tab === 'hero' && <HeroTab hero={settings.hero} media={heroMedia} />}
           {tab === 'analytics' && <AnalyticsTab analytics={settings.analytics} />}
           {tab === 'deals-bar' && <DealsBarTab bar={settings.deals_bar} dealOptions={dealOptions} />}
           {tab === 'seo-security' && <SeoSecurityTab seo={settings.seo} security={settings.security} />}

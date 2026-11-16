@@ -17,7 +17,7 @@ use Inertia\Response;
 
 class SettingController extends Controller
 {
-    private const GROUPS = ['business', 'booking', 'payments', 'integrations', 'seo', 'deals_bar', 'wa_popup', 'analytics', 'security'];
+    private const GROUPS = ['business', 'booking', 'payments', 'integrations', 'seo', 'deals_bar', 'wa_popup', 'analytics', 'security', 'showcase', 'hero', 'theme'];
 
     public function index(): Response
     {
@@ -32,14 +32,27 @@ class SettingController extends Controller
             'businessHours' => BusinessHour::orderBy('weekday')->get(['weekday', 'open_time', 'close_time', 'is_closed']),
             // For the Deals Bar's "Claim" button: which live deal it adds to the booking.
             'dealOptions' => Deal::active()->orderBy('title')->get(['id', 'title']),
+            // Home hero tab: files already in public/images, the PHP upload limits, and the defaults.
+            'heroMedia' => [
+                'videos' => \App\Support\HeroMedia::files(\App\Support\HeroMedia::VIDEO_EXT),
+                'posters' => \App\Support\HeroMedia::files(\App\Support\HeroMedia::POSTER_EXT),
+                'limits' => \App\Support\HeroMedia::phpLimits(),
+                'defaultVideo' => \App\Support\HeroMedia::DEFAULT_VIDEO,
+                'defaultPoster' => \App\Support\HeroMedia::DEFAULT_POSTER,
+            ],
         ]);
     }
 
     public function updateGroup(Request $request, string $group, SettingService $settingService): RedirectResponse
     {
-        $this->authorize('create', Setting::class);
-
         abort_unless(in_array($group, self::GROUPS, true), 404);
+
+        // The Home showcase and hero media belong to the content team (cms.manage); the rest needs settings.manage.
+        if (in_array($group, ['showcase', 'hero'], true)) {
+            abort_unless($request->user()?->can('cms.manage'), 403);
+        } else {
+            $this->authorize('create', Setting::class);
+        }
 
         $data = $request->validate(['settings' => ['required', 'array']]);
         $this->validateGroupPayload($group, $data['settings']);
@@ -131,6 +144,35 @@ class SettingController extends Controller
                 $valid = false;
             }
             if ($valid && $key === 'wa_popup.delay' && ! $blank && ((int) $value < 3 || (int) $value > 60)) {
+                $valid = false;
+            }
+
+            // Home showcase: plain text with sensible limits; links are a site path or https:// only.
+            if ($valid && str_starts_with($key, 'showcase.') && ! $blank) {
+                $limits = ['eyebrow' => 80, 'heading_1' => 60, 'heading_2' => 60, 'paragraph' => 300, 'chips_label' => 60, 'deal_label' => 40,
+                    'deal_button_label' => 30, 'deal_button_url' => 255, 'primary_label' => 30, 'primary_url' => 255, 'secondary_label' => 30,
+                    'secondary_url' => 255, 'trust_1' => 40, 'trust_2' => 40, 'trust_3' => 40, 'card_title' => 30, 'card_line' => 40];
+                $name = substr($key, 9);
+
+                if (isset($limits[$name]) && (mb_strlen((string) $value) > $limits[$name] || strip_tags((string) $value) !== (string) $value)) {
+                    $valid = false;
+                }
+                if (str_ends_with($name, '_url') && ! \App\Support\Showcase::validLink((string) $value)) {
+                    $valid = false;
+                }
+                if ($name === 'interval' && ((int) $value < 3 || (int) $value > 15)) {
+                    $valid = false;
+                }
+            }
+
+            // Theme colours: #RRGGBB only (they are written into a stylesheet).
+            if ($valid && str_starts_with($key, 'theme.') && ! $blank && ! preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $value)) {
+                $valid = false;
+            }
+
+            // Hero video / poster: a same-origin path to a file that exists under public/ (no external URLs).
+            if ($valid && in_array($key, ['hero.video_path', 'hero.poster_path'], true) && ! $blank
+                && ! \App\Support\HeroMedia::validPath((string) $value, $key === 'hero.video_path' ? \App\Support\HeroMedia::VIDEO_EXT : \App\Support\HeroMedia::POSTER_EXT)) {
                 $valid = false;
             }
 

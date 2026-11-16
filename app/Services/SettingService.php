@@ -102,6 +102,37 @@ class SettingService
         'followup.contact_template' => ['group' => 'followup', 'type' => 'string'],
         'followup.cart_template' => ['group' => 'followup', 'type' => 'string'],
 
+        // Home showcase section (Admin > Home showcase): plain text, defaults live in App\Support\Showcase.
+        'showcase.enabled' => ['group' => 'showcase', 'type' => 'bool'],
+        'showcase.eyebrow' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.heading_1' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.heading_2' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.paragraph' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.chips_enabled' => ['group' => 'showcase', 'type' => 'bool'],
+        'showcase.chips_label' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.deal_enabled' => ['group' => 'showcase', 'type' => 'bool'],
+        'showcase.deal_label' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.deal_button_label' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.deal_button_url' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.primary_label' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.primary_url' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.secondary_label' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.secondary_url' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.trust_1' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.trust_2' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.trust_3' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.card_title' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.card_line' => ['group' => 'showcase', 'type' => 'string'],
+        'showcase.interval' => ['group' => 'showcase', 'type' => 'int'],
+
+        // Home hero video and poster (same-origin paths only) and the public theme colours.
+        'hero.video_path' => ['group' => 'hero', 'type' => 'string'],
+        'hero.poster_path' => ['group' => 'hero', 'type' => 'string'],
+        'hero.video_enabled' => ['group' => 'hero', 'type' => 'bool'],
+        'theme.gold' => ['group' => 'theme', 'type' => 'string'],
+        'theme.espresso' => ['group' => 'theme', 'type' => 'string'],
+        'theme.ivory' => ['group' => 'theme', 'type' => 'string'],
+
         'security.admin_ip_allowlist' => ['group' => 'security', 'type' => 'string'],
         'security.session_lifetime_minutes' => ['group' => 'security', 'type' => 'int'],
     ];

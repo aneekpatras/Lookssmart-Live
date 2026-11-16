@@ -13,7 +13,7 @@ uses(RefreshDatabase::class);
  */
 it('renders the public site when the newer tables and columns do not exist', function () {
     Schema::disableForeignKeyConstraints();
-    foreach (['faqs', 'faq_categories', 'site_events', 'incomplete_bookings', 'security_events', 'visitor_sessions', 'contact_drafts', 'manual_message_logs'] as $table) {
+    foreach (['faqs', 'faq_categories', 'site_events', 'incomplete_bookings', 'security_events', 'visitor_sessions', 'contact_drafts', 'manual_message_logs', 'showcase_slides'] as $table) {
         Schema::dropIfExists($table);
     }
     Schema::enableForeignKeyConstraints();

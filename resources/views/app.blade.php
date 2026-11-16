@@ -66,8 +66,13 @@
     @if (request()->routeIs('home'))
     {{-- The hero poster is the largest thing painted on the homepage: fetch it at top priority, the
     version that matches the screen (same breakpoint as the <picture> in Home.tsx), WebP only. --}}
+    @php($heroCustom = \App\Support\HeroMedia::resolve()['poster_url'])
+    @if ($heroCustom)
+    <link rel="preload" as="image" href="{{ $heroCustom }}" fetchpriority="high">
+    @else
     <link rel="preload" as="image" type="image/webp" href="/images/hero-poster-mobile.webp" media="(max-width: 767px)" fetchpriority="high">
     <link rel="preload" as="image" type="image/webp" href="/images/hero-poster.webp" media="(min-width: 768px)" fetchpriority="high">
+    @endif
     @endif
     @if (isset($seoMeta) && empty($__inertiaSsrResponse))
     {{-- Boot layer + visually-hidden crawlable copy. Styles carry the CSP nonce (no 'unsafe-inline'), and
@@ -118,12 +123,16 @@
     alt text matches the React hero's; the layer is aria-hidden so it is never announced twice. No lazy loading. --}}
     <div id="boot-screen" class="boot-hero" aria-hidden="true">
         <div class="boot-hero-box">
+            @if (! empty($heroCustom))
+            <img src="{{ $heroCustom }}" alt="Inside Looks Smart Beauty Salon, Central Park Housing Scheme, Lahore" width="1600" height="900" fetchpriority="high" decoding="async">
+            @else
             <picture>
                 <source media="(max-width: 767px)" srcset="/images/hero-poster-mobile.webp" type="image/webp">
                 <source media="(max-width: 767px)" srcset="/images/hero-poster-mobile.jpg" type="image/jpeg">
                 <source srcset="/images/hero-poster.webp" type="image/webp">
                 <img src="/images/hero-poster.jpg" alt="Inside Looks Smart Beauty Salon, Central Park Housing Scheme, Lahore" width="1600" height="900" fetchpriority="high" decoding="async">
             </picture>
+            @endif
             <div class="boot-hero-overlay"></div>
         </div>
     </div>

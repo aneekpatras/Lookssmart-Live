@@ -28,6 +28,7 @@ import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import type { DealShowcase } from '@/Components/DealDetailsModal';
 import { DealsBar, DealsMarquee, type DealsBarData } from '@/Components/DealsShowcase';
+import { HomeShowcase, type ShowcaseData } from '@/Components/HomeShowcase';
 import { WriteReviewModal } from '@/Components/WriteReviewModal';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { formatCurrency } from '@/lib/currency';
@@ -118,6 +119,8 @@ interface HomeProps {
   testimonials: ReviewShowcase[];
   offers: Offer[];
   dealsBar: DealsBarData | null;
+  showcase: ShowcaseData | null;
+  hero: HeroMedia;
   jsonLdSchema: Record<string, unknown>;
 }
 
@@ -145,10 +148,11 @@ interface SharedProps {
   };
 }
 
-// `encodeURI` rather than a hand-typed %20 string: the asset's real filename genuinely contains
-// spaces, and doing the encoding here keeps the readable name visible at the call site instead of
-// hiding it behind escapes. It leaves the `/` separators alone, which encodeURIComponent would not.
-const HERO_VIDEO = encodeURI('/images/looks smart beauty Salon in Lahore.mp4');
+/** The hero video and poster the server chose (Admin > Settings > Home hero, else the defaults). */
+interface HeroMedia {
+  video_url: string | null;
+  poster_url: string | null;
+}
 
 // Real photo of the salon, shown from the first paint and left in place permanently if the video
 // cannot play at all (unsupported codec, blocked autoplay, a failed request, reduced motion). Desktop
@@ -190,7 +194,7 @@ function formatDuration(minutes: number): string {
  * The upside of poster-first is that the hero paints immediately from a cached image rather than
  * waiting on video metadata, so the video never sits on the critical path.
  */
-function HeroBackground() {
+function HeroBackground({ hero }: { hero: HeroMedia }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const posterRef = React.useRef<HTMLImageElement>(null);
   const [allowVideo, setAllowVideo] = React.useState(false);
@@ -199,7 +203,12 @@ function HeroBackground() {
 
   React.useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const apply = () => setAllowVideo(!query.matches);
+    // Poster only for reduced motion, data saver and 2g connections.
+    const connection = (
+      navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
+    ).connection;
+    const lowData = connection?.saveData === true || connection?.effectiveType === '2g';
+    const apply = () => setAllowVideo(!query.matches && !lowData);
 
     apply();
     query.addEventListener('change', apply);
@@ -243,27 +252,42 @@ function HeroBackground() {
     });
   }, [allowVideo, posterReady]);
 
+  // Pause while the hero is off screen or the tab is hidden; resume when it is visible again.
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !allowVideo || !posterReady) return;
+
+    let onScreen = true;
+    const sync = () => {
+      if (onScreen && document.visibilityState === 'visible') {
+        void video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      onScreen = entry?.isIntersecting ?? true;
+      sync();
+    });
+    observer.observe(video);
+    document.addEventListener('visibilitychange', sync);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', sync);
+    };
+  }, [allowVideo, posterReady]);
+
   // The poster is always rendered, as the base layer: it paints first (high priority, never lazy,
   // fixed size so nothing shifts) and the video, when allowed, plays on top of it. Keeping one
   // permanent <img> also means the swap to video never flashes, and the photo keeps its alt text.
   return (
     <>
-      <picture>
-        <source
-          media="(max-width: 767px)"
-          srcSet="/images/hero-poster-mobile.webp"
-          type="image/webp"
-        />
-        <source
-          media="(max-width: 767px)"
-          srcSet="/images/hero-poster-mobile.jpg"
-          type="image/jpeg"
-        />
-        <source srcSet="/images/hero-poster.webp" type="image/webp" />
+      {hero.poster_url ? (
         <img
           ref={posterRef}
           data-hero-poster
-          src={HERO_POSTER}
+          src={hero.poster_url}
           alt={HERO_POSTER_ALT}
           width={1600}
           height={900}
@@ -271,8 +295,33 @@ function HeroBackground() {
           decoding="async"
           className="absolute inset-0 -z-20 size-full object-cover"
         />
-      </picture>
-      {allowVideo && posterReady && !failed && (
+      ) : (
+        <picture>
+          <source
+            media="(max-width: 767px)"
+            srcSet="/images/hero-poster-mobile.webp"
+            type="image/webp"
+          />
+          <source
+            media="(max-width: 767px)"
+            srcSet="/images/hero-poster-mobile.jpg"
+            type="image/jpeg"
+          />
+          <source srcSet="/images/hero-poster.webp" type="image/webp" />
+          <img
+            ref={posterRef}
+            data-hero-poster
+            src={HERO_POSTER}
+            alt={HERO_POSTER_ALT}
+            width={1600}
+            height={900}
+            fetchPriority="high"
+            decoding="async"
+            className="absolute inset-0 -z-20 size-full object-cover"
+          />
+        </picture>
+      )}
+      {allowVideo && posterReady && !failed && hero.video_url && (
         <video
           ref={videoRef}
           className="absolute inset-0 -z-20 size-full object-cover"
@@ -285,7 +334,10 @@ function HeroBackground() {
           tabIndex={-1}
           onError={() => setFailed(true)}
         >
-          <source src={HERO_VIDEO} type="video/mp4" />
+          <source
+            src={hero.video_url}
+            type={hero.video_url.toLowerCase().endsWith('.webm') ? 'video/webm' : 'video/mp4'}
+          />
         </video>
       )}
     </>
@@ -308,6 +360,8 @@ export default function Home({
   faqPreview,
   openingHours,
   dealsBar,
+  showcase,
+  hero,
 }: HomeProps) {
   const { site } = usePage<SharedProps>().props;
   // Computed after mount (and refreshed each minute) so it reflects the real clock, not the server's.
@@ -344,7 +398,7 @@ export default function Home({
       />
       {/* Hero — muted looping background video behind a warm dark scrim */}
       <section className="text-ivory relative isolate flex min-h-[88svh] items-center overflow-hidden px-6 py-24 lg:px-10">
-        <HeroBackground />
+        <HeroBackground hero={hero} />
         {/* Two stacked layers: a warm champagne wash for brand tone, then a dark vertical gradient
             that guarantees text contrast regardless of what the video frame underneath is doing. */}
         <div
@@ -378,6 +432,38 @@ export default function Home({
           </div>
         </div>
       </section>
+
+      {/* 3. Deals — an admin-controlled bar (Settings > Deals Bar), then the offers as an auto-scrolling
+          strip of cards at the gallery card size (one row on desktop, two opposing rows on phones and
+          tablets). A card opens that deal's own page; the full catalog lives at /deals. */}
+      {dealsBar && <DealsBar bar={dealsBar} />}
+      {showcase && <HomeShowcase showcase={showcase} />}
+      {offers.length > 0 && (
+        <section className="border-border-soft bg-accent-50 overflow-hidden border-y py-16 lg:py-20">
+          <div className="mx-auto max-w-6xl px-6 text-center lg:px-10">
+            <h2 className="font-display text-4xl font-medium text-balance sm:text-5xl lg:text-6xl">
+              Special Deals
+            </h2>
+            <span
+              className="bg-accent-500 mx-auto mt-4 block h-0.5 w-16 rounded-full"
+              aria-hidden="true"
+            />
+            <p className="text-ink-muted mx-auto mt-4 max-w-xl leading-7">
+              Packages and deals you can claim today.
+            </p>
+          </div>
+          <div className="mt-10 px-6 md:px-12 lg:px-16">
+            <DealsMarquee deals={offers} />
+          </div>
+          <div className="mt-10 px-6 text-center">
+            <Button asChild variant="outline">
+              <Link href="/deals">
+                View All Deals <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* Our Specialized Services — category-filterable, 4 across on desktop */}
       <section className="px-6 py-14 sm:py-20 lg:px-10 lg:py-28">
@@ -500,37 +586,6 @@ export default function Home({
           </div>
         </div>
       </section>
-      {/* 3. Deals — an admin-controlled bar (Settings > Deals Bar), then the offers as an auto-scrolling
-          strip of cards at the gallery card size (one row on desktop, two opposing rows on phones and
-          tablets). A card opens that deal's own page; the full catalog lives at /deals. */}
-      {dealsBar && <DealsBar bar={dealsBar} />}
-      {offers.length > 0 && (
-        <section className="border-border-soft bg-accent-50 overflow-hidden border-y py-16 lg:py-20">
-          <div className="mx-auto max-w-6xl px-6 text-center lg:px-10">
-            <h2 className="font-display text-4xl font-medium text-balance sm:text-5xl lg:text-6xl">
-              Special Deals
-            </h2>
-            <span
-              className="bg-accent-500 mx-auto mt-4 block h-0.5 w-16 rounded-full"
-              aria-hidden="true"
-            />
-            <p className="text-ink-muted mx-auto mt-4 max-w-xl leading-7">
-              Packages and deals you can claim today.
-            </p>
-          </div>
-          <div className="mt-10 px-6 md:px-12 lg:px-16">
-            <DealsMarquee deals={offers} />
-          </div>
-          <div className="mt-10 px-6 text-center">
-            <Button asChild variant="outline">
-              <Link href="/deals">
-                View All Deals <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          </div>
-        </section>
-      )}
-
       {/* 4. Why Choose Us / Our Legacy — the one deliberately dark, high-contrast band on the page.
           Uses the theme's own ink/ivory/accent tokens rather than the reference screenshot's coral,
           per the brief's "use the existing app theme" rule. */}

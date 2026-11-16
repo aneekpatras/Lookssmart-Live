@@ -11,7 +11,9 @@ use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\FollowUpsController;
 use App\Http\Controllers\Admin\GalleryCategoryController;
 use App\Http\Controllers\Admin\GalleryController;
+use App\Http\Controllers\Admin\HeroMediaController;
 use App\Http\Controllers\Admin\HeroSliderController;
+use App\Http\Controllers\Admin\ShowcaseController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\InsightsController;
 use App\Http\Controllers\Admin\LeadController;
@@ -199,6 +201,12 @@ Route::prefix('admin')
         Route::delete('/gallery-categories/{gallery_category}', [GalleryCategoryController::class, 'destroy'])->name('gallery-categories.destroy');
         Route::post('/gallery-categories/reorder', [GalleryCategoryController::class, 'reorder'])->name('gallery-categories.reorder');
         // Phase 10 sub-step 1.
+        Route::get('/showcase', [ShowcaseController::class, 'index'])->name('showcase');
+        Route::post('/showcase/slides', [ShowcaseController::class, 'store'])->name('showcase.store');
+        Route::post('/showcase/slides/reorder', [ShowcaseController::class, 'reorder'])->name('showcase.reorder');
+        Route::put('/showcase/slides/{slide}', [ShowcaseController::class, 'update'])->name('showcase.update');
+        Route::delete('/showcase/slides/{slide}', [ShowcaseController::class, 'destroy'])->name('showcase.destroy');
+        Route::post('/hero-media/upload', [HeroMediaController::class, 'upload'])->name('hero-media.upload');
         Route::get('/slider', [HeroSliderController::class, 'index'])->name('slider');
         Route::get('/slider/create', [HeroSliderController::class, 'create'])->name('slider.create');
         Route::post('/slider', [HeroSliderController::class, 'store'])->name('slider.store');

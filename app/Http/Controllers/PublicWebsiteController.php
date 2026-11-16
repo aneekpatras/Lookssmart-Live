@@ -94,6 +94,8 @@ class PublicWebsiteController extends Controller
             'offers' => $offers = $this->offers(),
             'dealsBar' => $this->dealsBar($offers),
             'testimonials' => $this->testimonials(),
+            'showcase' => \App\Support\Showcase::options()['enabled'] ? \App\Support\Showcase::forHome($offers) : null,
+            'hero' => \App\Support\HeroMedia::resolve(),
         ]), $this->seo->home($services));
     }
 
