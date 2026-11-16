@@ -61,3 +61,24 @@ it('still rejects an invalid colour and leaves the stored value alone', function
     $this->actingAs($admin)->put('/admin/settings/theme', ['settings' => ['theme.gold' => 'red']])->assertSessionHasErrors('settings.theme.gold');
     expect(Setting::where('key', 'theme.gold')->first()->value)->toBe('#b76e79');
 });
+
+it('keeps the utility colour tokens wired to the theme variables in the source and the built CSS', function () {
+    $css = file_get_contents(resource_path('css/app.css'));
+    expect($css)->toContain('--color-ivory: var(--ivory)')->toContain('--color-ink: var(--espresso)')->toContain('--color-accent-500: var(--gold)');
+
+    foreach (glob(public_path('build/assets/app-*.css')) ?: [] as $built) {
+        $min = file_get_contents($built);
+        expect($min)->toContain('--color-accent-500:var(--gold)')->toContain('--color-ivory:var(--ivory)')->toContain('--color-ink:var(--espresso)');
+    }
+});
+
+it('renders the saved hero video as the Home hero prop with spaces encoded', function () {
+    $admin = applyAdmin();
+    $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.video_path' => '/images/Brides_showcasing.mp4']])->assertSessionHasNoErrors();
+    $this->get('/')->assertInertia(fn ($page) => $page->where('hero.video_url', '/images/Brides_showcasing.mp4'));
+
+    if (is_file(public_path('images/Untitled design - Video.mp4'))) {
+        $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.video_path' => '/images/Untitled design - Video.mp4']])->assertSessionHasNoErrors();
+        $this->get('/')->assertInertia(fn ($page) => $page->where('hero.video_url', '/images/Untitled%20design%20-%20Video.mp4'));
+    }
+});
