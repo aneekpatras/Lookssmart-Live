@@ -45,7 +45,7 @@ it('excludes the original Base44 sample rows from the catalog', function () {
     expect(ServiceCategory::count())->toBe(5);
 });
 
-it('renders the privacy policy page with all seven sections and real contact details', function () {
+it('renders the privacy policy page with its sections and real contact details', function () {
     Setting::create(['key' => 'business.name', 'value' => 'Looks Smart Beauty Salon', 'group' => 'business']);
     Setting::create(['key' => 'business.phone', 'value' => '+92 305 9833859', 'group' => 'business']);
     Setting::create(['key' => 'business.email', 'value' => 'lookssmartbeautysalon@gmail.com', 'group' => 'business']);
@@ -55,7 +55,7 @@ it('renders the privacy policy page with all seven sections and real contact det
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Public/PrivacyPolicy')
-            ->where('effectiveDate', 'January 2026')
+            ->where('effectiveDate', '16 November 2026')
             ->where('business.phone', '+92 305 9833859')
             ->where('business.email', 'lookssmartbeautysalon@gmail.com')
             ->where('business.address', '46-B, Commercial Central Park Housing Scheme, Main Ferozpur Road, Lahore'),

@@ -575,7 +575,7 @@ class PublicWebsiteController extends Controller
                 'email' => Setting::get('business.email'),
                 'address' => Setting::get('business.address'),
             ],
-            'effectiveDate' => 'January 2026',
+            'effectiveDate' => '16 November 2026',
         ]), $this->seo->privacy());
     }
 
