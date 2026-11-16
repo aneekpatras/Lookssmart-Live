@@ -7575,6 +7575,7 @@ Scheduler URL: GET /scheduler/run/<token> runs schedule:run for hosts without cr
 Flexible reminder offsets: booking-reminder rules accept 30 minutes to 7 days before the start; BookingReminderSchedule decides what is due (one hour of grace, never late, never before the booking existed, key = booking + rule + start time so a reschedule sends again). Suggested 24h/12h/6h rules are added only by a button; the Email rules tab previews the next reminders and sends a test reminder to the admin's own email.
 Guest reminders: guests with a booking email are reached through an on-demand mail route; the reminder email shows lead time, reference, Karachi date and time, services, total, address, phone, the cancel-policy text and signed Confirm (pending only), Reschedule and Cancel links. The opt-out link exists for accounts only (it is stored on the customer profile).
 Cancel from the signed page: /b/<code> has a Cancel booking action (POST only, throttled, same CancelBookingAction as everywhere, logged as Cancelled by customer (email link)).
+- Settings-not-applying fix (/theme.css now revalidates on every load and its ?v= hashes the saved values), new Home order (hero, showcase, deals banner, Special Deals, Services), showcase dots moved below the arch.
 
 Open items:
 - Privacy Policy: rewritten on 2026-11-16 from the code; the owner must still review it (see the list of unverified statements in the task report).
