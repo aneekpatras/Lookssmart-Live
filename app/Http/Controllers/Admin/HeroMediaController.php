@@ -8,7 +8,6 @@ use App\Services\SettingService;
 use App\Support\HeroMedia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -32,18 +31,37 @@ class HeroMediaController extends Controller
             )]);
         }
 
+        // Same-origin and symlink-free: shared hosting cannot create public/storage, so files go straight into public/images/hero.
         if ($kind === 'video') {
             $request->validate(['file' => ['file', 'mimes:mp4,webm', 'max:25600']], ['file.max' => 'The video must be 25 MB or smaller.']);
-            $path = 'hero/' . Str::random(24) . '.' . strtolower($file->getClientOriginalExtension() ?: 'mp4');
-            Storage::disk('public')->putFileAs('hero', $file, basename($path));
             $key = 'hero.video_path';
         } else {
             $request->validate(['file' => ['file', 'mimes:jpg,jpeg,webp', 'max:3072']]);
-            $path = $uploads->storePublicImage($file, 'hero');
             $key = 'hero.poster_path';
         }
 
-        $settings->set($key, '/storage/' . $path, 'hero');
+        $extension = match (strtolower((string) ($file->guessExtension() ?: $file->getClientOriginalExtension()))) {
+            'jpeg', 'jpg' => 'jpg',
+            'webp' => 'webp',
+            'webm' => 'webm',
+            default => $kind === 'video' ? 'mp4' : 'jpg',
+        };
+        $name = Str::random(24) . '.' . $extension;
+        $directory = public_path('images/hero');
+
+        if (! is_dir($directory) && ! @mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw ValidationException::withMessages(['file' => 'The folder public/images/hero could not be created. Create it by FTP and try again.']);
+        }
+
+        try {
+            $file->move($directory, $name);
+        } catch (\Throwable) {
+            throw ValidationException::withMessages(['file' => 'The file could not be saved into public/images/hero. Check that the folder is writable.']);
+        }
+
+        $path = 'images/hero/' . $name;
+
+        $settings->set($key, '/' . $path, 'hero');
 
         return back()->with('success', $kind === 'video' ? 'Hero video uploaded and selected.' : 'Hero poster uploaded and selected.');
     }

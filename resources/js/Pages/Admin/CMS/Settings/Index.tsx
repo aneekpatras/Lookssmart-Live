@@ -678,8 +678,15 @@ function HeroTab({ hero, media }: { hero: Record<string, SettingValue>; media: H
               {fieldError('video_path') && (
                 <p className="text-sm text-red-600">That file is not available on this site.</p>
               )}
+              <p className="text-ink text-sm">
+                Saved on the server and used by the site now:{' '}
+                <span className="font-mono break-all">
+                  {toFieldValue(hero['hero.video_path']) || `nothing saved, so the default (${media.defaultVideo})`}
+                </span>
+              </p>
               <p className="text-ink-muted text-xs">
-                Lists the .mp4 and .webm files found in public/images.
+                Lists the .mp4 and .webm files found in public/images and public/images/hero. Uploaded
+                files go into public/images/hero.
               </p>
             </div>
             <div className="space-y-1.5">

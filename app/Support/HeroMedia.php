@@ -45,7 +45,8 @@ class HeroMedia
     {
         $enabled = self::setting('hero.video_enabled') !== false;
         $video = trim((string) self::setting('hero.video_path'));
-        $video = $video !== '' && self::validPath($video, self::VIDEO_EXT) ? $video : self::DEFAULT_VIDEO;
+        // Nothing saved: the default video. A saved path whose file is missing: no video at all (poster only, no error).
+        $video = $video === '' ? self::DEFAULT_VIDEO : $video;
         $poster = trim((string) self::setting('hero.poster_path'));
         $customPoster = $poster !== '' && self::validPath($poster, self::POSTER_EXT);
 
@@ -61,14 +62,16 @@ class HeroMedia
         return implode('/', array_map('rawurlencode', explode('/', $path)));
     }
 
-    /** @return list<string> Site paths of the files in public/images with one of the extensions. */
+    /** @return list<string> Site paths of the files in public/images and public/images/hero with one of the extensions. */
     public static function files(array $extensions): array
     {
         $found = [];
 
-        foreach ((glob(public_path('images') . '/*') ?: []) as $file) {
-            if (is_file($file) && in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $extensions, true)) {
-                $found[] = '/images/' . basename($file);
+        foreach (['images' => '/images/', 'images/hero' => '/images/hero/'] as $dir => $prefix) {
+            foreach ((glob(public_path($dir) . '/*') ?: []) as $file) {
+                if (is_file($file) && in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $extensions, true)) {
+                    $found[] = $prefix . basename($file);
+                }
             }
         }
 
