@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-react-DDzxHNG9.js";import{T as o}from"./index-Dh2Zbiu_.js";function e(){return t.jsx(o,{position:"top-right",toastOptions:{classNames:{toast:"rounded-lg border border-border-soft bg-surface text-ink shadow-glass",description:"text-ink-muted",actionButton:"bg-accent-500 text-ivory",cancelButton:"bg-accent-50 text-ink"}}})}export{e as T};

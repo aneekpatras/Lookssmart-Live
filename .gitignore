@@ -30,7 +30,6 @@ auth.json
 !/storage/logs/.gitkeep
 /public/hot
 /public/storage
-/public/build
 /bootstrap/ssr
 
 # --- Node / Vite ---
