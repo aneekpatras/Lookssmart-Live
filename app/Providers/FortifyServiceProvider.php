@@ -90,6 +90,14 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($key . '|' . $request->ip());
         });
 
+        // Admin email step: per pending user + IP, so one admin's typos never lock another out.
+        RateLimiter::for('admin-verify', function (Request $request) {
+            return Limit::perMinute(10)->by(($request->session()->get('admin_login.user_id') ?? 'none') . '|' . $request->ip());
+        });
+        RateLimiter::for('admin-verify-resend', function (Request $request) {
+            return Limit::perMinute(3)->by(($request->session()->get('admin_login.user_id') ?? 'none') . '|' . $request->ip());
+        });
+
         RateLimiter::for('two-factor', function (Request $request) {
             return Limit::perMinute(5)->by($request->session()->get('login.id'));
         });

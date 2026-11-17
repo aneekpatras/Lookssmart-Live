@@ -1108,6 +1108,23 @@ function WaPopupTab({ popup }: { popup: Record<string, SettingValue> }) {
 function SeoSecurityTab({ seo, security }: { seo: Record<string, SettingValue>; security: Record<string, SettingValue> }) {
   return (
     <div className="space-y-6">
+      <Card>
+        <CardContent className="space-y-3 p-6">
+          <h2 className="font-display text-ink text-lg font-medium">Admin sign-in codes</h2>
+          <p className="text-ink-muted text-sm">
+            Admin sign-in codes are sent to the admin&apos;s email address. Send yourself a test
+            email first to check that mail works before relying on it.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.post('/admin/settings/test-email', {}, { preserveScroll: true })}
+          >
+            Send test email
+          </Button>
+        </CardContent>
+      </Card>
+
       <GroupForm
         group="seo"
         title="SEO Defaults"

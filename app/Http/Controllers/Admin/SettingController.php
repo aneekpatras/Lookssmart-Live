@@ -196,6 +196,31 @@ class SettingController extends Controller
         }
     }
 
+    /** Sends a plain test email to the signed-in admin, so mail can be verified before relying on sign-in codes. */
+    public function sendTestEmail(Request $request): RedirectResponse
+    {
+        $this->authorize('create', Setting::class);
+
+        $email = (string) $request->user()?->email;
+
+        if ($email === '') {
+            return back()->with('error', 'Your account has no email address.');
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw(
+                'This is a test email from the Looks Smart admin panel. If you can read it, sign-in codes will reach you.',
+                fn ($message) => $message->to($email)->subject('Looks Smart test email'),
+            );
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'The test email could not be sent. Check the mail settings (Brevo SMTP) in .env.');
+        }
+
+        return back()->with('success', "Test email sent to {$email}.");
+    }
+
     public function updateHours(Request $request): RedirectResponse
     {
         $this->authorize('create', Setting::class);

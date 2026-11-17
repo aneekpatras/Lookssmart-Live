@@ -144,6 +144,7 @@ return [
     'pipelines' => [
         'login' => [
             CanonicalizeUsername::class,
+            \App\Actions\Fortify\RequireAdminEmailChallenge::class,
             RedirectIfTwoFactorAuthenticatable::class,
             AttemptToAuthenticate::class,
             RejectSuspendedUser::class,

@@ -114,4 +114,19 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin email sign-in step
+    |--------------------------------------------------------------------------
+    |
+    | Admin-panel accounts must also enter a code (or open an approve link) that is emailed to them after
+    | their password is accepted. EMERGENCY SWITCH: set ADMIN_EMAIL_2FA=false in .env to skip the step
+    | (no SSH needed: edit .env in the host's file manager). Customers are never affected, and a missing
+    | admin_login_challenges table behaves as "off".
+    |
+    */
+
+    'admin_email_2fa' => (bool) env('ADMIN_EMAIL_2FA', true),
+
 ];

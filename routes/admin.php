@@ -231,6 +231,7 @@ Route::prefix('admin')
         Route::delete('/reminders/rules/{rule}', [RemindersController::class, 'destroyRule'])->name('reminders.rules.destroy');
         // Phase 10 sub-step 4.
         Route::get('/settings', [SettingController::class, 'index'])->name('settings');
+        Route::post('/settings/test-email', [SettingController::class, 'sendTestEmail'])->name('settings.test-email');
         Route::put('/settings/hours', [SettingController::class, 'updateHours'])->name('settings.hours');
         Route::post('/settings/business/logo', [SettingController::class, 'uploadLogo'])->name('settings.business.logo');
         Route::post('/settings/business/favicon', [SettingController::class, 'uploadFavicon'])->name('settings.business.favicon');
