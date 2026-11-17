@@ -13,6 +13,27 @@ import { cn } from '@/lib/utils';
 
 const MASK = '••••••••';
 
+/**
+ * Success and failure toasts for a save, driven by what the server really returned: the success toast shows only
+ * when the server sent its success flash; a validation error shows its first message; anything else is a failure.
+ */
+function confirmSave(message: string, after?: () => void) {
+  return {
+    onSuccess: (page: { props: object }) => {
+      const flash = (page.props as { flash?: { success?: string | null } }).flash;
+      if (flash?.success) {
+        toast.success(message);
+        after?.();
+      } else {
+        toast.error('The server did not confirm the save. Nothing was changed.');
+      }
+    },
+    onError: (errors: Record<string, string>) => {
+      toast.error(Object.values(errors)[0] ?? 'Could not save. Please check the form and try again.');
+    },
+  };
+}
+
 type SettingValue = string | number | boolean | null;
 
 interface SettingsGroups {
@@ -178,7 +199,7 @@ function GroupForm({
     }));
     put(`/admin/settings/${group}`, {
       preserveScroll: true,
-      onSuccess: () => toast.success('Settings saved — cache cleared.'),
+      ...confirmSave('Settings saved — cache cleared.'),
     });
   }
 
@@ -336,7 +357,7 @@ function HoursTab({ businessHours }: { businessHours: BusinessHourRow[] }) {
     event.preventDefault();
     put('/admin/settings/hours', {
       preserveScroll: true,
-      onSuccess: () => toast.success('Operating hours saved — cache cleared.'),
+      ...confirmSave('Operating hours saved — cache cleared.'),
     });
   }
 
@@ -433,10 +454,7 @@ function PaymentsTab({ payments }: { payments: Record<string, SettingValue> }) {
     }));
     put('/admin/settings/payments', {
       preserveScroll: true,
-      onSuccess: () => {
-        toast.success('Settings saved — cache cleared.');
-        reset('stripe_secret_key');
-      },
+      ...confirmSave('Settings saved — cache cleared.', () => reset('stripe_secret_key')),
     });
   }
 
@@ -494,10 +512,7 @@ function IntegrationsTab({ integrations }: { integrations: Record<string, Settin
     }));
     put('/admin/settings/integrations', {
       preserveScroll: true,
-      onSuccess: () => {
-        toast.success('Settings saved — cache cleared.');
-        reset('twilio_sid', 'twilio_auth_token', 'google_maps_api_key');
-      },
+      ...confirmSave('Settings saved — cache cleared.', () => reset('twilio_sid', 'twilio_auth_token', 'google_maps_api_key')),
     });
   }
 
@@ -817,7 +832,7 @@ function ThemeFields({
           'theme.ivory': THEME_DEFAULTS.ivory,
         },
       },
-      { preserveScroll: true, onSuccess: () => toast.success('Theme reset to the default colours.') },
+      { preserveScroll: true, ...confirmSave('Theme reset to the default colours.') },
     );
   }
 
