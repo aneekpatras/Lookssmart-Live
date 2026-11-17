@@ -7583,6 +7583,8 @@ Cancel from the signed page: /b/<code> has a Cancel booking action (POST only, t
 - Settings toast now follows the server's success flash; failures and validation errors show an error toast.
 - Hero uploads go to public/images/hero (no public/storage symlink needed); the file list covers images and images/hero; a saved path whose file is missing shows the poster only.
 - Payment, Twilio, Maps and security fields are marked 'Not used by the website yet'; the temporary SAVE-DEBUG logging was removed.
+- Hero YouTube (Part B): settings hero.source (youtube|local) and hero.youtube_url; code defaults (youtube, https://youtu.be/jRmza-n-0vU) so no SQL or admin step is needed; HeroMedia::youtubeId() validates the link and extracts the 11-character ID; Home props carry source and youtube_id; the client mounts a youtube-nocookie iframe after idle/load, faded in over the poster, off under reduced motion/data saver/hidden tab/off screen; CSP frame-src adds https://www.youtube-nocookie.com only; Privacy Policy mentions YouTube; uploading a hero video switches the source to Local file.
+- Hero Part A (pre-video banner): no change made; candidates reported to the owner to pick.
 
 Open items:
 - Privacy Policy: rewritten on 2026-11-16 from the code; the owner must still review it (see the list of unverified statements in the task report).

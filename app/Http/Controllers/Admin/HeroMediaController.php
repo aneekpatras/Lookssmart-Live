@@ -63,6 +63,11 @@ class HeroMediaController extends Controller
 
         $settings->set($key, '/' . $path, 'hero');
 
+        // Uploading your own video means you want it played, so the source switches to the local file.
+        if ($kind === 'video') {
+            $settings->set('hero.source', 'local', 'hero');
+        }
+
         return back()->with('success', $kind === 'video' ? 'Hero video uploaded and selected.' : 'Hero poster uploaded and selected.');
     }
 }

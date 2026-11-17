@@ -40,10 +40,64 @@ class HeroMedia
         }
     }
 
-    /** @return array{video_url: string|null, poster_url: string|null, custom_poster: bool} */
+    public const DEFAULT_YOUTUBE_URL = 'https://youtu.be/jRmza-n-0vU';
+
+    /**
+     * The 11-character YouTube ID from one of the accepted link forms, or null. Accepted:
+     * https://www.youtube.com/watch?v=ID, https://youtube.com/watch?v=ID, https://youtu.be/ID,
+     * https://www.youtube.com/embed/ID and https://www.youtube.com/shorts/ID (also without "www").
+     */
+    public static function youtubeId(?string $url): ?string
+    {
+        $url = trim((string) $url);
+
+        if ($url === '' || strlen($url) > 300 || preg_match('/[\s<>"\']/', $url)) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || isset($parts['user']) || isset($parts['port'])) {
+            return null;
+        }
+
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $path = (string) ($parts['path'] ?? '');
+        $id = null;
+
+        if ($host === 'youtu.be') {
+            $id = preg_match('#^/([^/]+)/?$#', $path, $m) ? $m[1] : null;
+        } elseif ($host === 'www.youtube.com' || $host === 'youtube.com') {
+            if ($path === '/watch') {
+                parse_str((string) ($parts['query'] ?? ''), $query);
+                $id = isset($query['v']) && is_string($query['v']) ? $query['v'] : null;
+            } elseif (preg_match('#^/(?:embed|shorts)/([^/]+)/?$#', $path, $m)) {
+                $id = $m[1];
+            }
+        }
+
+        return $id !== null && preg_match('/^[A-Za-z0-9_-]{11}$/', $id) ? $id : null;
+    }
+
+    /** @return array{source: string, url: string, id: string|null} What the site uses now (code defaults when nothing is stored). */
+    public static function youtube(): array
+    {
+        $source = trim((string) self::setting('hero.source'));
+        $source = in_array($source, ['youtube', 'local'], true) ? $source : 'youtube';
+        $stored = trim((string) self::setting('hero.youtube_url'));
+        $url = $stored === '' ? self::DEFAULT_YOUTUBE_URL : $stored;
+        $id = self::youtubeId($url);
+
+        // Local source, or a stored URL that is not valid: the local video chain takes over.
+        return ['source' => $id === null ? 'local' : $source, 'url' => $url, 'id' => $id];
+    }
+
+    /** @return array{video_url: string|null, poster_url: string|null, custom_poster: bool, source: string, youtube_id: string|null} */
     public static function resolve(): array
     {
         $enabled = self::setting('hero.video_enabled') !== false;
+        $youtube = self::youtube();
+        $useYoutube = $enabled && $youtube['source'] === 'youtube';
         $video = trim((string) self::setting('hero.video_path'));
         // Nothing saved: the default video. A saved path whose file is missing: no video at all (poster only, no error).
         $video = $video === '' ? self::DEFAULT_VIDEO : $video;
@@ -51,9 +105,11 @@ class HeroMedia
         $customPoster = $poster !== '' && self::validPath($poster, self::POSTER_EXT);
 
         return [
-            'video_url' => $enabled && self::validPath($video, self::VIDEO_EXT) ? self::encode($video) : null,
+            'video_url' => $enabled && ! $useYoutube && self::validPath($video, self::VIDEO_EXT) ? self::encode($video) : null,
             'poster_url' => $customPoster ? self::encode($poster) : null,
             'custom_poster' => $customPoster,
+            'source' => $youtube['source'],
+            'youtube_id' => $useYoutube ? $youtube['id'] : null,
         ];
     }
 

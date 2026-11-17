@@ -129,6 +129,8 @@ class SettingService
         'hero.video_path' => ['group' => 'hero', 'type' => 'string'],
         'hero.poster_path' => ['group' => 'hero', 'type' => 'string'],
         'hero.video_enabled' => ['group' => 'hero', 'type' => 'bool'],
+        'hero.source' => ['group' => 'hero', 'type' => 'string'],
+        'hero.youtube_url' => ['group' => 'hero', 'type' => 'string'],
         'theme.gold' => ['group' => 'theme', 'type' => 'string'],
         'theme.espresso' => ['group' => 'theme', 'type' => 'string'],
         'theme.ivory' => ['group' => 'theme', 'type' => 'string'],

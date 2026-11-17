@@ -1,0 +1,1 @@
+import{j as o}from"./vendor-react-DDzxHNG9.js";import{ErrorPage as r}from"./Layout-COn4v4i1.js";import"./vendor-inertia-D1WI-VC0.js";import"./app-Dv4Wg2I1.js";/* empty css            */function p(){return o.jsx(r,{code:"404",title:"Page not found",description:"The page you're looking for doesn't exist or may have moved."})}export{p as default};

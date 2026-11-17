@@ -48,7 +48,7 @@ it('applies a saved hero video and poster to the Home props', function () {
     $admin = applyAdmin();
     $video = '/images/' . basename(\App\Support\HeroMedia::files(\App\Support\HeroMedia::VIDEO_EXT)[0]);
 
-    $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.video_path' => $video, 'hero.poster_path' => '/images/hero-poster.webp']])->assertSessionHasNoErrors();
+    $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.source' => 'local', 'hero.video_path' => $video, 'hero.poster_path' => '/images/hero-poster.webp']])->assertSessionHasNoErrors();
 
     $this->get('/')->assertInertia(fn ($page) => $page
         ->where('hero.video_url', implode('/', array_map('rawurlencode', explode('/', $video))))
@@ -74,11 +74,11 @@ it('keeps the utility colour tokens wired to the theme variables in the source a
 
 it('renders the saved hero video as the Home hero prop with spaces encoded', function () {
     $admin = applyAdmin();
-    $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.video_path' => '/images/Brides_showcasing.mp4']])->assertSessionHasNoErrors();
+    $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.source' => 'local', 'hero.video_path' => '/images/Brides_showcasing.mp4']])->assertSessionHasNoErrors();
     $this->get('/')->assertInertia(fn ($page) => $page->where('hero.video_url', '/images/Brides_showcasing.mp4'));
 
     if (is_file(public_path('images/Untitled design - Video.mp4'))) {
-        $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.video_path' => '/images/Untitled design - Video.mp4']])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.source' => 'local', 'hero.video_path' => '/images/Untitled design - Video.mp4']])->assertSessionHasNoErrors();
         $this->get('/')->assertInertia(fn ($page) => $page->where('hero.video_url', '/images/Untitled%20design%20-%20Video.mp4'));
     }
 });

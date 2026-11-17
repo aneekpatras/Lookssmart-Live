@@ -171,6 +171,11 @@ export default function PrivacyPolicy({ business, effectiveDate }: PrivacyPolicy
                   these.
                 </li>
                 <li>
+                  <strong className="text-ink font-medium">YouTube:</strong> The home page can show
+                  a video hosted by YouTube (via youtube-nocookie.com), which may set cookies or
+                  receive technical data from your browser.
+                </li>
+                <li>
                   <strong className="text-ink font-medium">Brevo:</strong> sends our emails, such as
                   booking confirmations and reminders.
                 </li>

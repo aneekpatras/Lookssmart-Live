@@ -39,6 +39,8 @@ class SettingController extends Controller
                 'limits' => \App\Support\HeroMedia::phpLimits(),
                 'defaultVideo' => \App\Support\HeroMedia::DEFAULT_VIDEO,
                 'defaultPoster' => \App\Support\HeroMedia::DEFAULT_POSTER,
+                'defaultYoutubeUrl' => \App\Support\HeroMedia::DEFAULT_YOUTUBE_URL,
+                'youtubeId' => \App\Support\HeroMedia::youtube()['id'],
             ],
         ]);
     }
@@ -173,6 +175,14 @@ class SettingController extends Controller
             // Hero video / poster: a same-origin path to a file that exists under public/ (no external URLs).
             if ($valid && in_array($key, ['hero.video_path', 'hero.poster_path'], true) && ! $blank
                 && ! \App\Support\HeroMedia::validPath((string) $value, $key === 'hero.video_path' ? \App\Support\HeroMedia::VIDEO_EXT : \App\Support\HeroMedia::POSTER_EXT)) {
+                $valid = false;
+            }
+
+            // Hero source: youtube or local. YouTube link: one of the accepted forms with an 11-character ID.
+            if ($valid && $key === 'hero.source' && ! $blank && ! in_array((string) $value, ['youtube', 'local'], true)) {
+                $valid = false;
+            }
+            if ($valid && $key === 'hero.youtube_url' && ! $blank && \App\Support\HeroMedia::youtubeId((string) $value) === null) {
                 $valid = false;
             }
 

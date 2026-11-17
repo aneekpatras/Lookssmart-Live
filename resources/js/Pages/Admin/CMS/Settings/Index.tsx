@@ -75,6 +75,8 @@ interface HeroMediaInfo {
   limits: { upload_max_filesize: number; post_max_size: number };
   defaultVideo: string;
   defaultPoster: string;
+  defaultYoutubeUrl: string;
+  youtubeId: string | null;
 }
 
 const TABS = [
@@ -658,6 +660,8 @@ function HeroTab({ hero, media }: { hero: Record<string, SettingValue>; media: H
         description="The muted looping video behind the Home page heading. The heading, text and buttons do not change."
         fields={{
           video_enabled: hero['hero.video_enabled'] === false ? 'false' : 'true',
+          source: toFieldValue(hero['hero.source']) === 'local' ? 'local' : 'youtube',
+          youtube_url: toFieldValue(hero['hero.youtube_url']),
           video_path: toFieldValue(hero['hero.video_path']),
           poster_path: toFieldValue(hero['hero.poster_path']),
         }}
@@ -670,6 +674,53 @@ function HeroTab({ hero, media }: { hero: Record<string, SettingValue>; media: H
               checked={data.video_enabled === 'true'}
               onChange={(v) => setField('video_enabled', v ? 'true' : 'false')}
             />
+            <div className="border-border space-y-3 rounded-md border p-4">
+              <h3 className="font-display text-ink text-base font-medium">YouTube video</h3>
+              <div className="space-y-1.5">
+                <Label htmlFor="hero.source">Video source</Label>
+                <select
+                  id="hero.source"
+                  value={data.source ?? 'youtube'}
+                  onChange={(e) => setField('source', e.target.value)}
+                  className="border-input bg-background h-10 w-full max-w-md rounded-md border px-3 text-sm"
+                >
+                  <option value="youtube">YouTube</option>
+                  <option value="local">Local file</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="hero.youtube_url">YouTube link</Label>
+                <Input
+                  id="hero.youtube_url"
+                  type="url"
+                  inputMode="url"
+                  maxLength={300}
+                  placeholder={media.defaultYoutubeUrl}
+                  value={data.youtube_url ?? ''}
+                  onChange={(e) => setField('youtube_url', e.target.value)}
+                  className="max-w-md"
+                />
+                {fieldError('youtube_url') && (
+                  <p className="text-sm text-red-600">
+                    That is not a valid YouTube link (youtube.com/watch?v=, youtu.be/, /embed/ or
+                    /shorts/ followed by the 11-character video ID).
+                  </p>
+                )}
+                <p className="text-ink-muted text-xs">
+                  Paste a YouTube link. In YouTube Studio the video must be Public or Unlisted with
+                  &quot;Allow embedding&quot; on. YouTube may still show its title or logo for a
+                  moment.
+                </p>
+                <p className="text-ink text-sm">
+                  Video ID used by the site now:{' '}
+                  <span className="font-mono">{media.youtubeId ?? 'none (the local file is used)'}</span>
+                </p>
+              </div>
+              <p className="text-ink-muted text-xs">
+                Leave the link empty to use the default video. Choose &quot;Local file&quot; to use the
+                file below instead.
+              </p>
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="hero.video_path">Use existing file</Label>
               <select

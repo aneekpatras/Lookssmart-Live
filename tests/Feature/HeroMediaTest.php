@@ -17,12 +17,80 @@ function heroAdmin(): User
     return $user;
 }
 
-it('passes the default hero video and the default poster when nothing is saved', function () {
+it('defaults to the YouTube video and the default poster when nothing is saved', function () {
+    $this->get('/')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('hero.source', 'youtube')
+        ->where('hero.youtube_id', 'jRmza-n-0vU')
+        ->where('hero.video_url', null)
+        ->where('hero.poster_url', null));
+});
+
+it('uses the local video when the source is local', function () {
+    Setting::create(['key' => 'hero.source', 'value' => 'local', 'group' => 'hero', 'is_encrypted' => false]);
     $expected = is_file(public_path('images/Brides_showcasing.mp4')) ? '/images/Brides_showcasing.mp4' : null;
 
     $this->get('/')->assertOk()->assertInertia(fn ($page) => $page
-        ->where('hero.video_url', $expected)
-        ->where('hero.poster_url', null));
+        ->where('hero.source', 'local')
+        ->where('hero.youtube_id', null)
+        ->where('hero.video_url', $expected));
+});
+
+it('falls back to the local video when the stored YouTube link is invalid', function () {
+    Setting::create(['key' => 'hero.youtube_url', 'value' => 'https://evil.example/watch?v=jRmza-n-0vU', 'group' => 'hero', 'is_encrypted' => false]);
+    $expected = is_file(public_path('images/Brides_showcasing.mp4')) ? '/images/Brides_showcasing.mp4' : null;
+
+    $this->get('/')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('hero.source', 'local')
+        ->where('hero.youtube_id', null)
+        ->where('hero.video_url', $expected));
+});
+
+it('extracts the ID from every accepted YouTube link form', function () {
+    foreach ([
+        'https://www.youtube.com/watch?v=jRmza-n-0vU',
+        'https://youtube.com/watch?v=jRmza-n-0vU&t=3',
+        'https://youtu.be/jRmza-n-0vU',
+        'https://youtu.be/jRmza-n-0vU?si=abc',
+        'https://www.youtube.com/embed/jRmza-n-0vU',
+        'https://www.youtube.com/shorts/jRmza-n-0vU',
+    ] as $url) {
+        expect(HeroMedia::youtubeId($url))->toBe('jRmza-n-0vU', $url);
+    }
+});
+
+it('rejects other hosts, other schemes and malformed IDs', function () {
+    foreach ([
+        '', 'jRmza-n-0vU', 'http://youtu.be/jRmza-n-0vU', 'https://evil.com/watch?v=jRmza-n-0vU',
+        'https://youtube.com.evil.com/watch?v=jRmza-n-0vU', 'https://m.youtube.com/watch?v=jRmza-n-0vU',
+        'https://www.youtube.com/watch?v=short', 'https://www.youtube.com/watch?v=jRmza-n-0vUX',
+        'https://youtu.be/jRmza-n-0v!', 'https://www.youtube.com/watch', 'https://user@youtu.be/jRmza-n-0vU',
+        'javascript:alert(1)', 'https://youtu.be/<script>alert(1)',
+    ] as $url) {
+        expect(HeroMedia::youtubeId($url))->toBeNull($url);
+    }
+});
+
+it('validates the YouTube link and source when saved in the admin', function () {
+    $admin = heroAdmin();
+
+    $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.youtube_url' => 'https://example.com/x']])
+        ->assertSessionHasErrors('settings.hero.youtube_url');
+    $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.source' => 'vimeo']])
+        ->assertSessionHasErrors('settings.hero.source');
+    $this->actingAs($admin)->put('/admin/settings/hero', ['settings' => ['hero.source' => 'youtube', 'hero.youtube_url' => 'https://youtu.be/AAAAAAAAAAA']])
+        ->assertSessionHasNoErrors();
+    $this->get('/')->assertInertia(fn ($page) => $page->where('hero.youtube_id', 'AAAAAAAAAAA'));
+});
+
+it('allows only youtube-nocookie.com added to frame-src and puts no iframe in the server HTML', function () {
+    $response = $this->get('/')->assertOk();
+    $csp = $response->headers->get('Content-Security-Policy');
+
+    expect($csp)->toContain('frame-src https://www.google.com')
+        ->toContain('https://www.youtube-nocookie.com')
+        ->not->toContain('https://www.youtube.com')
+        ->not->toContain('unsafe-inline');
+    expect($response->getContent())->not->toContain('youtube-nocookie.com/embed')->not->toMatch('/<iframe[^>]*youtube/i');
 });
 
 it('accepts only same-origin files that exist, with the right extension', function () {

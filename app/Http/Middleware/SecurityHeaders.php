@@ -120,8 +120,10 @@ class SecurityHeaders
         // rendered on any environment enforcing this policy, confirmed by curling the real header.
         // Scoped to that single host: enough for the embed, still no general iframe capability, and
         // `frame-ancestors 'none'` below continues to stop anyone framing US.
+        // https://www.youtube-nocookie.com is the Home hero's client-mounted YouTube embed.
         $frameSrc = 'frame-src https://www.google.com'
-            . ($analyticsEnabled ? ' https://www.googletagmanager.com' : '');
+            . ($analyticsEnabled ? ' https://www.googletagmanager.com' : '')
+            . ' https://www.youtube-nocookie.com';
 
         $directives = [
             "default-src 'self'",

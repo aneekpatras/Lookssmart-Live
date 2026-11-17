@@ -152,6 +152,104 @@ interface SharedProps {
 interface HeroMedia {
   video_url: string | null;
   poster_url: string | null;
+  source?: 'youtube' | 'local';
+  youtube_id?: string | null;
+}
+
+/**
+ * Client-only YouTube background. Nothing here renders on the server: the iframe is mounted after the
+ * page is idle and loaded, only while the hero is on screen and the tab is visible, and it fades in
+ * over the poster (which stays underneath, so there is never a black flash). If it has not loaded in
+ * ~8 seconds it is removed and the poster stays. The parent decides reduced motion / data saver.
+ */
+function YoutubeHeroVideo({ id }: { id: string }) {
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  const [idle, setIdle] = React.useState(false);
+  const [onScreen, setOnScreen] = React.useState(true);
+  const [tabVisible, setTabVisible] = React.useState(() => !document.hidden);
+  const [failed, setFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    let idleHandle = 0;
+    let timer = 0;
+    const run = () => {
+      if (!cancelled) setIdle(true);
+    };
+    const start = () => {
+      const w = window as Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      };
+      if (typeof w.requestIdleCallback === 'function') {
+        idleHandle = w.requestIdleCallback(run, { timeout: 3000 });
+      } else {
+        timer = window.setTimeout(run, 1500);
+      }
+    };
+
+    if (document.readyState === 'complete') start();
+    else window.addEventListener('load', start, { once: true });
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('load', start);
+      const w = window as Window & { cancelIdleCallback?: (handle: number) => void };
+      if (idleHandle && typeof w.cancelIdleCallback === 'function') w.cancelIdleCallback(idleHandle);
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+
+    const observer = new IntersectionObserver(([entry]) => setOnScreen(entry?.isIntersecting ?? true));
+    observer.observe(wrap);
+    const onVisibility = () => setTabVisible(!document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
+  const mounted = idle && onScreen && tabVisible && !failed;
+
+  return (
+    <div
+      ref={wrapRef}
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 -z-20 overflow-hidden [container-type:size]"
+    >
+      {mounted && <YoutubeFrame id={id} onTimeout={() => setFailed(true)} />}
+    </div>
+  );
+}
+
+/** The iframe itself: its own state, so every (re)mount starts transparent and fades in on load. */
+function YoutubeFrame({ id, onTimeout }: { id: string; onTimeout: () => void }) {
+  const [loaded, setLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (loaded) return;
+    const timer = window.setTimeout(onTimeout, 8000);
+
+    return () => window.clearTimeout(timer);
+  }, [loaded, onTimeout]);
+
+  return (
+    <iframe
+      title="Looks Smart Beauty Salon video"
+      src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&rel=0&playsinline=1&disablekb=1&iv_load_policy=3`}
+      referrerPolicy="strict-origin-when-cross-origin"
+      allow="autoplay; encrypted-media"
+      tabIndex={-1}
+      aria-hidden="true"
+      onLoad={() => setLoaded(true)}
+      className={`pointer-events-none absolute top-1/2 left-1/2 h-[max(100cqh,56.25cqw)] w-[max(100cqw,177.78cqh)] max-w-none -translate-x-1/2 -translate-y-1/2 border-0 transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+    />
+  );
 }
 
 // Real photo of the salon, shown from the first paint and left in place permanently if the video
@@ -321,7 +419,8 @@ function HeroBackground({ hero }: { hero: HeroMedia }) {
           />
         </picture>
       )}
-      {allowVideo && posterReady && !failed && hero.video_url && (
+      {allowVideo && posterReady && hero.youtube_id && <YoutubeHeroVideo id={hero.youtube_id} />}
+      {allowVideo && posterReady && !failed && !hero.youtube_id && hero.video_url && (
         <video
           ref={videoRef}
           className="absolute inset-0 -z-20 size-full object-cover"
