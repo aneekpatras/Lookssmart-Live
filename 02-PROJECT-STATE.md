@@ -7592,6 +7592,7 @@ Cancel from the signed page: /b/<code> has a Cancel booking action (POST only, t
 - Admin breadcrumbs (P2): shared AdminBreadcrumbs in AdminLayout fed by lib/adminBreadcrumbs.ts, Back links on nested pages, Settings tab kept in the URL hash.
 - Cookie banner (P3): Accept/Decline gates Google Tag Manager / Analytics through public/js/consent-analytics.js (choice in localStorage ls_consent_v1, re-asked after 12 months, footer Cookie settings link); GTM/GA no longer in the server HTML; Privacy Policy has a sentence about it.
 - Admin email 2-step login (P4): password then a 6-digit code or approve link by email (admin_login_challenges, hashes only, sync send); /admin-verify; emergency switch ADMIN_EMAIL_2FA=false in .env; Settings > SEO & Security has a Send test email button.
+- Fixes: YouTube hero has no playlist/loop params (no prev/pause/next buttons) and loops by seeking to 0 near the end, never reloading or fading out; showcase back to text left / image right; auth pages put the form on the right and the physics cards (shared FallingCards component, also used by the 404) on the left brand panel.
 - SQL for this release: lookssmart-live-changes.sql (fit column + admin_login_challenges + migration rows), also appended to lookssmart-ALL-SQL.sql; run twice locally with no errors and no change on the second run.
 
 Open items:

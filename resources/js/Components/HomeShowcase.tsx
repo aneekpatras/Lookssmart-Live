@@ -150,7 +150,7 @@ function ArchSlider({
 
   return (
     <div
-      className="relative mx-auto w-[min(85vw,380px)] md:w-[380px] lg:order-1 lg:w-[440px]"
+      className="relative mx-auto w-[min(85vw,380px)] md:w-[380px] lg:w-[440px]"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
@@ -271,7 +271,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
           hasImage ? 'lg:grid-cols-2 lg:gap-16' : 'max-w-3xl',
         )}
       >
-        <div className="lg:order-2">
+        <div>
           <p className="border-accent-500/40 bg-accent-500/10 text-accent-700 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold">
             <Heart className="size-3.5" aria-hidden="true" />
             {options.eyebrow}

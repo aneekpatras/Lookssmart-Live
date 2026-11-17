@@ -46,14 +46,16 @@ it('ships the 404 page with the agreed content, theme tokens and no inline style
         ->toContain('Back to home')
         ->toContain('View services')
         ->toContain('Book appointment')
-        ->toContain('prefers-reduced-motion')
-        ->toContain("import('matter-js')")
+        ->toContain('FallingCards')
         ->not->toContain('style={{')
         ->not->toContain('<style')
         ->not->toMatch('/#[0-9a-fA-F]{6}\b/');
 
+    $cards = file_get_contents(resource_path('js/Components/FallingCards.tsx'));
+    expect($cards)->toContain('prefers-reduced-motion')->toContain("import('matter-js')")->not->toContain('style={{');
+
     foreach (['Hair', 'Skin', 'Bridal', 'Makeup', 'Waxing', 'Spa'] as $label) {
-        expect($source)->toContain("label: '{$label}'");
+        expect($cards)->toContain("label: '{$label}'");
     }
 });
 
@@ -79,7 +81,7 @@ it('loads matter-js only through a dynamic import on the 404 page', function () 
         }
     }
 
-    expect($static)->toBe([])->and($dynamic)->toBe(['Pages/Errors/NotFound.tsx']);
+    expect($static)->toBe([])->and($dynamic)->toBe(['Components/FallingCards.tsx']);
     expect(file_get_contents(resource_path('js/lib/cardPhysics.ts')))->toContain("import type MatterNS from 'matter-js'")
         ->not->toContain('style={{')
         ->not->toMatch('/setAttribute\(\s*[\'"]style/');
@@ -89,4 +91,20 @@ it('serves the crawlable H1 as Page not found, matching the visible heading', fu
     $html = $this->get('/abcd')->assertNotFound()->getContent();
 
     expect($html)->toContain('<h1>Page not found</h1>');
+});
+
+
+it('puts the login form on the right and the physics cards on the left brand panel', function () {
+    $layout = file_get_contents(resource_path('js/Layouts/AuthLayout.tsx'));
+
+    expect($layout)->toContain('lg:order-2 lg:min-h-0')   // form column
+        ->toContain('lg:order-1 lg:flex')                 // brand panel
+        ->toContain('<FallingCards />');
+});
+
+it('keeps the YouTube hero from showing player buttons or reloading when it loops', function () {
+    $home = file_get_contents(resource_path('js/Pages/Public/Home.tsx'));
+
+    expect($home)->not->toContain('playlist=')->not->toContain('loop=1')
+        ->toContain("'seekTo'");
 });

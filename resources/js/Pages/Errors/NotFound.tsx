@@ -1,21 +1,8 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-  Brush,
-  CalendarCheck,
-  Flower2,
-  Gem,
-  Hand,
-  Heart,
-  Home,
-  type LucideIcon,
-  MessageCircle,
-  RotateCcw,
-  Scissors,
-  Smile,
-  Sparkles,
-} from 'lucide-react';
+import { CalendarCheck, Home, MessageCircle, RotateCcw, Scissors } from 'lucide-react';
 import * as React from 'react';
 
+import { FallingCards } from '@/Components/FallingCards';
 import { Button } from '@/Components/ui/button';
 import PublicLayout from '@/Layouts/PublicLayout';
 
@@ -25,87 +12,6 @@ const QUICK_LINKS = [
   { label: 'Gallery', href: '/gallery' },
   { label: 'FAQs', href: '/faqs' },
   { label: 'Contact', href: '/contact' },
-];
-
-/**
- * Decorative cards that fall and can be played with (see lib/cardPhysics.ts). Labels are real salon
- * categories. Colours are theme tokens only (admin theme changes apply); text is espresso or ivory,
- * whichever reads on the card (ivory on the gold card would be too faint, so that one uses espresso).
- * `show` keeps 5 cards on phones, 6 from md and 8 from lg. `spot` is the resting place of the static
- * layout (server-rendered HTML, reduced motion), `rest` its tilt.
- */
-const CARDS: {
-  label: string;
-  Icon: LucideIcon;
-  tone: string;
-  size: string;
-  show: string;
-  spot: string;
-}[] = [
-  {
-    label: 'Hair',
-    Icon: Scissors,
-    tone: 'bg-accent-500 text-ink border-accent-500',
-    size: 'h-[104px] w-[84px] md:h-[120px] md:w-[96px] lg:h-[132px] lg:w-[108px]',
-    show: 'flex',
-    spot: 'bottom-3 left-[3%] -rotate-6',
-  },
-  {
-    label: 'Skin',
-    Icon: Sparkles,
-    tone: 'bg-ink text-ivory border-ink',
-    size: 'h-[112px] w-[88px] md:h-[124px] md:w-[100px] lg:h-[140px] lg:w-[112px]',
-    show: 'flex',
-    spot: 'bottom-3 left-[18%] rotate-3',
-  },
-  {
-    label: 'Bridal',
-    Icon: Heart,
-    tone: 'bg-accent-100 text-ink border-accent-300',
-    size: 'h-[108px] w-[92px] md:h-[120px] md:w-[104px] lg:h-[132px] lg:w-[120px]',
-    show: 'flex',
-    spot: 'bottom-3 left-[36%] -rotate-3',
-  },
-  {
-    label: 'Makeup',
-    Icon: Brush,
-    tone: 'bg-accent-300 text-ink border-accent-300',
-    size: 'h-[100px] w-[88px] md:h-[116px] md:w-[100px] lg:h-[128px] lg:w-[112px]',
-    show: 'flex',
-    spot: 'bottom-3 right-[30%] rotate-6',
-  },
-  {
-    label: 'Waxing',
-    Icon: Flower2,
-    tone: 'bg-tint-b text-ink border-accent-300',
-    size: 'h-[104px] w-[84px] md:h-[118px] md:w-[96px] lg:h-[130px] lg:w-[108px]',
-    show: 'flex',
-    spot: 'bottom-3 right-[14%] -rotate-6',
-  },
-  {
-    label: 'Spa',
-    Icon: Gem,
-    tone: 'bg-cream text-ink border-accent-300',
-    size: 'h-[110px] w-[90px] md:h-[122px] md:w-[98px] lg:h-[136px] lg:w-[110px]',
-    show: 'hidden md:flex',
-    spot: 'bottom-3 right-[2%] rotate-3',
-  },
-  {
-    label: 'Nails',
-    Icon: Hand,
-    tone: 'bg-ivory text-ink border-accent-300',
-    size: 'h-[104px] w-[86px] md:h-[116px] md:w-[96px] lg:h-[126px] lg:w-[106px]',
-    show: 'hidden lg:flex',
-    spot: 'bottom-24 left-[10%] rotate-2',
-  },
-  {
-    label: 'Facial',
-    Icon: Smile,
-    tone: 'bg-tint-d text-ink border-accent-300',
-    size: 'h-[104px] w-[88px] md:h-[116px] md:w-[98px] lg:h-[128px] lg:w-[110px]',
-    show: 'hidden lg:flex',
-    spot: 'bottom-24 right-[8%] -rotate-3',
-  },
 ];
 
 /**
@@ -120,62 +26,8 @@ export default function NotFound() {
   const { site } = usePage<{ [key: string]: unknown; site?: { whatsapp_url?: string } }>().props;
   const whatsapp = site?.whatsapp_url ?? 'https://wa.me/923059833859';
 
-  const stageRef = React.useRef<HTMLDivElement>(null);
-  const cardRefs = React.useRef<(HTMLDivElement | null)[]>([]);
-  const physicsRef = React.useRef<{ respawn: () => void } | null>(null);
-  const [mode, setMode] = React.useState<'static' | 'physics'>('static');
-
-  // Phase 1: unless the visitor prefers reduced motion, fetch matter-js (only ever loaded here).
-  React.useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    let cancelled = false;
-    void import('matter-js')
-      .then(() => {
-        if (!cancelled) setMode('physics');
-      })
-      .catch(() => {
-        // Could not load: the static layout simply stays.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Phase 2: the physics layout is rendered (cards measured at their real sizes) - start the simulation.
-  React.useEffect(() => {
-    const stage = stageRef.current;
-    if (mode !== 'physics' || !stage) return;
-
-    let destroy: (() => void) | null = null;
-    let cancelled = false;
-
-    void Promise.all([import('matter-js'), import('@/lib/cardPhysics')])
-      .then(([matter, physics]) => {
-        if (cancelled) return;
-        const M = (matter as { default?: unknown }).default ?? matter;
-        const cards = cardRefs.current.filter((el): el is HTMLDivElement => el !== null);
-        const instance = physics.startCardPhysics(
-          M as Parameters<typeof physics.startCardPhysics>[0],
-          stage,
-          cards,
-        );
-        physicsRef.current = instance;
-        destroy = instance.destroy;
-      })
-      .catch(() => {
-        if (!cancelled) setMode('static');
-      });
-
-    return () => {
-      cancelled = true;
-      physicsRef.current = null;
-      destroy?.();
-    };
-  }, [mode]);
-
-  const physics = mode === 'physics';
+  const [respawnKey, setRespawnKey] = React.useState(0);
+  const [physics, setPhysics] = React.useState(false);
 
   return (
     <>
@@ -187,29 +39,8 @@ export default function NotFound() {
       <section className="px-6 py-8 lg:px-10 lg:py-12">
         <div className="mx-auto max-w-5xl">
           {/* Stage: the cards live in this box; the text sits above them and lets pointers through. */}
-          <div
-            ref={stageRef}
-            className="relative min-h-[max(70svh,560px)] overflow-hidden rounded-3xl"
-          >
-            <div className="absolute inset-0">
-              {CARDS.map((card, index) => (
-                <div
-                  key={card.label}
-                  ref={(el) => {
-                    cardRefs.current[index] = el;
-                  }}
-                  aria-hidden="true"
-                  className={`${card.show} ${card.size} ${card.tone} font-display absolute flex-col items-center justify-center gap-2 rounded-2xl border shadow-lg will-change-transform select-none ${
-                    physics
-                      ? 'top-0 left-0 cursor-grab touch-none opacity-0 transition-opacity duration-300'
-                      : card.spot
-                  }`}
-                >
-                  <card.Icon className="size-7" aria-hidden="true" />
-                  <span className="text-base">{card.label}</span>
-                </div>
-              ))}
-            </div>
+          <div className="relative min-h-[max(70svh,560px)] overflow-hidden rounded-3xl">
+            <FallingCards respawnKey={respawnKey} onPhysicsChange={setPhysics} />
 
             <div className="pointer-events-none relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-2 py-10 text-center">
               <p
@@ -250,7 +81,7 @@ export default function NotFound() {
                   variant="outline"
                   size="sm"
                   className="pointer-events-auto mt-4"
-                  onClick={() => physicsRef.current?.respawn()}
+                  onClick={() => setRespawnKey((k) => k + 1)}
                 >
                   <RotateCcw aria-hidden="true" /> Drop them again
                 </Button>

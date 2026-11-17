@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, CalendarCheck, ShieldCheck, Sparkles, Zap } from 'lucide-react';
 import * as React from 'react';
 
+import { FallingCards } from '@/Components/FallingCards';
 import { Toaster } from '@/Components/ui/toaster';
 
 const PERKS = [
@@ -68,7 +69,7 @@ export default function AuthLayout({
     <>
       <Toaster />
       <div className="bg-ivory min-h-dvh lg:grid lg:grid-cols-2">
-        <div className="flex min-h-dvh flex-col lg:min-h-0">
+        <div className="flex min-h-dvh flex-col lg:order-2 lg:min-h-0">
           <div className="bg-ink text-ivory flex items-center justify-center gap-2 px-4 py-3 lg:hidden">
             <Sparkles className="text-accent-500 size-4" aria-hidden="true" />
             <span className="font-display text-sm font-medium">Looks Smart Beauty Salon</span>
@@ -99,16 +100,17 @@ export default function AuthLayout({
           </div>
         </div>
 
-        <aside className="bg-ink text-ivory relative hidden items-center justify-center overflow-hidden lg:flex">
+        <aside className="bg-ink text-ivory relative hidden items-center justify-center overflow-hidden lg:order-1 lg:flex">
           <div
             aria-hidden="true"
-            className="absolute -top-32 -right-32 size-[34rem] rounded-full bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--gold)_30%,transparent),transparent)]"
+            className="absolute -top-32 -left-32 size-[34rem] rounded-full bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--gold)_30%,transparent),transparent)]"
           />
-          <div className="relative flex flex-col items-center px-10">
-            <div className="relative h-[190px] w-[150px] rounded-t-full rounded-b-lg border-[1.5px] border-accent-500 bg-white/[0.04] motion-safe:animate-[auth-rise_0.5s_ease-out_both]">
+          <FallingCards />
+          <div className="pointer-events-none relative z-10 flex flex-col items-center px-10">
+            <div className="border-accent-500 relative h-[190px] w-[150px] rounded-t-full rounded-b-lg border-[1.5px] bg-white/[0.04] motion-safe:animate-[auth-rise_0.5s_ease-out_both]">
               <div
                 aria-hidden="true"
-                className="absolute inset-[7px] rounded-t-full rounded-b-md border border-accent-500/40"
+                className="border-accent-500/40 absolute inset-[7px] rounded-t-full rounded-b-md border"
               />
               <div className="relative flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
                 <Sparkles className="text-accent-500 size-7" aria-hidden="true" />

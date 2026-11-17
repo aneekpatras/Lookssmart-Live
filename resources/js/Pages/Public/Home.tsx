@@ -199,15 +199,27 @@ function YoutubeHeroVideo({ id, onFail }: { id: string; onFail: () => void }) {
   );
 }
 
-/** YouTube player state codes: 1 playing, 2 paused, 0 ended, 5 cued, 3 buffering (ignored). */
-function playerStateFrom(raw: unknown): number | null {
+/** What a YouTube widget message tells us: player state (1 playing, 2 paused, 0 ended) and the clock. */
+function parseYoutube(
+  raw: unknown,
+): { state: number | null; time: number; duration: number } | null {
   if (typeof raw !== 'string') return null;
   try {
     const data = JSON.parse(raw) as { event?: string; info?: unknown };
-    if (data.event === 'onStateChange' && typeof data.info === 'number') return data.info;
+    if (data.event === 'onStateChange' && typeof data.info === 'number') {
+      return { state: data.info, time: 0, duration: 0 };
+    }
     if (data.event === 'infoDelivery' && data.info && typeof data.info === 'object') {
-      const state = (data.info as { playerState?: unknown }).playerState;
-      return typeof state === 'number' ? state : null;
+      const info = data.info as {
+        playerState?: unknown;
+        currentTime?: unknown;
+        duration?: unknown;
+      };
+      return {
+        state: typeof info.playerState === 'number' ? info.playerState : null,
+        time: typeof info.currentTime === 'number' ? info.currentTime : 0,
+        duration: typeof info.duration === 'number' ? info.duration : 0,
+      };
     }
   } catch {
     // Not a YouTube message.
@@ -216,23 +228,44 @@ function playerStateFrom(raw: unknown): number | null {
   return null;
 }
 
-/** The iframe itself: its own state, so every (re)mount starts transparent and fades in once playing. */
+/**
+ * The iframe itself: its own state, so every (re)mount starts transparent and fades in once playing. After it
+ * has played it stays visible: the loop is done by seeking back to 0 just before the end (no playlist, so
+ * YouTube shows no previous/next buttons and never reloads the video).
+ */
 function YoutubeFrame({ id, onFail }: { id: string; onFail: () => void }) {
   const frameRef = React.useRef<HTMLIFrameElement>(null);
   const [playing, setPlaying] = React.useState(false);
   const everPlayed = React.useRef(false);
 
   React.useEffect(() => {
+    let lastSeek = 0;
+    const command = (func: string, args: unknown[] = []) =>
+      frameRef.current?.contentWindow?.postMessage(
+        JSON.stringify({ event: 'command', func, args }),
+        YT_ORIGIN,
+      );
+    const restart = () => {
+      const now = Date.now();
+      if (now - lastSeek < 1500) return;
+      lastSeek = now;
+      command('seekTo', [0, true]);
+      command('playVideo');
+    };
+
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== YT_ORIGIN || event.source !== frameRef.current?.contentWindow) return;
 
-      const state = playerStateFrom(event.data);
-      if (state === 1) {
+      const info = parseYoutube(event.data);
+      if (!info) return;
+
+      if (info.state === 1) {
         everPlayed.current = true;
         setPlaying(true);
-      } else if (state === 2 || state === 0 || state === 5) {
-        setPlaying(false);
+      } else if (info.state === 0 || (info.state === 2 && everPlayed.current)) {
+        restart(); // ended or paused by YouTube itself: keep playing, never fade out
       }
+      if (info.duration > 1 && info.time >= info.duration - 0.6) restart();
     };
     window.addEventListener('message', onMessage);
 
@@ -248,7 +281,7 @@ function YoutubeFrame({ id, onFail }: { id: string; onFail: () => void }) {
   }, [onFail]);
 
   const src =
-    `${YT_ORIGIN}/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&rel=0` +
+    `${YT_ORIGIN}/embed/${id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0` +
     `&playsinline=1&disablekb=1&iv_load_policy=3&fs=0&cc_load_policy=0&enablejsapi=1` +
     `&origin=${encodeURIComponent(window.location.origin)}`;
 
