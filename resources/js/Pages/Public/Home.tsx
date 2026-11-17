@@ -245,12 +245,12 @@ function YoutubeFrame({ id, onFail }: { id: string; onFail: () => void }) {
         JSON.stringify({ event: 'command', func, args }),
         YT_ORIGIN,
       );
-    const restart = () => {
+    const restart = (resume: boolean) => {
       const now = Date.now();
       if (now - lastSeek < 1500) return;
       lastSeek = now;
       command('seekTo', [0, true]);
-      command('playVideo');
+      if (resume) command('playVideo');
     };
 
     const onMessage = (event: MessageEvent) => {
@@ -266,9 +266,9 @@ function YoutubeFrame({ id, onFail }: { id: string; onFail: () => void }) {
         // Paused, buffering, ended or cued: YouTube draws its own pause icon or spinner in the middle of the
         // player, so hide the iframe at once and ask it to keep playing. It fades back in when playing again.
         setPlaying(false);
-        if (everPlayed.current && (info.state === 0 || info.state === 2)) restart();
+        if (everPlayed.current && info.state === 0) restart(true);
       }
-      if (info.duration > 1 && info.time >= info.duration - 0.6) restart();
+      if (info.duration > 1 && info.time >= info.duration - 0.6) restart(false);
     };
     window.addEventListener('message', onMessage);
 
@@ -296,6 +296,7 @@ function YoutubeFrame({ id, onFail }: { id: string; onFail: () => void }) {
       referrerPolicy="strict-origin-when-cross-origin"
       allow="autoplay; encrypted-media"
       tabIndex={-1}
+      inert
       aria-hidden="true"
       onLoad={() => {
         // Ask the player to report its state to us (no YouTube API script needed).
