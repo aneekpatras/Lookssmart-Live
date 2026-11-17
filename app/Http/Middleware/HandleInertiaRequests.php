@@ -85,6 +85,8 @@ class HandleInertiaRequests extends Middleware
             // them here rather than per-controller doesn't leak analytics scripts onto admin pages;
             // each is `null` (and rendered as absent, never a fabricated placeholder id) until the
             // matching Setting is actually configured.
+            // Cache-buster for /theme.css, so the client can attach the theme when an admin moves to the public site in-app.
+            'themeVersion' => fn () => \App\Support\Theme::version(),
             'seo' => fn () => [
                 'siteName' => Setting::get('business.name') ?: config('app.name'),
                 'defaultImage' => $this->defaultOgImage(),

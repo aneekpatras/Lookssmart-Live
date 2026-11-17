@@ -82,3 +82,17 @@ it('renders the saved hero video as the Home hero prop with spaces encoded', fun
         $this->get('/')->assertInertia(fn ($page) => $page->where('hero.video_url', '/images/Untitled%20design%20-%20Video.mp4'));
     }
 });
+
+it('links the theme stylesheet after the app CSS for a guest and for a signed-in admin, and shares its version', function () {
+    $html = $this->get('/')->getContent();
+    expect($html)->toContain('id="theme-css"')->toContain('/theme.css?v=');
+    expect(strrpos($html, 'build/assets/app-'))->toBeLessThan(strpos($html, '/theme.css?v='));
+
+    $admin = applyAdmin();
+    $this->actingAs($admin)->put('/admin/settings/theme', ['settings' => ['theme.gold' => '#2f7a62']])->assertSessionHasNoErrors();
+
+    $adminHtml = $this->actingAs($admin)->get('/')->getContent();
+    expect($adminHtml)->toContain('id="theme-css"');
+    $this->actingAs($admin)->get('/')->assertInertia(fn ($page) => $page->where('themeVersion', \App\Support\Theme::version()));
+    $this->actingAs($admin)->get('/admin/settings')->assertDontSee('id="theme-css"', false);
+});

@@ -105,7 +105,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
     {{-- Admin > Settings > Theme colours: re-colours the public site and the auth pages (never the admin panel). Linked after the main CSS; ?v= changes on every save. --}}
     @unless (request()->is('admin', 'admin/*'))
-    <link rel="stylesheet" href="/theme.css?v={{ \App\Support\Theme::version() }}">
+    <link id="theme-css" rel="stylesheet" href="/theme.css?v={{ \App\Support\Theme::version() }}">
     @endunless
     @inertiaHead
 </head>

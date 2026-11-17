@@ -1,6 +1,6 @@
 import '../css/app.css';
 
-import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
+import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/react';
 import * as Sentry from '@sentry/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot, hydrateRoot } from 'react-dom/client';
@@ -19,6 +19,36 @@ if (import.meta.env.VITE_SENTRY_DSN && import.meta.env.VITE_APP_ENV === 'product
     dsn: import.meta.env.VITE_SENTRY_DSN,
     environment: import.meta.env.VITE_APP_ENV,
     tracesSampleRate: 0.1,
+  });
+}
+
+/**
+ * The theme stylesheet is linked by the server only on a full page load of a public page. An admin who opens
+ * the public site through an in-app link never gets a new <head>, so attach it here on public pages and drop it
+ * on admin pages (the theme never recolours the admin panel). Same-origin link, so the CSP allows it.
+ */
+if (typeof document !== 'undefined') {
+  router.on('navigate', (event) => {
+    const isAdmin = /^\/admin(\/|$|\?)/.test(event.detail.page.url);
+    const link = document.getElementById('theme-css');
+
+    if (isAdmin) {
+      link?.remove();
+      return;
+    }
+
+    const version = (event.detail.page.props as { themeVersion?: number }).themeVersion ?? 0;
+    const href = `/theme.css?v=${version}`;
+
+    if (!link) {
+      const added = document.createElement('link');
+      added.id = 'theme-css';
+      added.rel = 'stylesheet';
+      added.href = href;
+      document.head.appendChild(added);
+    } else if (link.getAttribute('href') !== href) {
+      link.setAttribute('href', href);
+    }
   });
 }
 
