@@ -19,11 +19,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('bookings', function (Blueprint $table) {
+        // Idempotent: MySQL DDL is not transactional, so a half-failed earlier run may have already
+        // added/dropped some of these indexes.
+        $indexes = collect(Schema::getIndexes('bookings'))->pluck('name')->all();
+
+        Schema::table('bookings', function (Blueprint $table) use ($indexes) {
             // MariaDB/MySQL won't drop `unique(staff_id, starts_at)` while it's the only index
             // covering the `staff_id` foreign key — add a plain index first so the FK stays supported.
-            $table->index('staff_id', 'bookings_staff_id_index');
-            $table->dropUnique(['staff_id', 'starts_at']);
+            if (! in_array('bookings_staff_id_index', $indexes, true)) {
+                $table->index('staff_id', 'bookings_staff_id_index');
+            }
+            if (in_array('bookings_staff_id_starts_at_unique', $indexes, true)) {
+                $table->dropUnique(['staff_id', 'starts_at']);
+            }
         });
 
         if (DB::getDriverName() === 'sqlite') {
@@ -38,12 +46,19 @@ return new class extends Migration
             return;
         }
 
+        // MariaDB rejects generated columns that reference a foreign-key column (staff_id), so the
+        // generated column is only a 1/NULL "is active" flag, and the unique index is composite:
+        // (staff_id, starts_at, active_slot_key). NULL flags never collide, so cancelled rows are free.
+        if (! Schema::hasColumn('bookings', 'active_slot_key')) {
+            DB::statement(
+                'ALTER TABLE bookings ADD COLUMN active_slot_key TINYINT GENERATED ALWAYS AS ' .
+                "(CASE WHEN status NOT IN ('cancelled', 'no_show') AND deleted_at IS NULL " .
+                'THEN 1 ELSE NULL END) STORED',
+            );
+        }
         DB::statement(
-            'ALTER TABLE bookings ADD COLUMN active_slot_key VARCHAR(191) GENERATED ALWAYS AS ' .
-            "(CASE WHEN status NOT IN ('cancelled', 'no_show') AND deleted_at IS NULL " .
-            "THEN CONCAT(staff_id, '|', starts_at) ELSE NULL END) STORED",
+            'ALTER TABLE bookings ADD UNIQUE INDEX bookings_active_slot_unique (staff_id, starts_at, active_slot_key)',
         );
-        DB::statement('ALTER TABLE bookings ADD UNIQUE INDEX bookings_active_slot_unique (active_slot_key)');
     }
 
     public function down(): void
