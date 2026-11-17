@@ -13,6 +13,11 @@ import { cn } from '@/lib/utils';
 
 const MASK = '••••••••';
 
+/** Muted line under a field that is saved but not read by the website yet. */
+function NotUsedNote({ children = 'Not used by the website yet.' }: { children?: React.ReactNode }) {
+  return <p className="text-ink-muted -mt-2 text-xs">{children}</p>;
+}
+
 /**
  * Success and failure toasts for a save, driven by what the server really returned: the success toast shows only
  * when the server sent its success flash; a validation error shows its first message; anything else is a failure.
@@ -470,13 +475,16 @@ function PaymentsTab({ payments }: { payments: Record<string, SettingValue> }) {
         </div>
         <form onSubmit={submit} className="space-y-4">
           <ToggleField id="cash_enabled" label="Accept cash" checked={data.cash_enabled === true} onChange={(v) => setData('cash_enabled', v)} />
+          <NotUsedNote />
           <ToggleField id="card_enabled" label="Accept card" checked={data.card_enabled === true} onChange={(v) => setData('card_enabled', v)} />
+          <NotUsedNote />
           <TextField
             id="stripe_public_key"
             label="Stripe publishable key"
             value={String(data.stripe_public_key ?? '')}
             onChange={(v) => setData('stripe_public_key', v)}
           />
+          <NotUsedNote />
           <SecretField
             id="stripe_secret_key"
             label="Stripe secret key"
@@ -484,6 +492,7 @@ function PaymentsTab({ payments }: { payments: Record<string, SettingValue> }) {
             onChange={(v) => setData('stripe_secret_key', v)}
             isSet={payments['payments.stripe_secret_key'] === MASK}
           />
+          <NotUsedNote />
           <Button type="submit" disabled={processing}>
             Save
           </Button>
@@ -530,12 +539,16 @@ function IntegrationsTab({ integrations }: { integrations: Record<string, Settin
         </div>
         <form onSubmit={submit} className="space-y-4">
           <SecretField id="twilio_sid" label="Twilio Account SID" value={data.twilio_sid ?? ''} onChange={(v) => setData('twilio_sid', v)} isSet={integrations['integrations.twilio_sid'] === MASK} />
+          <NotUsedNote />
           <SecretField id="twilio_auth_token" label="Twilio Auth Token" value={data.twilio_auth_token ?? ''} onChange={(v) => setData('twilio_auth_token', v)} isSet={integrations['integrations.twilio_auth_token'] === MASK} />
+          <NotUsedNote />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextField id="twilio_sms_from" label="SMS from number" value={data.twilio_sms_from ?? ''} onChange={(v) => setData('twilio_sms_from', v)} />
             <TextField id="twilio_whatsapp_from" label="WhatsApp from number" value={data.twilio_whatsapp_from ?? ''} onChange={(v) => setData('twilio_whatsapp_from', v)} />
           </div>
+          <NotUsedNote />
           <SecretField id="google_maps_api_key" label="Google Maps API key" value={data.google_maps_api_key ?? ''} onChange={(v) => setData('google_maps_api_key', v)} isSet={integrations['integrations.google_maps_api_key'] === MASK} />
+          <NotUsedNote />
           <TextField id="google_site_verification" label="Google Search Console verification code" value={data.google_site_verification ?? ''} onChange={(v) => setData('google_site_verification', v)} />
           <Button type="submit" disabled={processing}>
             Save
@@ -1080,12 +1093,14 @@ function SeoSecurityTab({ seo, security }: { seo: Record<string, SettingValue>; 
               onChange={(v) => setField('admin_ip_allowlist', v)}
               placeholder="203.0.113.0/24, 198.51.100.7"
             />
+            <NotUsedNote />
             <TextField
               id="security.session_lifetime_minutes"
               label="Session lifetime (minutes)"
               value={data.session_lifetime_minutes ?? ''}
               onChange={(v) => setField('session_lifetime_minutes', v)}
             />
+            <NotUsedNote />
           </>
         )}
       </GroupForm>
