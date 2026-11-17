@@ -26,6 +26,7 @@ import { HeaderCartButton } from '@/Components/HeaderCartButton';
 import { HeaderUserMenu } from '@/Components/HeaderUserMenu';
 import { NavigationProgressOverlay } from '@/Components/NavigationProgressOverlay';
 import { SmoothScroll } from '@/Components/SmoothScroll';
+import { CookieBanner, openCookieSettings } from '@/Components/CookieBanner';
 import { WhatsAppButton } from '@/Components/WhatsAppButton';
 import { VisitorTracker } from '@/Components/VisitorTracker';
 import { StickyMobileBar } from '@/Components/StickyMobileBar';
@@ -378,6 +379,13 @@ function Footer() {
           <p>We accept cash, bank transfer, JazzCash and Easypaisa.</p>
           <button
             type="button"
+            onClick={openCookieSettings}
+            className="hover:text-accent-600 inline-flex min-h-10 items-center gap-1.5 self-start underline-offset-2 transition-colors hover:underline md:self-auto"
+          >
+            Cookie settings
+          </button>
+          <button
+            type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="hover:text-accent-600 inline-flex min-h-10 items-center gap-1.5 self-start transition-colors md:self-auto"
           >
@@ -431,6 +439,7 @@ export default function PublicLayout({
         <WhatsAppButton />
         <WhatsAppPopup />
         <StickyMobileBar />
+        <CookieBanner />
         <VisitorTracker />
       </div>
     </SmoothScroll>

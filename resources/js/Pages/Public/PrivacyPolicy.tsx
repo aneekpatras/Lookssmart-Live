@@ -168,7 +168,9 @@ export default function PrivacyPolicy({ business, effectiveDate }: PrivacyPolicy
                   location in the Visit us section, Google Fonts provides the website&rsquo;s
                   typefaces, and Google Tag Manager and Google Analytics measure visits when
                   switched on. Google receives your IP address and browser details when it serves
-                  these.
+                  these. Google Tag Manager and Google Analytics are only loaded if you press
+                  Accept in the cookie banner; you can change your choice at any time with Cookie
+                  settings in the footer.
                 </li>
                 <li>
                   <strong className="text-ink font-medium">YouTube:</strong> The home page can show

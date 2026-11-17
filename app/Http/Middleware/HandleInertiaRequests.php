@@ -120,6 +120,8 @@ class HandleInertiaRequests extends Middleware
                 'directions_url' => app(\App\Services\SeoService::class)->findUs()['mapsUrl'],
                 'service_categories' => $this->footerServiceCategories(),
             ],
+            // Cookie banner: whether a Google tag is active for this request (it is only loaded after Accept).
+            'analytics' => fn () => ['enabled' => \App\Support\Analytics::tag() !== null],
             // Same constants the server password rule uses: the register checklist reads these.
             'passwordPolicy' => PasswordPolicy::forFrontend(),
             // Sidebar badge: rows with status "new" on the Follow-ups page (admin pages only; never public props).

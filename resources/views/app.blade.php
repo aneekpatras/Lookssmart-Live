@@ -4,14 +4,9 @@
     <meta charset="utf-8">
     @php($analyticsTag = \App\Support\Analytics::tag())
     @if ($analyticsTag)
-    {{-- Google tag, in the raw HTML so Google's installation test finds it. External files only (no inline script). --}}
-    <script src="/js/gtm-init.js" nonce="{{ $cspNonce ?? '' }}"></script>
-    @if ($analyticsTag['kind'] === 'gtm')
-    <script async src="https://www.googletagmanager.com/gtm.js?id={{ $analyticsTag['id'] }}" nonce="{{ $cspNonce ?? '' }}"></script>
-    @else
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $analyticsTag['id'] }}" nonce="{{ $cspNonce ?? '' }}"></script>
-    <script src="/js/gtag-config.js" data-ga-id="{{ $analyticsTag['id'] }}" nonce="{{ $cspNonce ?? '' }}"></script>
-    @endif
+    {{-- Google tag, loaded only after the visitor accepts analytics cookies (and never with Do Not Track). This
+    external file is the only thing in the raw HTML; it requests nothing from Google until then. --}}
+    <script src="/js/consent-analytics.js" data-kind="{{ $analyticsTag['kind'] }}" data-id="{{ $analyticsTag['id'] }}" nonce="{{ $cspNonce ?? '' }}"></script>
     @endif
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -129,17 +124,7 @@
     @inertiaHead
 </head>
 <body class="font-sans antialiased">
-    {{--
-        Phase 13 sub-step 2: GTM's <body>-top noscript iframe fallback — the one piece of the GTM
-        install that structurally cannot live in <head> (Inertia's <Head>/SeoHead.tsx only manages
-        <head>), so it has to be here rather than centralized with the rest of the analytics wiring.
-        Deliberately excluded from /admin* — SeoHead.tsx (public-only) already keeps the <head> GTM/GA4
-        scripts off admin pages for the same reason: staff dashboard usage has no business being mixed
-        into a customer-facing analytics property.
-    --}}
-    @if ($analyticsTag && $analyticsTag['kind'] === 'gtm')
-        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ $analyticsTag['id'] }}" height="0" width="0" hidden></iframe></noscript>
-    @endif
+    {{-- The old GTM <noscript> iframe was removed: Google is only loaded after the visitor accepts analytics cookies (see /js/consent-analytics.js). --}}
     @if (isset($seoMeta) && empty($__inertiaSsrResponse))
     @if (request()->routeIs('home'))
     {{-- Same sources/breakpoint (768px) as <HeroBackground> in Home.tsx and as the <link rel="preload"> above. The
