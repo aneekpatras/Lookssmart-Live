@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-react-DDzxHNG9.js";import{ErrorPage as o}from"./Layout-kGDmxM4r.js";import"./vendor-inertia-D1WI-VC0.js";import"./app-McwNDmJX.js";/* empty css            */function a(){return t.jsx(o,{code:"403",title:"Access denied",description:"You don't have permission to view this page. If you think this is a mistake, please contact us."})}export{a as default};

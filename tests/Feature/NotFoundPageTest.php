@@ -37,3 +37,21 @@ it('keeps a JSON 404 for JSON requests and leaves admin paths alone', function (
 it('does not list the 404 page in the sitemap', function () {
     expect($this->get('/sitemap.xml')->getContent())->not->toContain('abcd');
 });
+
+it('ships the 404 page with the agreed content, theme tokens and no inline styles', function () {
+    $source = file_get_contents(resource_path('js/Pages/Errors/NotFound.tsx'));
+
+    expect($source)->toContain('404')
+        ->toContain('Page not found')
+        ->toContain('Back to home')
+        ->toContain('View services')
+        ->toContain('Book appointment')
+        ->toContain('motion-safe:')
+        ->not->toContain('style={{')
+        ->not->toContain('<style')
+        ->not->toMatch('/#[0-9a-fA-F]{6}\b/');
+
+    foreach (['Hair', 'Skin', 'Bridal', 'Makeup', 'Waxing', 'Spa'] as $label) {
+        expect($source)->toContain("label: '{$label}'");
+    }
+});
