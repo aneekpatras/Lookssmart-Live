@@ -7587,6 +7587,7 @@ Cancel from the signed page: /b/<code> has a Cancel booking action (POST only, t
 - Hero Part A (pre-video banner): no change made; candidates reported to the owner to pick.
 - Hero YouTube polish: no image before the video (first-paint layer is a full-bleed dark layer from the very top with the heading and buttons; hero is -mt-24 for the YouTube source), poster only as fallback (reduced motion, data saver/2g, failure, 8 s no-playback), poster preload removed and preconnect/dns-prefetch to youtube-nocookie added for the YouTube source, iframe mounts on the first client effect and fades in only once YouTube's postMessage reports playing (enablejsapi, no iframe_api script).
 - 404 page redesigned (own build, no licence, no new packages because REACTBITS_LICENSE_KEY was not set locally): big Fraunces 404, scattered theme-token cards linking to /services, buttons Back to home / View services / Book appointment; still HTTP 404, noindex, no sitemap entry.
+- 404 page is now a physics toy: matter-js 0.20.0 (loaded only on the 404 page via dynamic import, 26.9 KB gzip chunk) drops 5/6/8 theme-token cards (lib/cardPhysics.ts) that can be dragged, thrown and stacked; static layout for reduced motion and server HTML; crawlable H1 now 'Page not found'.
 
 Open items:
 - Privacy Policy: rewritten on 2026-11-16 from the code; the owner must still review it (see the list of unverified statements in the task report).

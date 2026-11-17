@@ -263,7 +263,7 @@ class SeoService
     public function notFound(): array
     {
         $intro = "The link may be old, or the page may have moved. Let's get you back to something beautiful.";
-        $seo = $this->page('Page not found', $intro, url('/'), "This page isn't here", [
+        $seo = $this->page('Page not found', $intro, url('/'), "Page not found", [
             'robots' => 'noindex,follow',
             'intro' => $intro,
             'links' => [

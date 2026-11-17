@@ -14,7 +14,7 @@ it('serves the branded 404 page with a real 404 status for an unknown public URL
         ->and($html)->toContain('<title>Page not found | Looks Smart Beauty Salon</title>')
         ->and($html)->not->toContain('rel="canonical"')
         ->and($html)->not->toContain('application/ld+json')
-        ->and($html)->toContain('This page isn&#039;t here')
+        ->and($html)->toContain('<h1>Page not found</h1>')
         ->and($html)->toContain('Let&#039;s get you back to something beautiful.');
 
     foreach (['/services', '/deals', '/gallery', '/faqs', '/contact'] as $path) {
@@ -46,7 +46,8 @@ it('ships the 404 page with the agreed content, theme tokens and no inline style
         ->toContain('Back to home')
         ->toContain('View services')
         ->toContain('Book appointment')
-        ->toContain('motion-safe:')
+        ->toContain('prefers-reduced-motion')
+        ->toContain("import('matter-js')")
         ->not->toContain('style={{')
         ->not->toContain('<style')
         ->not->toMatch('/#[0-9a-fA-F]{6}\b/');
@@ -54,4 +55,38 @@ it('ships the 404 page with the agreed content, theme tokens and no inline style
     foreach (['Hair', 'Skin', 'Bridal', 'Makeup', 'Waxing', 'Spa'] as $label) {
         expect($source)->toContain("label: '{$label}'");
     }
+});
+
+
+it('loads matter-js only through a dynamic import on the 404 page', function () {
+    $root = resource_path('js');
+    $static = [];
+    $dynamic = [];
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root)) as $file) {
+        if (! preg_match('/\.(tsx?|jsx?)$/', $file->getFilename())) {
+            continue;
+        }
+        $code = file_get_contents($file->getPathname());
+        $rel = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen($root) + 1));
+
+        // A runtime (non-type) static import of matter-js.
+        if (preg_match('/^\s*import\s+(?!type\b)[^;]*from\s+[\'"]matter-js[\'"]/m', $code)) {
+            $static[] = $rel;
+        }
+        if (str_contains($code, "import('matter-js')")) {
+            $dynamic[] = $rel;
+        }
+    }
+
+    expect($static)->toBe([])->and($dynamic)->toBe(['Pages/Errors/NotFound.tsx']);
+    expect(file_get_contents(resource_path('js/lib/cardPhysics.ts')))->toContain("import type MatterNS from 'matter-js'")
+        ->not->toContain('style={{')
+        ->not->toMatch('/setAttribute\(\s*[\'"]style/');
+});
+
+it('serves the crawlable H1 as Page not found, matching the visible heading', function () {
+    $html = $this->get('/abcd')->assertNotFound()->getContent();
+
+    expect($html)->toContain('<h1>Page not found</h1>');
 });
