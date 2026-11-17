@@ -156,54 +156,28 @@ interface HeroMedia {
   youtube_id?: string | null;
 }
 
+const YT_ORIGIN = 'https://www.youtube-nocookie.com';
+
 /**
- * Client-only YouTube background. Nothing here renders on the server: the iframe is mounted after the
- * page is idle and loaded, only while the hero is on screen and the tab is visible, and it fades in
- * over the poster (which stays underneath, so there is never a black flash). If it has not loaded in
- * ~8 seconds it is removed and the poster stays. The parent decides reduced motion / data saver.
+ * Client-only YouTube background. Nothing here renders on the server: the iframe is mounted by the first
+ * client effect after hydration, only while the hero is on screen and the tab is visible. It stays fully
+ * transparent (so YouTube's spinner and buttons are never seen) until YouTube reports that playback has
+ * really started, then fades in over the dark hero layer. If playback is not confirmed within ~8 seconds,
+ * `onFail` is called: the iframe is removed and the parent shows the fallback poster. The parent decides
+ * reduced motion / data saver before this is rendered.
  */
-function YoutubeHeroVideo({ id }: { id: string }) {
+function YoutubeHeroVideo({ id, onFail }: { id: string; onFail: () => void }) {
   const wrapRef = React.useRef<HTMLDivElement>(null);
-  const [idle, setIdle] = React.useState(false);
   const [onScreen, setOnScreen] = React.useState(true);
   const [tabVisible, setTabVisible] = React.useState(() => !document.hidden);
-  const [failed, setFailed] = React.useState(false);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    let idleHandle = 0;
-    let timer = 0;
-    const run = () => {
-      if (!cancelled) setIdle(true);
-    };
-    const start = () => {
-      const w = window as Window & {
-        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-      };
-      if (typeof w.requestIdleCallback === 'function') {
-        idleHandle = w.requestIdleCallback(run, { timeout: 3000 });
-      } else {
-        timer = window.setTimeout(run, 1500);
-      }
-    };
-
-    if (document.readyState === 'complete') start();
-    else window.addEventListener('load', start, { once: true });
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener('load', start);
-      const w = window as Window & { cancelIdleCallback?: (handle: number) => void };
-      if (idleHandle && typeof w.cancelIdleCallback === 'function') w.cancelIdleCallback(idleHandle);
-      window.clearTimeout(timer);
-    };
-  }, []);
 
   React.useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
 
-    const observer = new IntersectionObserver(([entry]) => setOnScreen(entry?.isIntersecting ?? true));
+    const observer = new IntersectionObserver(([entry]) =>
+      setOnScreen(entry?.isIntersecting ?? true),
+    );
     observer.observe(wrap);
     const onVisibility = () => setTabVisible(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
@@ -214,47 +188,94 @@ function YoutubeHeroVideo({ id }: { id: string }) {
     };
   }, []);
 
-  const mounted = idle && onScreen && tabVisible && !failed;
-
   return (
     <div
       ref={wrapRef}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 -z-20 overflow-hidden [container-type:size]"
+      className="[container-type:size] pointer-events-none absolute inset-0 -z-20 overflow-hidden"
     >
-      {mounted && <YoutubeFrame id={id} onTimeout={() => setFailed(true)} />}
+      {onScreen && tabVisible && <YoutubeFrame id={id} onFail={onFail} />}
     </div>
   );
 }
 
-/** The iframe itself: its own state, so every (re)mount starts transparent and fades in on load. */
-function YoutubeFrame({ id, onTimeout }: { id: string; onTimeout: () => void }) {
-  const [loaded, setLoaded] = React.useState(false);
+/** YouTube player state codes: 1 playing, 2 paused, 0 ended, 5 cued, 3 buffering (ignored). */
+function playerStateFrom(raw: unknown): number | null {
+  if (typeof raw !== 'string') return null;
+  try {
+    const data = JSON.parse(raw) as { event?: string; info?: unknown };
+    if (data.event === 'onStateChange' && typeof data.info === 'number') return data.info;
+    if (data.event === 'infoDelivery' && data.info && typeof data.info === 'object') {
+      const state = (data.info as { playerState?: unknown }).playerState;
+      return typeof state === 'number' ? state : null;
+    }
+  } catch {
+    // Not a YouTube message.
+  }
+
+  return null;
+}
+
+/** The iframe itself: its own state, so every (re)mount starts transparent and fades in once playing. */
+function YoutubeFrame({ id, onFail }: { id: string; onFail: () => void }) {
+  const frameRef = React.useRef<HTMLIFrameElement>(null);
+  const [playing, setPlaying] = React.useState(false);
+  const everPlayed = React.useRef(false);
 
   React.useEffect(() => {
-    if (loaded) return;
-    const timer = window.setTimeout(onTimeout, 8000);
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== YT_ORIGIN || event.source !== frameRef.current?.contentWindow) return;
+
+      const state = playerStateFrom(event.data);
+      if (state === 1) {
+        everPlayed.current = true;
+        setPlaying(true);
+      } else if (state === 2 || state === 0 || state === 5) {
+        setPlaying(false);
+      }
+    };
+    window.addEventListener('message', onMessage);
+
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (!everPlayed.current) onFail();
+    }, 8000);
 
     return () => window.clearTimeout(timer);
-  }, [loaded, onTimeout]);
+  }, [onFail]);
+
+  const src =
+    `${YT_ORIGIN}/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&rel=0` +
+    `&playsinline=1&disablekb=1&iv_load_policy=3&fs=0&cc_load_policy=0&enablejsapi=1` +
+    `&origin=${encodeURIComponent(window.location.origin)}`;
 
   return (
     <iframe
+      ref={frameRef}
       title="Looks Smart Beauty Salon video"
-      src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&rel=0&playsinline=1&disablekb=1&iv_load_policy=3`}
+      src={src}
       referrerPolicy="strict-origin-when-cross-origin"
       allow="autoplay; encrypted-media"
       tabIndex={-1}
       aria-hidden="true"
-      onLoad={() => setLoaded(true)}
-      className={`pointer-events-none absolute top-1/2 left-1/2 h-[max(100cqh,56.25cqw)] w-[max(100cqw,177.78cqh)] max-w-none -translate-x-1/2 -translate-y-1/2 border-0 transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      onLoad={() => {
+        // Ask the player to report its state to us (no YouTube API script needed).
+        frameRef.current?.contentWindow?.postMessage(
+          JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }),
+          YT_ORIGIN,
+        );
+      }}
+      className={`pointer-events-none absolute top-1/2 left-1/2 h-[max(100cqh,56.25cqw)] w-[max(100cqw,177.78cqh)] max-w-none -translate-x-1/2 -translate-y-1/2 border-0 transition-opacity duration-700 ${playing ? 'opacity-100' : 'opacity-0'}`}
     />
   );
 }
 
-// Real photo of the salon, shown from the first paint and left in place permanently if the video
-// cannot play at all (unsupported codec, blocked autoplay, a failed request, reduced motion). Desktop
-// is 1600x900, mobile 900x1200; WebP first with a JPG fallback. The breakpoint (768px) must match the
+// Real photo of the salon. For the YouTube source it is only a fallback (reduced motion, data saver, a
+// failed or slow video); for the local-file source it is shown from the first paint as before. Desktop is
+// 1600x900, mobile 900x1200; WebP first with a JPG fallback. The breakpoint (768px) must match the
 // <link rel="preload"> media queries in resources/views/app.blade.php.
 const HERO_POSTER = '/images/hero-poster.jpg';
 const HERO_POSTER_ALT = 'Inside Looks Smart Beauty Salon, Central Park Housing Scheme, Lahore';
@@ -298,6 +319,13 @@ function HeroBackground({ hero }: { hero: HeroMedia }) {
   const [allowVideo, setAllowVideo] = React.useState(false);
   const [posterReady, setPosterReady] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
+  // YouTube source: no image before the video. The poster is only a fallback, shown once we know the
+  // video cannot play (reduced motion, data saver / 2g) or it failed to start within ~8 seconds.
+  const isYoutube = Boolean(hero.youtube_id);
+  const [mediaChecked, setMediaChecked] = React.useState(false);
+  const [ytFailed, setYtFailed] = React.useState(false);
+  const onYoutubeFail = React.useCallback(() => setYtFailed(true), []);
+  const showPoster = !isYoutube || ytFailed || (mediaChecked && !allowVideo);
 
   React.useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -306,7 +334,10 @@ function HeroBackground({ hero }: { hero: HeroMedia }) {
       navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
     ).connection;
     const lowData = connection?.saveData === true || connection?.effectiveType === '2g';
-    const apply = () => setAllowVideo(!query.matches && !lowData);
+    const apply = () => {
+      setAllowVideo(!query.matches && !lowData);
+      setMediaChecked(true);
+    };
 
     apply();
     query.addEventListener('change', apply);
@@ -381,35 +412,12 @@ function HeroBackground({ hero }: { hero: HeroMedia }) {
   // permanent <img> also means the swap to video never flashes, and the photo keeps its alt text.
   return (
     <>
-      {hero.poster_url ? (
-        <img
-          ref={posterRef}
-          data-hero-poster
-          src={hero.poster_url}
-          alt={HERO_POSTER_ALT}
-          width={1600}
-          height={900}
-          fetchPriority="high"
-          decoding="async"
-          className="absolute inset-0 -z-20 size-full object-cover"
-        />
-      ) : (
-        <picture>
-          <source
-            media="(max-width: 767px)"
-            srcSet="/images/hero-poster-mobile.webp"
-            type="image/webp"
-          />
-          <source
-            media="(max-width: 767px)"
-            srcSet="/images/hero-poster-mobile.jpg"
-            type="image/jpeg"
-          />
-          <source srcSet="/images/hero-poster.webp" type="image/webp" />
+      {showPoster &&
+        (hero.poster_url ? (
           <img
             ref={posterRef}
             data-hero-poster
-            src={HERO_POSTER}
+            src={hero.poster_url}
             alt={HERO_POSTER_ALT}
             width={1600}
             height={900}
@@ -417,9 +425,35 @@ function HeroBackground({ hero }: { hero: HeroMedia }) {
             decoding="async"
             className="absolute inset-0 -z-20 size-full object-cover"
           />
-        </picture>
+        ) : (
+          <picture>
+            <source
+              media="(max-width: 767px)"
+              srcSet="/images/hero-poster-mobile.webp"
+              type="image/webp"
+            />
+            <source
+              media="(max-width: 767px)"
+              srcSet="/images/hero-poster-mobile.jpg"
+              type="image/jpeg"
+            />
+            <source srcSet="/images/hero-poster.webp" type="image/webp" />
+            <img
+              ref={posterRef}
+              data-hero-poster
+              src={HERO_POSTER}
+              alt={HERO_POSTER_ALT}
+              width={1600}
+              height={900}
+              fetchPriority="high"
+              decoding="async"
+              className="absolute inset-0 -z-20 size-full object-cover"
+            />
+          </picture>
+        ))}
+      {allowVideo && !ytFailed && hero.youtube_id && (
+        <YoutubeHeroVideo id={hero.youtube_id} onFail={onYoutubeFail} />
       )}
-      {allowVideo && posterReady && hero.youtube_id && <YoutubeHeroVideo id={hero.youtube_id} />}
       {allowVideo && posterReady && !failed && !hero.youtube_id && hero.video_url && (
         <video
           ref={videoRef}
@@ -496,7 +530,13 @@ export default function Home({
         jsonLd={jsonLdSchema}
       />
       {/* Hero — muted looping background video behind a warm dark scrim */}
-      <section className="text-ivory relative isolate flex min-h-[88svh] items-center overflow-hidden px-6 py-24 lg:px-10">
+      <section
+        className={`text-ivory relative isolate flex items-center overflow-hidden px-6 lg:px-10 ${
+          hero.youtube_id
+            ? 'bg-ink -mt-24 min-h-[calc(88svh+6rem)] pt-48 pb-24'
+            : 'min-h-[88svh] py-24'
+        }`}
+      >
         <HeroBackground hero={hero} />
         {/* Two stacked layers: a warm champagne wash for brand tone, then a dark vertical gradient
             that guarantees text contrast regardless of what the video frame underneath is doing. */}

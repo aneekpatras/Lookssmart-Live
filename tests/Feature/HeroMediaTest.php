@@ -153,3 +153,15 @@ it('still accepts an old /storage/hero path shape and rejects one whose file is 
     expect(HeroMedia::validPath('/storage/hero/gone.mp4', HeroMedia::VIDEO_EXT))->toBeFalse();
     expect(HeroMedia::validPath('/images/hero/gone.mp4', HeroMedia::VIDEO_EXT))->toBeFalse();
 });
+
+
+it('builds the YouTube embed with the JS-API params, checks the message origin and has no iframe_api script', function () {
+    $source = file_get_contents(resource_path('js/Pages/Public/Home.tsx'));
+
+    expect($source)->toContain('enablejsapi=1')
+        ->toContain('window.location.origin')
+        ->toContain("event.origin !== YT_ORIGIN")
+        ->toContain('event.source !== frameRef.current?.contentWindow')
+        ->toContain("event: 'listening'")
+        ->not->toContain('iframe_api');
+});

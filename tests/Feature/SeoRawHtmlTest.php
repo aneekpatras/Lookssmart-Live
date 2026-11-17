@@ -485,7 +485,8 @@ it('keeps the crawlable H1 in the raw HTML but visually hidden with sr-only, nev
         ->not->toContain('display:none')->not->toContain('visibility:hidden');
 });
 
-it('paints the hero poster itself in the raw HTML of the homepage, with no logo boot screen', function () {
+it('paints the hero poster itself in the raw HTML of the homepage (local-file source), with no logo boot screen', function () {
+    \App\Models\Setting::create(['key' => 'hero.source', 'value' => 'local', 'group' => 'hero', 'is_encrypted' => false]);
     $html = rawHtml($this->get('/')->assertOk());
 
     // The boot layer on the homepage IS the poster: same <picture> sources and 768px breakpoint as the React hero.
@@ -541,7 +542,8 @@ it('keeps #seo-fallback in the homepage raw HTML, after the app mount point, and
         ->not->toMatch('/<main id="seo-fallback"[^>]*(?:hidden|style=)/');
 });
 
-it('declares the full favicon set and preloads the right hero poster on the homepage', function () {
+it('declares the full favicon set and preloads the right hero poster on the homepage (local-file source)', function () {
+    \App\Models\Setting::create(['key' => 'hero.source', 'value' => 'local', 'group' => 'hero', 'is_encrypted' => false]);
     $html = rawHtml($this->get('/')->assertOk());
 
     expect($html)->toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg">')
@@ -584,4 +586,39 @@ it('adds the hero photo to the BeautySalon image list without a second block', f
     expect($salons)->toHaveCount(1)
         ->and((array) $salons[0]['image'])->toContain(url('images/hero-poster.jpg'));
     expect(metaContent($html, 'og:image'))->toEndWith('/images/og-default.jpg');
+});
+
+
+it('has no image, no poster preload and a full-bleed dark layer before the YouTube hero video', function () {
+    $html = rawHtml($this->get('/')->assertOk());
+    $boot = substr($html, (int) strpos($html, 'id="boot-screen"'), 2500);
+
+    // No picture or image anywhere in the first-paint layer, and no poster preload.
+    expect($boot)->not->toContain('<img')->not->toContain('<picture')
+        ->and($html)->not->toContain('rel="preload" as="image"')
+        ->and($html)->not->toContain('src="/images/hero-poster')->not->toContain('srcset="/images/hero-poster')
+        // Starts at the very top (no 96px ivory strip) and is dark.
+        ->and($html)->toContain('#boot-screen .boot-hero-box{position:absolute;top:0;left:0;width:100%;height:calc(88vh + 96px);height:calc(88svh + 96px)')
+        ->and($html)->toContain('background:#2a2420')
+        // The page H1 is still in the crawlable raw HTML, and the visible heading paints in the boot layer.
+        ->and($html)->toContain('<h1>')
+        ->and($html)->toContain('boot-hero-title')
+        // Only the one embed origin is warmed up; no iframe in the server HTML.
+        ->and($html)->toContain('<link rel="preconnect" href="https://www.youtube-nocookie.com">')
+        ->and($html)->toContain('<link rel="dns-prefetch" href="https://www.youtube-nocookie.com">')
+        ->not->toMatch('/<iframe[^>]*youtube/i');
+});
+
+it('does not preconnect to YouTube on other pages or for the local-file source', function () {
+    expect(rawHtml($this->get('/about')->assertOk()))->not->toContain('youtube-nocookie');
+
+    \App\Models\Setting::create(['key' => 'hero.source', 'value' => 'local', 'group' => 'hero', 'is_encrypted' => false]);
+    expect(rawHtml($this->get('/')->assertOk()))->not->toContain('youtube-nocookie.com">');
+});
+
+it('falls back to the poster boot layer when the stored YouTube link is invalid', function () {
+    \App\Models\Setting::create(['key' => 'hero.youtube_url', 'value' => 'https://evil.example/x', 'group' => 'hero', 'is_encrypted' => false]);
+    $html = rawHtml($this->get('/')->assertOk());
+
+    expect($html)->toContain('<img src="/images/hero-poster.jpg"')->not->toContain('preconnect" href="https://www.youtube');
 });

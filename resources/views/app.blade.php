@@ -64,10 +64,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     @if (request()->routeIs('home'))
-    {{-- The hero poster is the largest thing painted on the homepage: fetch it at top priority, the
-    version that matches the screen (same breakpoint as the <picture> in Home.tsx), WebP only. --}}
-    @php($heroCustom = \App\Support\HeroMedia::resolve()['poster_url'])
-    @if ($heroCustom)
+    @php($heroMedia = \App\Support\HeroMedia::resolve())
+    @php($heroYoutube = ! empty($heroMedia['youtube_id']))
+    @php($heroCustom = $heroMedia['poster_url'])
+    @if ($heroYoutube)
+    {{-- YouTube hero: no image before the video, so no poster preload. Only warm up the one embed origin. --}}
+    <link rel="preconnect" href="https://www.youtube-nocookie.com">
+    <link rel="dns-prefetch" href="https://www.youtube-nocookie.com">
+    @elseif ($heroCustom)
+    {{-- Local-file hero: the poster is the largest thing painted; fetch the one that matches the screen at top priority. --}}
     <link rel="preload" as="image" href="{{ $heroCustom }}" fetchpriority="high">
     @else
     <link rel="preload" as="image" type="image/webp" href="/images/hero-poster-mobile.webp" media="(max-width: 767px)" fetchpriority="high">
@@ -84,7 +89,21 @@
     <style nonce="{{ $cspNonce ?? '' }}">
         #boot-screen{position:fixed;inset:0;z-index:9999;background:#faf7f2;opacity:1;transition:opacity .45s ease;animation:boot-failsafe .01s linear 8s forwards}
         #boot-screen.is-done{opacity:0;pointer-events:none}
-        @if (request()->routeIs('home'))
+        @if (request()->routeIs('home') && ! empty($heroYoutube))
+        /* YouTube hero: a full-bleed dark layer from the very top (under the floating header), no image. The text mirrors the
+           React hero so the heading and buttons paint immediately; the layer is aria-hidden and the real H1 is in #seo-fallback. */
+        #boot-screen .boot-hero-box{position:absolute;top:0;left:0;width:100%;height:calc(88vh + 96px);height:calc(88svh + 96px);overflow:hidden;background:#2a2420;display:flex;align-items:center;justify-content:center;padding:96px 24px 0;box-sizing:border-box}
+        #boot-screen .boot-hero-overlay{position:absolute;inset:0;background:radial-gradient(circle at 75% 22%,rgba(201,166,107,.28),transparent 45%),linear-gradient(180deg,rgba(23,19,17,.72) 0%,rgba(23,19,17,.58) 45%,rgba(23,19,17,.86) 100%)}
+        #boot-screen .boot-hero-text{position:relative;max-width:72rem;width:100%;text-align:center;color:var(--ivory,#faf7f2)}
+        #boot-screen .boot-hero-eyebrow{margin:0 0 24px;font:600 12px/1.33 Inter,system-ui,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#ddc08c}
+        #boot-screen .boot-hero-title{margin:0 auto;max-width:48rem;font:500 36px/1.05 Fraunces,ui-serif,Georgia,serif}
+        #boot-screen .boot-hero-lead{margin:28px auto 0;max-width:36rem;font:400 18px/2rem Inter,system-ui,sans-serif;opacity:.8}
+        #boot-screen .boot-hero-actions{margin-top:40px;display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+        #boot-screen .boot-hero-btn{display:inline-block;padding:14px 28px;border-radius:9999px;font:600 16px/1.25 Inter,system-ui,sans-serif;border:1px solid rgba(250,247,242,.4)}
+        #boot-screen .boot-hero-btn-primary{background:var(--gold,#c9a66b);border-color:var(--gold,#c9a66b);color:#171310}
+        @media (min-width:640px){#boot-screen .boot-hero-title{font-size:60px}}
+        @media (min-width:1024px){#boot-screen .boot-hero-title{font-size:72px}}
+        @elseif (request()->routeIs('home'))
         /* Same box as the React hero section: PublicLayout's <main> has pt-24 (96px, room for the floating header), and the
            hero is min-h-[88svh]. The espresso base colour sits behind the image only; the strip above and below stays page-coloured. */
         #boot-screen .boot-hero-box{position:absolute;top:96px;left:0;width:100%;height:88vh;height:88svh;overflow:hidden;background:#2a2420}
@@ -127,6 +146,15 @@
     alt text matches the React hero's; the layer is aria-hidden so it is never announced twice. No lazy loading. --}}
     <div id="boot-screen" class="boot-hero" aria-hidden="true">
         <div class="boot-hero-box">
+            @if (! empty($heroYoutube))
+            <div class="boot-hero-overlay"></div>
+            <div class="boot-hero-text">
+                <p class="boot-hero-eyebrow">Est. 2014 · Lahore</p>
+                <div class="boot-hero-title">Looks Smart Beauty Salon</div>
+                <p class="boot-hero-lead">A modern sanctuary for premium skin, hair, and bridal artistry in Lahore.</p>
+                <div class="boot-hero-actions"><span class="boot-hero-btn boot-hero-btn-primary">Book Appointment</span><span class="boot-hero-btn">View Services</span></div>
+            </div>
+            @else
             @if (! empty($heroCustom))
             <img src="{{ $heroCustom }}" alt="Inside Looks Smart Beauty Salon, Central Park Housing Scheme, Lahore" width="1600" height="900" fetchpriority="high" decoding="async">
             @else
@@ -138,6 +166,7 @@
             </picture>
             @endif
             <div class="boot-hero-overlay"></div>
+            @endif
         </div>
     </div>
     @else
