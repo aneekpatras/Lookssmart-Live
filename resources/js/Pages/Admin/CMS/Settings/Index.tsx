@@ -160,6 +160,17 @@ function GroupForm({
 }) {
   const { data, setData, transform, put, processing, errors } = useForm<Record<string, string>>(fields);
 
+  // useForm keeps its first values forever. When the server's values change (after a save, or after the hero
+  // upload endpoint selected a new file) load them into the form, so a later Save can never write an old value
+  // back. Unsaved edits are untouched: the props only change when the server's stored values do.
+  const serverValues = JSON.stringify(fields);
+  const syncedValues = React.useRef(serverValues);
+  React.useEffect(() => {
+    if (syncedValues.current === serverValues) return;
+    syncedValues.current = serverValues;
+    setData(JSON.parse(serverValues) as Record<string, string>);
+  }, [serverValues, setData]);
+
   function submit(event: React.FormEvent) {
     event.preventDefault();
     transform((current) => ({
