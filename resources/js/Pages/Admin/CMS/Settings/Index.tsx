@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
+import { useAdminBreadcrumb } from '@/Components/admin/AdminBreadcrumbs';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Switch } from '@/Components/ui/switch';
@@ -1160,7 +1161,27 @@ function SeoSecurityTab({ seo, security }: { seo: Record<string, SettingValue>; 
 }
 
 export default function SettingsIndex({ settings, businessHours, dealOptions, heroMedia }: SettingsIndexPageProps) {
-  const [tab, setTab] = React.useState<TabId>('general');
+  const [tab, setTabState] = React.useState<TabId>('general');
+
+  // The active tab lives in the URL hash (#theme, #hero ...) so reload and Back/Forward keep it.
+  React.useEffect(() => {
+    const fromHash = () => {
+      const id = window.location.hash.replace('#', '');
+      const found = TABS.find((t) => t.id === id);
+      setTabState(found ? found.id : 'general');
+    };
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
+
+    return () => window.removeEventListener('hashchange', fromHash);
+  }, []);
+
+  const setTab = (id: TabId) => {
+    setTabState(id);
+    if (window.location.hash !== `#${id}`) window.history.pushState(null, '', `#${id}`);
+  };
+
+  useAdminBreadcrumb(TABS.find((t) => t.id === tab)?.label ?? null);
 
   return (
     <>

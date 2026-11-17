@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, ChevronsLeft, ChevronsRight, LogOut, Moon, Search, Sun, User } from 'lucide-react';
 import * as React from 'react';
 
+import { AdminBreadcrumbProvider, AdminBreadcrumbs } from '@/Components/admin/AdminBreadcrumbs';
 import { CommandPalette } from '@/Components/admin/CommandPalette';
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import {
@@ -245,25 +246,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [paletteOpen, setPaletteOpen] = React.useState(false);
 
   return (
-    <div className="bg-ivory flex min-h-screen flex-col">
-      {props.auth.impersonating && <ImpersonationBanner by={props.auth.impersonating.by} />}
-      <div className="flex flex-1">
-        <Sidebar collapsed={collapsed} permissions={permissions} />
-        <Toaster />
-        <CommandPalette
-          permissions={permissions}
-          open={paletteOpen}
-          onOpenChange={setPaletteOpen}
-        />
-        <div className="flex flex-1 flex-col">
-          <Topbar
-            collapsed={collapsed}
-            onToggleCollapsed={() => setCollapsed((prev) => !prev)}
-            onOpenPalette={() => setPaletteOpen(true)}
+    <AdminBreadcrumbProvider>
+      <div className="bg-ivory flex min-h-screen flex-col">
+        {props.auth.impersonating && <ImpersonationBanner by={props.auth.impersonating.by} />}
+        <div className="flex flex-1">
+          <Sidebar collapsed={collapsed} permissions={permissions} />
+          <Toaster />
+          <CommandPalette
+            permissions={permissions}
+            open={paletteOpen}
+            onOpenChange={setPaletteOpen}
           />
-          <main className="flex-1 p-6">{children}</main>
+          <div className="flex flex-1 flex-col">
+            <Topbar
+              collapsed={collapsed}
+              onToggleCollapsed={() => setCollapsed((prev) => !prev)}
+              onOpenPalette={() => setPaletteOpen(true)}
+            />
+            <main className="flex-1 p-6">
+              <AdminBreadcrumbs />
+              {children}
+            </main>
+          </div>
         </div>
       </div>
-    </div>
+    </AdminBreadcrumbProvider>
   );
 }
