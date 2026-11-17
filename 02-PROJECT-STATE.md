@@ -7578,6 +7578,11 @@ Cancel from the signed page: /b/<code> has a Cancel booking action (POST only, t
 - Settings-not-applying fix (/theme.css now revalidates on every load and its ?v= hashes the saved values), new Home order (hero, showcase, deals banner, Special Deals, Services), showcase dots moved below the arch.
 - Theme now attaches in-app: an admin opening the public site through an Inertia link gets /theme.css added (and removed again on admin pages); shared prop themeVersion.
 - Audit: no public component bypasses the theme variables (built CSS checked rule by rule); the Auth glow now uses var(--gold); a test guards the brand hex literals.
+- Theme cascade fix: default colours now sit in @layer base and /theme.css emits :root:root, so saved colours always win whatever the CSS load order.
+- Admin settings forms reload from server values after a save or upload (no more stale hero path written back).
+- Settings toast now follows the server's success flash; failures and validation errors show an error toast.
+- Hero uploads go to public/images/hero (no public/storage symlink needed); the file list covers images and images/hero; a saved path whose file is missing shows the poster only.
+- Payment, Twilio, Maps and security fields are marked 'Not used by the website yet'; the temporary SAVE-DEBUG logging was removed.
 
 Open items:
 - Privacy Policy: rewritten on 2026-11-16 from the code; the owner must still review it (see the list of unverified statements in the task report).
