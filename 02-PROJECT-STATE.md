@@ -7577,6 +7577,7 @@ Guest reminders: guests with a booking email are reached through an on-demand ma
 Cancel from the signed page: /b/<code> has a Cancel booking action (POST only, throttled, same CancelBookingAction as everywhere, logged as Cancelled by customer (email link)).
 - Settings-not-applying fix (/theme.css now revalidates on every load and its ?v= hashes the saved values), new Home order (hero, showcase, deals banner, Special Deals, Services), showcase dots moved below the arch.
 - Theme now attaches in-app: an admin opening the public site through an Inertia link gets /theme.css added (and removed again on admin pages); shared prop themeVersion.
+- Audit: no public component bypasses the theme variables (built CSS checked rule by rule); the Auth glow now uses var(--gold); a test guards the brand hex literals.
 
 Open items:
 - Privacy Policy: rewritten on 2026-11-16 from the code; the owner must still review it (see the list of unverified statements in the task report).

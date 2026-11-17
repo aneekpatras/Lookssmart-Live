@@ -102,7 +102,7 @@ export default function AuthLayout({
         <aside className="bg-ink text-ivory relative hidden items-center justify-center overflow-hidden lg:flex">
           <div
             aria-hidden="true"
-            className="absolute -top-32 -right-32 size-[34rem] rounded-full bg-[radial-gradient(closest-side,rgb(201_166_107/0.30),transparent)]"
+            className="absolute -top-32 -right-32 size-[34rem] rounded-full bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--gold)_30%,transparent),transparent)]"
           />
           <div className="relative flex flex-col items-center px-10">
             <div className="relative h-[190px] w-[150px] rounded-t-full rounded-b-lg border-[1.5px] border-accent-500 bg-white/[0.04] motion-safe:animate-[auth-rise_0.5s_ease-out_both]">

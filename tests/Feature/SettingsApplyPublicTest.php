@@ -96,3 +96,30 @@ it('links the theme stylesheet after the app CSS for a guest and for a signed-in
     $this->actingAs($admin)->get('/')->assertInertia(fn ($page) => $page->where('themeVersion', \App\Support\Theme::version()));
     $this->actingAs($admin)->get('/admin/settings')->assertDontSee('id="theme-css"', false);
 });
+
+it('keeps the old brand hex literals out of the public components and the built CSS', function () {
+    $brand = '/#c9a66b|#b8935a|#8a6a35|#f3e8d2|#fbf5e8|#2a2420|#faf7f2|201[ ,_]+166[ ,_]+107|42[ ,_]+36[ ,_]+32/i';
+    $found = [];
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('js'), FilesystemIterator::SKIP_DOTS)) as $file) {
+        $path = str_replace(DIRECTORY_SEPARATOR, '/', $file->getPathname());
+
+        if (! preg_match('/\.tsx?$/', $path) || preg_match('#/(Pages/Admin|Components/admin)/#', $path)) {
+            continue;
+        }
+
+        foreach (file($path) as $n => $line) {
+            // Comments may mention the default shades; only real class names and style values count.
+            if (preg_match($brand, $line) && ! preg_match('#^\s*(\*|//|/\*)#', $line)) {
+                $found[] = basename($path) . ':' . ($n + 1);
+            }
+        }
+    }
+    expect($found)->toBe([]);
+
+    foreach (glob(public_path('build/assets/app-*.css')) ?: [] as $built) {
+        // Only the three default base colours in the :root line may remain, plus the dark admin palette.
+        $css = preg_replace('/:root\{--gold:#c9a66b;--espresso:#2a2420;--ivory:#faf7f2\}/', '', file_get_contents($built));
+        expect(preg_match_all('/#c9a66b|#2a2420|#faf7f2/i', $css))->toBe(0);
+    }
+});
