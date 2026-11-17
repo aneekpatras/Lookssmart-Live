@@ -22,6 +22,10 @@ class HeroMediaController extends Controller
         $kind = $request->input('kind') === 'poster' ? 'poster' : 'video';
         $file = $request->file('file');
 
+        // TEMP SAVE-DEBUG (remove with `git revert`)
+        \Illuminate\Support\Facades\Log::info('SAVE-DEBUG hero upload: incoming', ['method' => $request->method(), 'kind' => $kind, 'hasFile' => $request->hasFile('file'), 'files_superglobal' => array_map(fn ($f) => ['size' => $f['size'] ?? null, 'error' => $f['error'] ?? null, 'name' => $f['name'] ?? null], $_FILES), 'content_length' => $request->server('CONTENT_LENGTH'), 'upload_max_filesize' => ini_get('upload_max_filesize'), 'post_max_size' => ini_get('post_max_size'), 'file_size' => $file?->getSize(), 'upload_err_code' => $file?->getError(), 'upload_err_msg' => $file?->getErrorMessage()]);
+        // END TEMP SAVE-DEBUG
+
         if ($file === null) {
             // PHP drops the whole upload when it is over upload_max_filesize / post_max_size.
             $limits = HeroMedia::phpLimits();
@@ -43,7 +47,11 @@ class HeroMediaController extends Controller
             $key = 'hero.poster_path';
         }
 
+        $debugOld = \App\Models\Setting::get($key);
         $settings->set($key, '/storage/' . $path, 'hero');
+        // TEMP SAVE-DEBUG
+        \Illuminate\Support\Facades\Log::info('SAVE-DEBUG hero upload: stored', ['key' => $key, 'old' => $debugOld, 'new' => '/storage/' . $path, 'read_back' => \App\Models\Setting::get($key), 'file_on_disk' => is_file(public_path('storage/' . $path)), 'cache_key_cleared' => 'settings:all (Setting::saved event)']);
+        // END TEMP SAVE-DEBUG
 
         return back()->with('success', $kind === 'video' ? 'Hero video uploaded and selected.' : 'Hero poster uploaded and selected.');
     }

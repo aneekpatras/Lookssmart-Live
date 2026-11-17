@@ -54,10 +54,19 @@ class SettingController extends Controller
             $this->authorize('create', Setting::class);
         }
 
+        // TEMP SAVE-DEBUG (remove with `git revert`): trace one real save from the UI.
+        \Illuminate\Support\Facades\Log::info('SAVE-DEBUG group save: incoming', ['group' => $group, 'method' => $request->method(), 'real_method' => $_SERVER['REQUEST_METHOD'] ?? null, 'content_type' => $request->header('Content-Type'), 'ip' => $request->ip(), 'keys' => array_keys((array) $request->input('settings', [])), 'values' => collect((array) $request->input('settings', []))->map(fn ($v, $k) => ! empty(SettingService::SCHEMA[$k]['encrypted']) ? '***' : (is_scalar($v) ? mb_substr((string) $v, 0, 120) : gettype($v)))->all()]);
+        $debugBefore = \App\Models\Setting::whereIn('key', array_keys((array) $request->input('settings', [])))->pluck('value', 'key')->map(fn ($v) => is_scalar($v) ? mb_substr((string) $v, 0, 120) : json_encode($v))->all();
+        // END TEMP SAVE-DEBUG
+
         $data = $request->validate(['settings' => ['required', 'array']]);
         $this->validateGroupPayload($group, $data['settings']);
 
         $written = $settingService->updateGroup($group, $data['settings']);
+
+        // TEMP SAVE-DEBUG
+        \Illuminate\Support\Facades\Log::info('SAVE-DEBUG group save: written', ['group' => $group, 'validated_keys' => array_keys($data['settings']), 'written_keys' => $written, 'before' => $debugBefore, 'after' => \App\Models\Setting::whereIn('key', $written)->pluck('value', 'key')->map(fn ($v) => is_scalar($v) ? mb_substr((string) $v, 0, 120) : json_encode($v))->all(), 'cache_key_cleared' => 'settings:all (Setting::saved event), store ' . config('cache.default')]);
+        // END TEMP SAVE-DEBUG
 
         return back()->with('success', count($written) . ' setting(s) saved. Cache cleared.');
     }

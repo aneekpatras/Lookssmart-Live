@@ -195,10 +195,21 @@ class SettingService
     {
         $stored = $encrypted ? Crypt::encryptString((string) $value) : $value;
 
-        return Setting::updateOrCreate(
-            ['key' => $key],
-            ['value' => $stored, 'group' => $group, 'is_encrypted' => $encrypted],
-        );
+        // TEMP SAVE-DEBUG (remove with `git revert`)
+        try {
+            $saved = Setting::updateOrCreate(
+                ['key' => $key],
+                ['value' => $stored, 'group' => $group, 'is_encrypted' => $encrypted],
+            );
+            \Illuminate\Support\Facades\Log::info('SAVE-DEBUG SettingService::set', ['key' => $key, 'group' => $group, 'new' => $encrypted ? '***' : (is_scalar($value) ? mb_substr((string) $value, 0, 120) : json_encode($value)), 'wasRecentlyCreated' => $saved->wasRecentlyCreated, 'wasChanged' => $saved->wasChanged(), 'id' => $saved->id]);
+
+            return $saved;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('SAVE-DEBUG SettingService::set exception', ['key' => $key, 'error' => $e->getMessage()]);
+
+            throw $e;
+        }
+        // END TEMP SAVE-DEBUG
     }
 
     /**
