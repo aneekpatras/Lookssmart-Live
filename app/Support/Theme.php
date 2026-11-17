@@ -74,7 +74,7 @@ class Theme
             return "/* Default theme: the colours in the main stylesheet apply. */\n";
         }
 
-        $lines = [":root {"];
+        $lines = [":root:root {"];
 
         foreach ($values as $name => $hex) {
             $lines[] = "  --{$name}: {$hex};";

@@ -118,8 +118,36 @@ it('keeps the old brand hex literals out of the public components and the built 
     expect($found)->toBe([]);
 
     foreach (glob(public_path('build/assets/app-*.css')) ?: [] as $built) {
-        // Only the three default base colours in the :root line may remain, plus the dark admin palette.
+        // Only the three default base colours (inside @layer base) may remain.
         $css = preg_replace('/:root\{--gold:#c9a66b;--espresso:#2a2420;--ivory:#faf7f2\}/', '', file_get_contents($built));
         expect(preg_match_all('/#c9a66b|#2a2420|#faf7f2/i', $css))->toBe(0);
     }
+});
+
+it('declares the default brand colours only inside a cascade layer, and /theme.css beats them with :root:root', function () {
+    $src = file_get_contents(resource_path('css/app.css'));
+    expect($src)->toMatch('/@layer base \{\s*:root \{\s*--gold: #c9a66b;/');
+    expect(preg_match('/^:root \{\s*--gold/m', $src))->toBe(0);
+
+    foreach (glob(public_path('build/assets/app-*.css')) ?: [] as $built) {
+        $css = file_get_contents($built);
+        $at = strpos($css, '--gold:#c9a66b');
+        expect($at)->not->toBeFalse();
+        // Walk the braces before the declaration: the enclosing at-rule must be @layer.
+        $depth = 0;
+        $stack = [];
+        for ($i = 0; $i < $at; $i++) {
+            if ($css[$i] === '{') {
+                $start = max((int) strrpos(substr($css, 0, $i), '}'), (int) strrpos(substr($css, 0, $i), ';'));
+                $stack[] = trim(substr($css, $start + ($start ? 1 : 0), $i - $start - ($start ? 1 : 0)));
+            } elseif ($css[$i] === '}') {
+                array_pop($stack);
+            }
+        }
+        expect(implode(' > ', $stack))->toStartWith('@layer');
+    }
+
+    $admin = applyAdmin();
+    $this->actingAs($admin)->put('/admin/settings/theme', ['settings' => ['theme.gold' => '#2f7a62', 'theme.espresso' => '#1d2a26', 'theme.ivory' => '#f6f8f5']])->assertSessionHasNoErrors();
+    $this->get('/theme.css')->assertSee(':root:root {', false)->assertSee('--gold: #2f7a62;', false)->assertSee('--espresso: #1d2a26;', false)->assertSee('--ivory: #f6f8f5;', false);
 });

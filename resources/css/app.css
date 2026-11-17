@@ -14,10 +14,14 @@
 /* Brief §6 — minimal luxury: soft neutral base + one warm accent (rose-gold / champagne). */
 /* The three base colours of the public site. Every shade below derives from them; Admin > Settings > Theme
    colours can override these (and the shades) through /theme.css, which is linked on public pages only. */
-:root {
-    --gold: #c9a66b;
-    --espresso: #2a2420;
-    --ivory: #faf7f2;
+/* The defaults live in a cascade layer so ANY unlayered rule (the saved colours in /theme.css) beats them,
+   whatever order the two stylesheets load in. */
+@layer base {
+    :root {
+        --gold: #c9a66b;
+        --espresso: #2a2420;
+        --ivory: #faf7f2;
+    }
 }
 
 @theme {
