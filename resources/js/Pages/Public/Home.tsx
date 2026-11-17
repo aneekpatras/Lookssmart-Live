@@ -262,8 +262,11 @@ function YoutubeFrame({ id, onFail }: { id: string; onFail: () => void }) {
       if (info.state === 1) {
         everPlayed.current = true;
         setPlaying(true);
-      } else if (info.state === 0 || (info.state === 2 && everPlayed.current)) {
-        restart(); // ended or paused by YouTube itself: keep playing, never fade out
+      } else if (info.state !== null) {
+        // Paused, buffering, ended or cued: YouTube draws its own pause icon or spinner in the middle of the
+        // player, so hide the iframe at once and ask it to keep playing. It fades back in when playing again.
+        setPlaying(false);
+        if (everPlayed.current && (info.state === 0 || info.state === 2)) restart();
       }
       if (info.duration > 1 && info.time >= info.duration - 0.6) restart();
     };
@@ -301,7 +304,7 @@ function YoutubeFrame({ id, onFail }: { id: string; onFail: () => void }) {
           YT_ORIGIN,
         );
       }}
-      className={`pointer-events-none absolute top-1/2 left-1/2 h-[max(100cqh,56.25cqw)] w-[max(100cqw,177.78cqh)] max-w-none -translate-x-1/2 -translate-y-1/2 border-0 transition-opacity duration-700 ${playing ? 'opacity-100' : 'opacity-0'}`}
+      className={`pointer-events-none absolute top-1/2 left-1/2 h-[max(100cqh,56.25cqw)] w-[max(100cqw,177.78cqh)] max-w-none -translate-x-1/2 -translate-y-1/2 border-0 transition-opacity ${playing ? 'opacity-100 duration-700' : 'opacity-0 duration-75'}`}
     />
   );
 }
