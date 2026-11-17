@@ -100,6 +100,7 @@ class ShowcaseController extends Controller
             'subtitle' => ['nullable', 'string', 'max:160'],
             'link' => ['nullable', 'string', 'max:255'],
             'focus' => ['required', 'in:top,center'],
+            'fit' => ['nullable', 'in:cover,contain'],
             'image' => [$imageRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
         ]);
 
@@ -109,12 +110,19 @@ class ShowcaseController extends Controller
             throw ValidationException::withMessages(['link' => 'Use a path starting with "/" or an https:// address.']);
         }
 
-        return [
+        $values = [
             'title' => trim(strip_tags($data['title'])),
             'subtitle' => ($sub = trim(strip_tags((string) ($data['subtitle'] ?? '')))) !== '' ? $sub : null,
             'link' => $link !== '' ? $link : null,
             'focus' => $data['focus'],
         ];
+
+        // Only written when the column exists, so saving still works before the SQL has been run.
+        if (Schema::hasColumn('showcase_slides', 'fit')) {
+            $values['fit'] = $data['fit'] ?? 'cover';
+        }
+
+        return $values;
     }
 
     /** @return array<string, mixed> */
@@ -126,6 +134,7 @@ class ShowcaseController extends Controller
             'subtitle' => $slide->subtitle,
             'link' => $slide->link,
             'focus' => $slide->focus,
+            'fit' => ($slide->fit ?? null) === 'contain' ? 'contain' : 'cover',
             'is_active' => $slide->is_active,
             'image_url' => asset('storage/' . $slide->image_path),
         ];

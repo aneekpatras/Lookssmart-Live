@@ -14,6 +14,8 @@ export interface ShowcaseSlide {
   subtitle: string | null;
   link: string | null;
   focus: 'top' | 'center';
+  /** 'contain' shows the whole image over a blurred copy of itself; missing means 'cover'. */
+  fit?: 'cover' | 'contain';
 }
 
 export interface ShowcaseData {
@@ -131,7 +133,7 @@ function ArchSlider({
     <>
       <span className="font-display block text-sm leading-tight font-medium">{current.title}</span>
       {current.subtitle && (
-        <span className="text-ink-muted mt-0.5 block text-[11px] leading-snug">
+        <span className="text-ink/80 mt-0.5 block text-[11px] leading-snug">
           {current.subtitle}
         </span>
       )}
@@ -148,7 +150,7 @@ function ArchSlider({
 
   return (
     <div
-      className="relative mx-auto w-[min(78vw,300px)] lg:w-[360px]"
+      className="relative mx-auto w-[min(85vw,380px)] md:w-[380px] lg:order-1 lg:w-[440px]"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
@@ -163,21 +165,41 @@ function ArchSlider({
     >
       <div className="border-accent-500 bg-surface relative aspect-[3/4] overflow-hidden rounded-t-full rounded-b-xl border-[1.5px]">
         {slides.map((slide, i) => (
-          <img
+          <div
             key={slide.id}
-            src={slide.url}
-            alt={slide.title}
-            width={900}
-            height={1200}
-            loading={i === 0 ? 'eager' : 'lazy'}
-            decoding="async"
             aria-hidden={i === index ? undefined : 'true'}
             className={cn(
-              'absolute inset-0 size-full object-cover transition-opacity duration-[600ms] motion-reduce:transition-none',
-              slide.focus === 'center' ? 'object-center' : 'object-top',
+              'absolute inset-0 transition-opacity duration-[600ms] motion-reduce:transition-none',
               i === index ? 'opacity-100' : 'opacity-0',
             )}
-          />
+          >
+            {slide.fit === 'contain' && (
+              <img
+                src={slide.url}
+                alt=""
+                aria-hidden="true"
+                loading={i === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                className="absolute inset-0 size-full scale-110 object-cover opacity-60 blur-2xl"
+              />
+            )}
+            <img
+              src={slide.url}
+              alt={slide.title}
+              width={900}
+              height={1200}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              className={cn(
+                'absolute inset-0 size-full',
+                slide.fit === 'contain'
+                  ? 'object-contain object-center'
+                  : slide.focus === 'center'
+                    ? 'object-cover object-center'
+                    : 'object-cover object-top',
+              )}
+            />
+          </div>
         ))}
         <div
           aria-hidden="true"
@@ -229,7 +251,7 @@ function ArchSlider({
         <span className="font-display text-accent-700 block text-base leading-tight font-medium">
           {cardTitle}
         </span>
-        <span className="text-ink-muted block text-[11px] leading-snug">{cardLine}</span>
+        <span className="text-ink/80 block text-[11px] leading-snug">{cardLine}</span>
       </div>
     </div>
   );
@@ -249,7 +271,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
           hasImage ? 'lg:grid-cols-2 lg:gap-16' : 'max-w-3xl',
         )}
       >
-        <div>
+        <div className="lg:order-2">
           <p className="border-accent-500/40 bg-accent-500/10 text-accent-700 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold">
             <Heart className="size-3.5" aria-hidden="true" />
             {options.eyebrow}
@@ -258,13 +280,13 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
             <span className="block">{options.heading_1}</span>
             <span className="text-accent-600 block italic">{options.heading_2}</span>
           </h2>
-          <p className="text-ink-muted mt-5 max-w-xl text-base leading-7 sm:text-lg">
+          <p className="text-ink/80 mt-5 max-w-xl text-base leading-7 font-medium sm:text-lg">
             {options.paragraph}
           </p>
 
           {chips.length > 0 && (
             <div className="mt-7">
-              <p className="text-ink-muted text-xs font-semibold tracking-wider uppercase">
+              <p className="text-ink/80 text-xs font-semibold tracking-wider uppercase">
                 {options.chips_label}
               </p>
               <ul className="mt-3 flex flex-wrap gap-2">
@@ -272,7 +294,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
                   <li key={chip.id}>
                     <Link
                       href={`/services#services-category-${chip.id}`}
-                      className="border-border-soft bg-surface hover:border-accent-500 hover:text-accent-700 focus-visible:ring-accent-500 inline-block rounded-full border px-3.5 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                      className="border-border-soft bg-surface hover:border-accent-500 hover:text-accent-700 focus-visible:ring-accent-500 inline-block rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
                     >
                       {chip.name}
                     </Link>
@@ -288,7 +310,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
                 <p className="text-accent-700 text-[11px] font-semibold tracking-wider uppercase">
                   {options.deal_label}
                 </p>
-                <p className="mt-0.5 truncate font-medium">{deal.title}</p>
+                <p className="mt-0.5 truncate font-semibold">{deal.title}</p>
                 <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                   {deal.deal_price && (
                     <span className="font-display text-lg font-medium">
@@ -296,7 +318,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
                     </span>
                   )}
                   {deal.original_price && (
-                    <span className="text-ink-muted text-xs line-through">
+                    <span className="text-ink/80 text-xs line-through">
                       {formatCurrency(deal.original_price)}
                     </span>
                   )}
@@ -306,7 +328,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
                     </span>
                   )}
                 </p>
-                {timing && <p className="text-ink-muted mt-1 text-xs">{timing}</p>}
+                {timing && <p className="text-ink/80 mt-1 text-xs">{timing}</p>}
               </div>
               <Button asChild size="sm" variant="outline">
                 <SmartLink href={options.deal_button_url}>{options.deal_button_label}</SmartLink>
@@ -328,7 +350,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
           </div>
 
           {trust.length > 0 && (
-            <ul className="text-ink-muted mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <ul className="text-ink/80 mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium">
               {trust.map((text) => (
                 <li key={text} className="flex items-center gap-2">
                   <Check className="text-accent-600 size-4" aria-hidden="true" />

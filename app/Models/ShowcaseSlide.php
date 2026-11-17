@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 /** One image in the Home "showcase" slider (Admin > Home showcase). */
 class ShowcaseSlide extends Model
 {
-    protected $fillable = ['image_path', 'title', 'subtitle', 'link', 'focus', 'sort_order', 'is_active'];
+    protected $fillable = ['image_path', 'title', 'subtitle', 'link', 'focus', 'fit', 'sort_order', 'is_active'];
 
     protected function casts(): array
     {

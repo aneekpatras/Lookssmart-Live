@@ -19,6 +19,7 @@ interface SlideRow {
   subtitle: string | null;
   link: string | null;
   focus: 'top' | 'center';
+  fit?: 'cover' | 'contain';
   is_active: boolean;
   image_url: string;
 }
@@ -59,7 +60,8 @@ const SWITCHES = [
 function TextsCard({ options, defaults }: { options: Options; defaults: Options }) {
   const initial: Record<string, string> = {};
   for (const [key, value] of Object.entries(options)) initial[key] = String(value);
-  const { data, setData, transform, put, processing, errors } = useForm<Record<string, string>>(initial);
+  const { data, setData, transform, put, processing, errors } =
+    useForm<Record<string, string>>(initial);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -82,8 +84,8 @@ function TextsCard({ options, defaults }: { options: Options; defaults: Options 
         <div>
           <h2 className="font-display text-ink text-lg font-medium">Section texts and options</h2>
           <p className="text-ink-muted text-sm">
-            Plain text only. Links must start with &ldquo;/&rdquo; or &ldquo;https://&rdquo;. Leave a
-            field empty to use the default.
+            Plain text only. Links must start with &ldquo;/&rdquo; or &ldquo;https://&rdquo;. Leave
+            a field empty to use the default.
           </p>
         </div>
         <form onSubmit={submit} className="space-y-4">
@@ -100,7 +102,10 @@ function TextsCard({ options, defaults }: { options: Options; defaults: Options 
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {TEXT_FIELDS.map((field) => (
-              <div key={field.key} className={field.area ? 'space-y-1.5 sm:col-span-2' : 'space-y-1.5'}>
+              <div
+                key={field.key}
+                className={field.area ? 'space-y-1.5 sm:col-span-2' : 'space-y-1.5'}
+              >
                 <Label htmlFor={`sc-${field.key}`}>{field.label}</Label>
                 {field.area ? (
                   <Textarea
@@ -153,6 +158,7 @@ function SlideForm({ slide, onDone }: { slide: SlideRow | null; onDone: () => vo
     subtitle: slide?.subtitle ?? '',
     link: slide?.link ?? '',
     focus: slide?.focus ?? 'top',
+    fit: slide?.fit ?? 'cover',
     image: null as File | null,
     _method: slide ? 'put' : 'post',
   });
@@ -181,8 +187,8 @@ function SlideForm({ slide, onDone }: { slide: SlideRow | null; onDone: () => vo
           onChange={(e) => setData('image', e.target.files?.[0] ?? null)}
         />
         <p className="text-ink-muted text-xs">
-          Use a full portrait of the bride so the whole look fits. A portrait 3:4 image at least 900px
-          wide works best.
+          Use a full portrait of the bride so the whole look fits. A portrait 3:4 image at least
+          900px wide works best.
         </p>
         {errors.image && <p className="text-sm text-red-600">{errors.image}</p>}
       </div>
@@ -229,6 +235,22 @@ function SlideForm({ slide, onDone }: { slide: SlideRow | null; onDone: () => vo
             <option value="top">Top (keeps the face visible)</option>
             <option value="center">Center</option>
           </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="sl-fit">Image fit</Label>
+          <select
+            id="sl-fit"
+            value={data.fit}
+            onChange={(e) => setData('fit', e.target.value as 'cover' | 'contain')}
+            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+          >
+            <option value="cover">Fill the frame</option>
+            <option value="contain">Show whole image</option>
+          </select>
+          <p className="text-ink-muted text-xs">
+            Best results: portrait 3:4, at least 900px wide. Wide photos: choose &apos;Show whole
+            image&apos;.
+          </p>
         </div>
       </div>
       <div className="flex gap-2">
@@ -300,7 +322,9 @@ function SlidesCard({ slides, tableReady }: { slides: SlideRow[]; tableReady: bo
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{slide.title}</p>
-                {slide.subtitle && <p className="text-ink-muted truncate text-xs">{slide.subtitle}</p>}
+                {slide.subtitle && (
+                  <p className="text-ink-muted truncate text-xs">{slide.subtitle}</p>
+                )}
               </div>
               <div className="flex items-center gap-2 text-xs">
                 <Switch

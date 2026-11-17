@@ -129,3 +129,35 @@ it('shows the admin page to cms managers only', function () {
     $this->get('/admin/showcase')->assertRedirect();
     $this->actingAs(showcaseAdmin())->get('/admin/showcase')->assertOk();
 });
+
+it('defaults a slide to cover and passes contain through to the Home props', function () {
+    ShowcaseSlide::create(['image_path' => 'showcase/a.jpg', 'title' => 'Default', 'sort_order' => 1, 'focus' => 'top', 'is_active' => true]);
+    ShowcaseSlide::create(['image_path' => 'showcase/b.jpg', 'title' => 'Wide', 'sort_order' => 2, 'focus' => 'top', 'fit' => 'contain', 'is_active' => true]);
+
+    $this->get('/')->assertOk()->assertInertia(fn ($page) => $page
+        ->where('showcase.slides.0.fit', 'cover')
+        ->where('showcase.slides.1.fit', 'contain'));
+});
+
+it('validates and saves the image fit of a slide', function () {
+    Storage::fake('public');
+    $admin = showcaseAdmin();
+    $image = fn () => UploadedFile::fake()->image('a.jpg', 900, 1200);
+
+    $this->actingAs($admin)->post('/admin/showcase/slides', ['title' => 'Bad fit', 'focus' => 'top', 'fit' => 'stretch', 'image' => $image()])->assertSessionHasErrors('fit');
+    $this->actingAs($admin)->post('/admin/showcase/slides', ['title' => 'Wide', 'focus' => 'top', 'fit' => 'contain', 'image' => $image()])->assertSessionHasNoErrors();
+    $this->actingAs($admin)->post('/admin/showcase/slides', ['title' => 'No fit sent', 'focus' => 'top', 'image' => $image()])->assertSessionHasNoErrors();
+
+    expect(ShowcaseSlide::where('title', 'Wide')->value('fit'))->toBe('contain')
+        ->and(ShowcaseSlide::where('title', 'No fit sent')->value('fit'))->toBe('cover');
+});
+
+it('still renders Home and saves slides when the fit column does not exist yet', function () {
+    Schema::table('showcase_slides', fn ($t) => $t->dropColumn('fit'));
+    Storage::fake('public');
+    ShowcaseSlide::create(['image_path' => 'showcase/a.jpg', 'title' => 'Old', 'sort_order' => 1, 'focus' => 'top', 'is_active' => true]);
+
+    $this->get('/')->assertOk()->assertInertia(fn ($page) => $page->where('showcase.slides.0.fit', 'cover'));
+    $this->actingAs(showcaseAdmin())->post('/admin/showcase/slides', ['title' => 'New', 'focus' => 'top', 'fit' => 'contain', 'image' => UploadedFile::fake()->image('a.jpg', 900, 1200)])->assertSessionHasNoErrors();
+    $this->actingAs(showcaseAdmin())->get('/admin/showcase')->assertOk();
+});

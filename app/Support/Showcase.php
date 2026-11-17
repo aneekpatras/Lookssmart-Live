@@ -120,6 +120,8 @@ class Showcase
                 'subtitle' => $slide->subtitle,
                 'link' => $slide->link && self::validLink($slide->link) ? $slide->link : null,
                 'focus' => $slide->focus === 'center' ? 'center' : 'top',
+                // A missing column (before the SQL is run) reads as null, which means cover.
+                'fit' => ($slide->fit ?? null) === 'contain' ? 'contain' : 'cover',
             ])->all();
         }
 
