@@ -17,7 +17,7 @@
         "mews/purifier": "^3.4",
         "sentry/sentry-laravel": "*",
         "spatie/laravel-activitylog": "^4.12",
-        "spatie/laravel-backup": "^9.3",
+        "spatie/laravel-backup": "^10.4",
         "spatie/laravel-medialibrary": "^11.23",
         "spatie/laravel-permission": "^6.25",
         "spatie/laravel-sitemap": "^7.0",
