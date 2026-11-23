@@ -236,7 +236,7 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
               size="sm"
               variant="outline"
               className="h-8 px-1.5 text-[11px] sm:px-2 sm:text-xs"
-              checkClassName="hidden size-3.5 sm:block"
+              checkClassName="size-3.5"
               tabIndex={duplicate ? -1 : undefined}
               input={{
                 kind: 'deal',
@@ -247,7 +247,7 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
                 dealPrice: deal.deal_price,
               }}
             >
-              <Plus className="hidden size-3.5 sm:block" aria-hidden="true" /> Add to Cart
+              <Plus className="size-3.5" aria-hidden="true" /> Add
             </CartAddButton>
             <Button
               asChild

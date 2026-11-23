@@ -289,9 +289,9 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
               <p className="text-ink/80 text-xs font-semibold tracking-wider uppercase">
                 {options.chips_label}
               </p>
-              <ul className="mt-3 flex flex-wrap gap-2">
+              <ul className="-mx-6 mt-3 flex [scrollbar-width:none] gap-2 overflow-x-auto px-6 pb-1 whitespace-nowrap sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
                 {chips.map((chip) => (
-                  <li key={chip.id}>
+                  <li key={chip.id} className="shrink-0">
                     <Link
                       href={`/services#services-category-${chip.id}`}
                       className="border-border-soft bg-surface hover:border-accent-500 hover:text-accent-700 focus-visible:ring-accent-500 inline-block rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
