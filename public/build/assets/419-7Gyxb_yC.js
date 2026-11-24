@@ -1,0 +1,1 @@
+import{j as r}from"./vendor-react-BFq0BCjG.js";import{ErrorPage as e}from"./Layout-DqZQ8HG3.js";import"./vendor-inertia-BhKfShKc.js";import"./app-Detik1Xe.js";/* empty css            */function a(){return r.jsx(e,{code:"419",title:"Session expired",description:"Your session expired for your security. Please refresh the page and try again."})}export{a as default};

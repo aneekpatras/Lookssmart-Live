@@ -1,9 +1,9 @@
-import axios from 'axios';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
 import * as React from 'react';
 
 import { CancelBookingDialog } from '@/Components/CancelBookingDialog';
+import { RescheduleDialog } from '@/Components/RescheduleDialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -11,6 +11,7 @@ import { EmptyState } from '@/Components/ui/empty-state';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { formatKarachi } from '@/lib/adminFormat';
 import { formatCurrency } from '@/lib/currency';
 
 interface PageProps {
@@ -39,6 +40,8 @@ interface Booking {
   services: string[];
   total: string;
   can_cancel: boolean;
+  can_reschedule: boolean;
+  reschedule_note: string | null;
   within_cancellation_fee_window: boolean;
 }
 
@@ -171,19 +174,93 @@ function PreferencesForm({ profile }: { profile: Preferences }) {
 }
 
 function BookingRow({ booking }: { booking: Booking }) {
-  const [rescheduleAt, setRescheduleAt] = React.useState('');
-  const [busy, setBusy] = React.useState(false);
   const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = React.useState(false);
+  const whatsapp = usePage<{ site?: { whatsapp_url?: string } }>().props.site?.whatsapp_url;
 
-  async function reschedule() {
-    if (!rescheduleAt) return;
-    setBusy(true);
-    await axios.post(`/api/booking/${booking.code}/reschedule`, { staff_id: booking.staff_id, starts_at: rescheduleAt, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
-    router.reload({ only: ['bookings', 'upcoming'] });
-    setBusy(false);
-  }
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-lg">{booking.services.join(', ') || 'Appointment'}</h3>
+            <Badge
+              variant={
+                booking.status === 'cancelled'
+                  ? 'destructive'
+                  : booking.status === 'completed' || booking.status === 'confirmed'
+                    ? 'success'
+                    : 'outline'
+              }
+            >
+              {booking.status.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+            </Badge>
+          </div>
+          <p className="text-ink-muted mt-2 text-sm">
+            {booking.starts_at ? formatKarachi(booking.starts_at, true) : 'Date pending'} ·{' '}
+            <span className="font-mono">{booking.code}</span>
+          </p>
+          <p className="text-ink mt-1 text-sm font-medium">{formatCurrency(booking.total)}</p>
+        </div>
 
-  return <Card><CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between"><div><div className="flex items-center gap-3"><h3 className="text-lg">{booking.services.join(', ') || 'Appointment'}</h3><Badge variant={booking.status === 'cancelled' ? 'destructive' : booking.status === 'completed' ? 'success' : 'outline'}>{booking.status}</Badge></div><p className="text-ink-muted mt-2 text-sm">{booking.starts_at ? new Date(booking.starts_at).toLocaleString() : 'Date pending'} · {booking.code}</p><p className="text-ink mt-1 text-sm font-medium">{formatCurrency(booking.total)}</p></div>{booking.can_cancel && <div className="flex flex-wrap items-center gap-2"><Input aria-label={`New time for ${booking.code}`} type="datetime-local" value={rescheduleAt} onChange={(event) => setRescheduleAt(event.target.value)} className="w-52" /><Button size="sm" variant="outline" disabled={busy || !rescheduleAt} onClick={() => void reschedule()}>Reschedule</Button><Button size="sm" variant="destructive" disabled={busy} onClick={() => setCancelOpen(true)}>Cancel</Button></div>}</CardContent>{booking.can_cancel && <CancelBookingDialog booking={booking} open={cancelOpen} onOpenChange={setCancelOpen} onCancelled={() => router.reload({ only: ['bookings', 'upcoming'] })} />}</Card>;
+        {(booking.can_reschedule || booking.can_cancel) && (
+          <div className="flex items-center gap-2">
+            {booking.can_reschedule && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-accent-500 text-accent-700 hover:bg-accent-50"
+                onClick={() => setRescheduleOpen(true)}
+              >
+                Reschedule
+              </Button>
+            )}
+            {booking.can_cancel && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-ink-muted h-8 px-3 text-xs"
+                onClick={() => setCancelOpen(true)}
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+        )}
+        {!booking.can_reschedule && booking.reschedule_note && (
+          <p className="text-ink-muted text-xs md:max-w-60">
+            {booking.reschedule_note}{' '}
+            {whatsapp && (
+              <a href={whatsapp} className="text-accent-700 underline">
+                WhatsApp us
+              </a>
+            )}
+          </p>
+        )}
+      </CardContent>
+
+      {booking.can_reschedule && booking.starts_at && (
+        <RescheduleDialog
+          open={rescheduleOpen}
+          onOpenChange={setRescheduleOpen}
+          slotsUrl={`/my-bookings/${booking.code}/slots`}
+          rescheduleUrl={`/my-bookings/${booking.code}/reschedule`}
+          currentStartsAt={booking.starts_at}
+          whatsappUrl={whatsapp}
+          onMoved={() => router.reload({ only: ['bookings', 'upcoming'] })}
+        />
+      )}
+
+      {booking.can_cancel && (
+        <CancelBookingDialog
+          booking={booking}
+          open={cancelOpen}
+          onOpenChange={setCancelOpen}
+          onCancelled={() => router.reload({ only: ['bookings', 'upcoming'] })}
+        />
+      )}
+    </Card>
+  );
 }
 
 export default function Profile() {

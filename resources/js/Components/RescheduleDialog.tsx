@@ -146,7 +146,7 @@ export function RescheduleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" data-lenis-prevent>
         <DialogHeader>
           <DialogTitle>Reschedule your booking</DialogTitle>
           <DialogDescription>
@@ -167,7 +167,10 @@ export function RescheduleDialog({
             className="mt-2 max-w-xs"
           />
 
-          <div className="border-border-soft mt-4 max-h-64 space-y-4 overflow-y-auto rounded-lg border p-3">
+          <div
+            data-lenis-prevent
+            className="border-border-soft mt-4 max-h-64 space-y-4 overflow-y-auto overscroll-contain rounded-lg border p-3"
+          >
             {busy && slots.length === 0 && (
               <div className="flex justify-center py-6">
                 <LoadingDots label="Loading available times" />

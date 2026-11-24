@@ -1,1 +1,0 @@
-import{j as r}from"./vendor-react-BFq0BCjG.js";import{ErrorPage as o}from"./Layout-CuGdiQsv.js";import"./vendor-inertia-BhKfShKc.js";import"./app-BF0pulK7.js";/* empty css            */function p(){return r.jsx(o,{code:"500",title:"Something went wrong",description:"An unexpected error occurred on our end. Please try again in a moment."})}export{p as default};
