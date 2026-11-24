@@ -271,7 +271,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
           hasImage ? 'lg:grid-cols-2 lg:gap-16' : 'max-w-3xl',
         )}
       >
-        <div>
+        <div className="min-w-0">
           <p className="border-accent-500/40 bg-accent-500/10 text-accent-700 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold">
             <Heart className="size-3.5" aria-hidden="true" />
             {options.eyebrow}
@@ -285,7 +285,7 @@ export function HomeShowcase({ showcase }: { showcase: ShowcaseData }) {
           </p>
 
           {chips.length > 0 && (
-            <div className="mt-7">
+            <div className="mt-7 min-w-0">
               <p className="text-ink/80 text-xs font-semibold tracking-wider uppercase">
                 {options.chips_label}
               </p>
