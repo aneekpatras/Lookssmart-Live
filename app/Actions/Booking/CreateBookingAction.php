@@ -128,13 +128,31 @@ class CreateBookingAction
                     'created_at' => now(),
                 ]);
 
+                // One redemption per cart deal (its own discount), plus one for a coupon/auto-apply deal
+                // carrying whatever part of the total discount the cart deals did not account for.
+                $dealLines = $quote['deal_lines'] ?? [];
+                $dealLinesTotal = round((float) collect($dealLines)->sum('discount'), 2);
+
                 if ($quote['deal_id']) {
                     DealRedemption::create([
                         'deal_id' => $quote['deal_id'],
                         'customer_id' => $resolvedCustomerId,
                         'booking_id' => $booking->id,
                         'code_used' => $quote['code'],
-                        'discount_amount' => $quote['discount'],
+                        'discount_amount' => $dealLines === []
+                            ? $quote['discount']
+                            : max(0, round((float) $quote['discount'] - $dealLinesTotal, 2)),
+                        'redeemed_at' => now(),
+                    ]);
+                }
+
+                foreach ($dealLines as $line) {
+                    DealRedemption::create([
+                        'deal_id' => $line['deal_id'],
+                        'customer_id' => $resolvedCustomerId,
+                        'booking_id' => $booking->id,
+                        'code_used' => \App\Models\Deal::whereKey($line['deal_id'])->value('code'),
+                        'discount_amount' => $line['discount'],
                         'redeemed_at' => now(),
                     ]);
                 }

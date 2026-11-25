@@ -18,6 +18,16 @@ interface Booking {
   starts_at: string | null;
   ends_at: string | null;
   services: string[];
+  items: { service_id: number; name: string; duration_min: number; price: string }[];
+  deals: {
+    title: string;
+    service_ids: number[];
+    catalog_price: string;
+    discount: string;
+    price: string;
+  }[];
+  subtotal: string;
+  discount: string;
   total: string;
   can_cancel: boolean;
   can_reschedule: boolean;
@@ -47,58 +57,141 @@ function BookingCard({ booking }: { booking: Booking }) {
   const [rescheduleOpen, setRescheduleOpen] = React.useState(false);
   const whatsapp = usePage<{ site?: { whatsapp_url?: string } }>().props.site?.whatsapp_url;
 
+  // A short title instead of every service name run together: the service itself when there is one,
+  // otherwise a count ("5 services · 2 deals"). The full list sits in the breakdown below.
+  const dealCount = booking.deals.length;
+  const title =
+    booking.items.length === 1
+      ? (booking.items[0]?.name ?? 'Appointment')
+      : booking.items.length > 1
+        ? `${booking.items.length} services${dealCount ? ` · ${dealCount} ${dealCount === 1 ? 'deal' : 'deals'}` : ''}`
+        : 'Appointment';
+
+  // Rows: each deal (with its services listed under it), then every service booked on its own.
+  const inDeal = new Set(booking.deals.flatMap((deal) => deal.service_ids));
+  const dealServices = (deal: Booking['deals'][number]) =>
+    booking.items.filter((item) => deal.service_ids.includes(item.service_id));
+  const singles = booking.items.filter((item) => !inDeal.has(item.service_id));
+  const hasDiscount = Number(booking.discount) > 0;
+
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h3 className="text-lg">{booking.services.join(', ') || 'Appointment'}</h3>
-            <Badge variant={STATUS_VARIANT[booking.status] ?? 'outline'}>
-              {statusLabel(booking.status)}
-            </Badge>
+      <CardContent className="flex flex-col gap-5 p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="text-lg">{title}</h3>
+              <Badge variant={STATUS_VARIANT[booking.status] ?? 'outline'}>
+                {statusLabel(booking.status)}
+              </Badge>
+            </div>
+            <p className="text-ink-muted mt-2 text-sm">
+              {booking.starts_at ? formatKarachi(booking.starts_at, true) : 'Date pending'} ·{' '}
+              <span className="font-mono">{booking.code}</span>
+            </p>
           </div>
-          <p className="text-ink-muted mt-2 text-sm">
-            {booking.starts_at ? formatKarachi(booking.starts_at, true) : 'Date pending'} ·{' '}
-            <span className="font-mono">{booking.code}</span>
-          </p>
-          <p className="text-ink mt-1 text-sm font-medium">{formatCurrency(booking.total)}</p>
+
+          {(booking.can_reschedule || booking.can_cancel) && (
+            <div className="flex flex-col items-start gap-2 md:items-end">
+              <div className="flex items-center gap-2">
+                {booking.can_reschedule && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-accent-500 text-accent-700 hover:bg-accent-50"
+                    onClick={() => setRescheduleOpen(true)}
+                  >
+                    Reschedule
+                  </Button>
+                )}
+                {booking.can_cancel && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-ink-muted h-8 px-3 text-xs"
+                    onClick={() => setCancelOpen(true)}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          {!booking.can_reschedule && booking.reschedule_note && (
+            <p className="text-ink-muted text-xs md:max-w-60">
+              {booking.reschedule_note}{' '}
+              {whatsapp && (
+                <a href={whatsapp} className="text-accent-700 underline">
+                  WhatsApp us
+                </a>
+              )}
+            </p>
+          )}
         </div>
 
-        {(booking.can_reschedule || booking.can_cancel) && (
-          <div className="flex flex-col items-start gap-2 md:items-end">
-            <div className="flex items-center gap-2">
-              {booking.can_reschedule && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-accent-500 text-accent-700 hover:bg-accent-50"
-                  onClick={() => setRescheduleOpen(true)}
+        {booking.items.length > 0 && (
+          <div className="border-border-soft rounded-lg border">
+            <ul className="divide-border-soft divide-y text-sm">
+              {booking.deals.map((deal) => (
+                <li key={`deal-${deal.title}`} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Badge variant="outline" className="mb-1">
+                        Deal
+                      </Badge>
+                      <p className="text-ink font-medium">{deal.title}</p>
+                    </div>
+                    <p className="shrink-0 text-right tabular-nums">
+                      {Number(deal.discount) > 0 && (
+                        <span className="text-ink-muted block text-xs line-through">
+                          {formatCurrency(deal.catalog_price)}
+                        </span>
+                      )}
+                      <span className="text-ink font-medium">{formatCurrency(deal.price)}</span>
+                    </p>
+                  </div>
+                  <ul className="text-ink-muted mt-2 space-y-1 text-xs">
+                    {dealServices(deal).map((item) => (
+                      <li key={item.service_id} className="flex justify-between gap-3">
+                        <span className="min-w-0 truncate">{item.name}</span>
+                        <span className="shrink-0">{item.duration_min} min</span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+              {singles.map((item) => (
+                <li
+                  key={item.service_id}
+                  className="flex items-start justify-between gap-3 px-4 py-3"
                 >
-                  Reschedule
-                </Button>
+                  <div className="min-w-0">
+                    <p className="text-ink font-medium">{item.name}</p>
+                    <p className="text-ink-muted text-xs">{item.duration_min} min</p>
+                  </div>
+                  <p className="text-ink shrink-0 tabular-nums">{formatCurrency(item.price)}</p>
+                </li>
+              ))}
+            </ul>
+            <div className="border-border-soft bg-surface space-y-1 rounded-b-lg border-t px-4 py-3 text-sm">
+              {hasDiscount && booking.deals.length === 0 && (
+                <>
+                  <p className="text-ink-muted flex justify-between">
+                    <span>Subtotal</span>
+                    <span className="tabular-nums">{formatCurrency(booking.subtotal)}</span>
+                  </p>
+                  <p className="flex justify-between text-emerald-700">
+                    <span>Discount</span>
+                    <span className="tabular-nums">−{formatCurrency(booking.discount)}</span>
+                  </p>
+                </>
               )}
-              {booking.can_cancel && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-ink-muted h-8 px-3 text-xs"
-                  onClick={() => setCancelOpen(true)}
-                >
-                  Cancel
-                </Button>
-              )}
+              <p className="text-ink flex justify-between font-semibold">
+                <span>Total</span>
+                <span className="tabular-nums">{formatCurrency(booking.total)}</span>
+              </p>
             </div>
           </div>
-        )}
-        {!booking.can_reschedule && booking.reschedule_note && (
-          <p className="text-ink-muted text-xs md:max-w-60">
-            {booking.reschedule_note}{' '}
-            {whatsapp && (
-              <a href={whatsapp} className="text-accent-700 underline">
-                WhatsApp us
-              </a>
-            )}
-          </p>
         )}
       </CardContent>
 
@@ -135,13 +228,11 @@ export default function Bookings({ bookings }: BookingsProps) {
 
       <div className="mx-auto max-w-4xl space-y-6 px-6 py-16">
         <div>
-          <p className="text-accent-700 text-sm font-semibold uppercase tracking-[0.18em]">
+          <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
             Your appointments
           </p>
           <h1 className="font-display text-ink mt-2 text-4xl font-medium">My Bookings</h1>
-          <p className="text-ink-muted mt-3 text-sm">
-            {cancelPolicy}
-          </p>
+          <p className="text-ink-muted mt-3 text-sm">{cancelPolicy}</p>
         </div>
 
         <div className="space-y-4">
@@ -161,7 +252,11 @@ export default function Bookings({ bookings }: BookingsProps) {
               variant="outline"
               disabled={bookings.current_page === 1}
               onClick={() =>
-                router.get('/my-bookings', { page: bookings.current_page - 1 }, { preserveState: true })
+                router.get(
+                  '/my-bookings',
+                  { page: bookings.current_page - 1 },
+                  { preserveState: true },
+                )
               }
             >
               Previous
@@ -173,7 +268,11 @@ export default function Bookings({ bookings }: BookingsProps) {
               variant="outline"
               disabled={bookings.current_page === bookings.last_page}
               onClick={() =>
-                router.get('/my-bookings', { page: bookings.current_page + 1 }, { preserveState: true })
+                router.get(
+                  '/my-bookings',
+                  { page: bookings.current_page + 1 },
+                  { preserveState: true },
+                )
               }
             >
               Next

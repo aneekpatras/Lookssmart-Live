@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/Components/ui/dialog';
+import { claimDealInCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 
 export interface DealShowcase {
@@ -61,7 +62,7 @@ export function DealDetailsModal({ deal, open, onOpenChange, whatsappUrl }: Deal
 
         <DialogHeader>
           {deal.category_tag && (
-            <span className="bg-accent-50 text-accent-700 inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider">
+            <span className="bg-accent-50 text-accent-700 inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold tracking-wider uppercase">
               {deal.category_tag}
             </span>
           )}
@@ -69,9 +70,7 @@ export function DealDetailsModal({ deal, open, onOpenChange, whatsappUrl }: Deal
           {deal.subtitle && <DialogDescription>{deal.subtitle}</DialogDescription>}
         </DialogHeader>
 
-        {deal.description && (
-          <p className="text-ink-muted text-sm leading-6">{deal.description}</p>
-        )}
+        {deal.description && <p className="text-ink-muted text-sm leading-6">{deal.description}</p>}
 
         {deal.included_services.length > 0 && (
           <div>
@@ -118,7 +117,7 @@ export function DealDetailsModal({ deal, open, onOpenChange, whatsappUrl }: Deal
 
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
           <Button asChild variant="accent" className="shrink-0 sm:flex-1">
-            <Link href={deal.claim_url} prefetch>
+            <Link href={deal.claim_url} prefetch onClick={() => claimDealInCart(deal)}>
               Claim Offer Now <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </Button>

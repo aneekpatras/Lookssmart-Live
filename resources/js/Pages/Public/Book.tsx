@@ -3,9 +3,15 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Check, LoaderCircle, Search, Sparkles, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
-import { Honeypot } from '@/Components/auth/AuthFields';
+import {
+  Honeypot,
+  MatchTick,
+  PasswordChecklist,
+  PasswordInput,
+} from '@/Components/auth/AuthFields';
 import { PHONE_MESSAGE, displayPhone, normalizePhone } from '@/lib/phone';
 import { saveIncompleteBooking, track, trackingSessionId } from '@/lib/track';
+import { useCartItems } from '@/Components/CartAddButton';
 import { CategoryPillBar } from '@/Components/CategoryPillBar';
 import { LoadingDots } from '@/Components/LoadingDots';
 import { SeoHead } from '@/Components/SeoHead';
@@ -18,7 +24,10 @@ import { Textarea } from '@/Components/ui/textarea';
 import PublicLayout from '@/Layouts/PublicLayout';
 import {
   CART_CHANGED_EVENT,
+  addItemsToCart,
   clearCart,
+  dealBundleToCartItems,
+  groupCartRows,
   getCartItems,
   notifyCartAdded,
   setCartItems,
@@ -62,6 +71,8 @@ interface BookableDeal {
   code: string | null;
   bundled_services: { id: number; name: string; price: string; image_url: string | null }[];
   image_url?: string | null;
+  category_tag?: string | null;
+  is_top_deal?: boolean;
 }
 interface BookProps {
   services: Service[];
@@ -73,7 +84,17 @@ interface BookProps {
 }
 
 const SERVICES_TOP_ANCHOR = 'book-services-top';
-const DEALS_SECTION_ID = 'book-deals';
+/** Deal category tags in display order (mirrors the server's `Deal::CATEGORY_TAGS`). */
+const DEAL_TAG_ORDER = [
+  'Top Deals',
+  'Hair Deals',
+  'Makeup Deals',
+  'Skin Deals',
+  'Combo Deals',
+  'Referral Deals',
+];
+const dealSectionId = (tag: string) =>
+  `book-deals-${tag.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
 /** Prepends the chosen gallery look (its specialty text and image URL) to the booking notes. */
 function withLookNote(notes: string, look?: BookProps['look']): string {
@@ -146,11 +167,25 @@ export default function Book({ services, categories, deals, authUser, look, faqH
   // there both land in the same cart on /book rather than the second visit wiping out the first. Both
   // sources are validated against the real services list: a stale or hand-edited id is silently
   // dropped instead of poisoning the selection with one the quote endpoint would later reject.
+  // "Claim Offer" links carry the deal's own `?code=`. When it matches a real deal, that deal's
+  // bookable services are MERGED into whatever the cart already holds (nothing is removed, no
+  // duplicates); the sync effect below writes them with their deal metadata.
+  const [claimedDeal] = React.useState<BookableDeal | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const claimCode = new URLSearchParams(window.location.search).get('code');
+    const deal = claimCode ? deals.find((candidate) => candidate.code === claimCode) : undefined;
+    return deal && deal.bundled_services.some((s) => services.some((svc) => svc.id === s.id))
+      ? deal
+      : null;
+  });
+  const claimPending = React.useRef(true);
   const [selected, setSelected] = React.useState<number[]>(() => {
     if (typeof window === 'undefined') return [];
-    const fromUrl = new URLSearchParams(window.location.search).getAll('service').map(Number);
-    const combined = [...getCartItems().map((item) => item.id), ...fromUrl].filter((id) =>
-      services.some((service) => service.id === id),
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.getAll('service').map(Number);
+    const claimedIds = claimedDeal ? claimedDeal.bundled_services.map((service) => service.id) : [];
+    const combined = [...getCartItems().map((item) => item.id), ...claimedIds, ...fromUrl].filter(
+      (id) => services.some((service) => service.id === id),
     );
     return Array.from(new Set(combined));
   });
@@ -160,17 +195,35 @@ export default function Book({ services, categories, deals, authUser, look, faqH
   // written as real display items (name/price/thumbnail), not bare ids, so the redesigned sidebar and
   // the header drawer can render a real line-item list without an extra round trip.
   React.useEffect(() => {
+    const picked = services.filter((service) => selected.includes(service.id));
+    if (claimPending.current && claimedDeal) {
+      // First sync after a "Claim Offer" landing: add the deal's services (deal id/label, discounted
+      // prices) on top of the existing cart. A service already in the cart is updated, not duplicated.
+      claimPending.current = false;
+      const pickedIds = new Set(picked.map((service) => service.id));
+      addItemsToCart(
+        dealBundleToCartItems(
+          claimedDeal.bundled_services.filter((service) => pickedIds.has(service.id)),
+          claimedDeal.original_price,
+          claimedDeal.deal_price,
+          claimedDeal.id,
+          claimedDeal.title,
+        ),
+      );
+    }
+    // Keep whatever the cart already knows about an item (deal id/label, discounted price,
+    // original price) instead of overwriting it with the plain catalog price.
+    const existing = new Map(getCartItems().map((item) => [item.id, item]));
     setCartItems(
-      services
-        .filter((service) => selected.includes(service.id))
-        .map((service) => ({
-          id: service.id,
-          name: service.name,
-          price: service.price,
-          image_url: service.image_url,
-        })),
+      picked.map((service) => ({
+        ...existing.get(service.id),
+        id: service.id,
+        name: service.name,
+        price: existing.get(service.id)?.price ?? service.price,
+        image_url: service.image_url,
+      })),
     );
-  }, [selected, services]);
+  }, [selected, services, claimedDeal]);
   // Items removed from the header cart drawer (one by one, or "Clear all") must stop showing as Added.
   React.useEffect(() => {
     function syncRemovals() {
@@ -208,6 +261,14 @@ export default function Book({ services, categories, deals, authUser, look, faqH
     subject: '',
     notes: '',
     website: '', // honeypot: always empty for a real visitor
+    // Optional account creation (guests only): off by default, so a normal booking is unchanged.
+    createAccount: false,
+    password: '',
+    passwordConfirmation: '',
+  });
+  const [accountNote, setAccountNote] = React.useState<{ created: boolean; error: string | null }>({
+    created: false,
+    error: null,
   });
   const [busy, setBusy] = React.useState(false);
   const [phoneTouched, setPhoneTouched] = React.useState(false);
@@ -267,8 +328,22 @@ export default function Book({ services, categories, deals, authUser, look, faqH
       return;
     }
     notifyCartAdded(deal.title, 'deal');
+    // Written first so the sync effect keeps the deal id/label and discounted prices.
+    addItemsToCart(
+      dealBundleToCartItems(
+        deal.bundled_services.filter((service) => ids.includes(service.id)),
+        deal.original_price,
+        deal.deal_price,
+        deal.id,
+        deal.title,
+      ),
+    );
     setSelected((current) => Array.from(new Set([...current, ...ids])));
     if (deal.code && !promoCode) setPromoCode(deal.code);
+  }
+
+  function removeIds(ids: number[]) {
+    setSelected((current) => current.filter((id) => !ids.includes(id)));
   }
 
   function toggleService(id: number) {
@@ -411,6 +486,19 @@ export default function Book({ services, categories, deals, authUser, look, faqH
       return;
     }
 
+    if (form.createAccount && !authUser) {
+      if (form.password.length < 8 || !/[A-Z]/.test(form.password) || !/\d/.test(form.password)) {
+        setError(
+          'Choose a password with at least 8 characters, one uppercase letter and one number.',
+        );
+        return;
+      }
+      if (form.password !== form.passwordConfirmation) {
+        setError('The two passwords do not match.');
+        return;
+      }
+    }
+
     setBusy(true);
     setError('');
 
@@ -426,9 +514,19 @@ export default function Book({ services, categories, deals, authUser, look, faqH
         });
       }
 
+      // The deals in the cart are priced server-side (one line per deal) so the saved total is exactly
+      // the deal total the cart showed, not the full catalog sum.
+      const dealIds = Array.from(
+        new Set(
+          getCartItems()
+            .filter((item) => selected.includes(item.id) && item.deal_id !== undefined)
+            .map((item) => item.deal_id as number),
+        ),
+      );
       const quoteResponse = await axios.post('/api/booking/quote', {
         service_ids: selected,
         code: promoCode || undefined,
+        deal_ids: dealIds.length ? dealIds : undefined,
       });
 
       const response = await axios.post('/api/booking', {
@@ -444,29 +542,60 @@ export default function Book({ services, categories, deals, authUser, look, faqH
         subject: form.subject || undefined,
         notes: withLookNote(form.notes, look) || undefined,
         quote: quoteResponse.data,
+        ...(form.createAccount && !authUser
+          ? {
+              create_account: true,
+              password: form.password,
+              password_confirmation: form.passwordConfirmation,
+            }
+          : {}),
       });
 
       clearCart();
       track('booking_submitted');
+      setAccountNote({
+        created: response.data.account_created === true,
+        error: response.data.account_error ?? null,
+      });
       setComplete(response.data.code);
     } catch (err) {
+      // A validation problem (email/number already registered, weak password) keeps the whole booking
+      // form as-is and says exactly what to fix; the first specific message wins over the generic one.
+      const data = isAxiosError(err) ? err.response?.data : undefined;
+      const firstFieldError = data?.errors
+        ? (Object.values(data.errors as Record<string, string[]>)[0]?.[0] ?? null)
+        : null;
       setError(
-        isAxiosError(err) && err.response?.data?.message
-          ? err.response.data.message
-          : 'We could not complete your booking. Please try again.',
+        firstFieldError ?? data?.message ?? 'We could not complete your booking. Please try again.',
       );
     } finally {
       setBusy(false);
     }
   }
 
-  const selectedServices = React.useMemo(
-    () => services.filter((service) => selected.includes(service.id)),
-    [services, selected],
-  );
+  // Selected services carry the price the cart holds for them — the deal-discounted one for a deal's
+  // services (with the catalog price as `original_price` for the strikethrough) — so this page, the
+  // header drawer and the total all agree instead of /book always showing full catalog prices.
+  const cartItems = useCartItems();
+  const selectedServices = React.useMemo(() => {
+    const inCart = new Map(cartItems.map((item) => [item.id, item]));
+    return services
+      .filter((service) => selected.includes(service.id))
+      .map((service) => {
+        const item = inCart.get(service.id);
+        return {
+          ...service,
+          price: item?.price ?? service.price,
+          original_price: item?.original_price,
+        };
+      });
+  }, [services, selected, cartItems]);
+  // "Your selection" renders the cart itself — the same rows (deals grouped, discounted prices) the
+  // header drawer shows — and the total is the cart's own total.
+  const cartRows = React.useMemo(() => groupCartRows(cartItems), [cartItems]);
   const liveTotal = React.useMemo(
-    () => selectedServices.reduce((sum, service) => sum + Number(service.price), 0),
-    [selectedServices],
+    () => cartItems.reduce((sum, item) => sum + Number(item.price), 0),
+    [cartItems],
   );
 
   // Funnel: the booking page opened with something in the cart (once per page load).
@@ -541,15 +670,35 @@ export default function Book({ services, categories, deals, authUser, look, faqH
     return query ? deals.filter((deal) => deal.title.toLowerCase().includes(query)) : deals;
   }, [deals, search]);
 
+  // One section per deal category tag, in the server's tag order. "Top Deals" also holds any deal an
+  // admin pinned (`is_top_deal`), exactly like the Deals page; a deal with no tag goes under "Deals".
+  const dealSections = React.useMemo(() => {
+    const matches = (deal: BookableDeal, tag: string) =>
+      tag === 'Top Deals'
+        ? deal.category_tag === 'Top Deals' || deal.is_top_deal === true
+        : deal.category_tag === tag;
+    const known = DEAL_TAG_ORDER.map((tag) => ({
+      tag,
+      items: visibleDeals.filter((deal) => matches(deal, tag)),
+    }));
+    const untagged = visibleDeals.filter(
+      (deal) => !deal.category_tag || !DEAL_TAG_ORDER.includes(deal.category_tag),
+    );
+    return [...known, { tag: 'Deals', items: untagged }]
+      .filter((section) => section.items.length > 0)
+      .map((section) => ({ ...section, id: dealSectionId(section.tag) }));
+  }, [visibleDeals]);
+
+  // Deal category tags come first, then the service categories.
   const servicePills = React.useMemo(
     () => [
+      ...dealSections.map((section) => ({ id: section.id, label: section.tag })),
       ...serviceSections.map((section) => ({
         id: `book-category-${section.category.id}`,
         label: section.category.name,
       })),
-      ...(visibleDeals.length > 0 ? [{ id: DEALS_SECTION_ID, label: 'Deals' }] : []),
     ],
-    [serviceSections, visibleDeals],
+    [dealSections, serviceSections],
   );
 
   // Groups the returned slots into Morning/Afternoon/Evening sections for the compact picker,
@@ -577,8 +726,19 @@ export default function Book({ services, categories, deals, authUser, look, faqH
             <p className="text-ink-muted mt-3">
               Your confirmation code is <strong className="text-ink">{complete}</strong>.
             </p>
+            {accountNote.created && (
+              <p className="text-ink-muted mt-2 text-sm">
+                Your account is ready and you are signed in — manage this booking any time from My
+                bookings.
+              </p>
+            )}
+            {accountNote.error && (
+              <p className="mt-2 rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+                {accountNote.error}
+              </p>
+            )}
             <div className="mt-8 flex justify-center gap-3">
-              {authUser && (
+              {(authUser || accountNote.created) && (
                 <Button asChild variant="outline">
                   <Link href="/my-bookings">View my bookings</Link>
                 </Button>
@@ -604,7 +764,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
           aside's own Confirm Booking button. `lg:pb-12` restores the section's normal bottom padding
           at the breakpoint where that bar is hidden. */}
       <section
-        className={`px-6 py-12 lg:px-10 lg:pb-12 ${selectedServices.length > 0 ? 'pb-28' : ''}`}
+        className={`px-4 py-12 sm:px-6 lg:px-10 lg:pb-12 ${cartRows.length > 0 ? 'pb-28' : ''}`}
       >
         <div className="mx-auto max-w-6xl">
           <p className="text-accent-700 text-sm font-semibold tracking-[0.18em] uppercase">
@@ -644,10 +804,12 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                 resets both back to plain source order at the `lg:` breakpoint, where the 2-column
                 grid already places them side by side correctly regardless of order. */}
             <Card className="order-2 lg:order-none">
-              <CardHeader>
+              {/* Mobile: the section (px-4) + a lighter card padding (p-3/p-4) instead of the desktop
+                  24px + 24px, which left the cards inset ~48px a side and cramped. */}
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle>{steps[step]}</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 pb-4 sm:p-6 sm:pt-0">
                 {step === 0 && (
                   <div id={SERVICES_TOP_ANCHOR} className="scroll-mt-24">
                     <div className="relative mb-4">
@@ -676,6 +838,45 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                           ariaLabel="Filter services by category"
                           spyOffset={150}
                         />
+                      </div>
+                    )}
+
+                    {dealSections.length > 0 && (
+                      <div className="mb-10 space-y-10">
+                        {dealSections.map(({ tag, items, id }) => (
+                          <div key={id} id={id} className="scroll-mt-40">
+                            <h3 className="text-ink-muted text-xs font-semibold tracking-wider uppercase">
+                              {tag}
+                            </h3>
+                            <div
+                              data-testid="deal-grid"
+                              className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
+                            >
+                              {items.map((deal) => {
+                                const isSelected = isDealSelected(deal);
+                                return (
+                                  <BookItemCard
+                                    key={deal.id}
+                                    id={deal.id}
+                                    title={deal.title}
+                                    label="Deal"
+                                    imageUrl={
+                                      deal.image_url ??
+                                      deal.bundled_services.find((svc) => svc.image_url)
+                                        ?.image_url ??
+                                      null
+                                    }
+                                    price={deal.deal_price}
+                                    originalPrice={deal.deal_price ? deal.original_price : null}
+                                    selected={isSelected}
+                                    ariaLabel={`${deal.title}: ${isSelected ? 'Added' : 'Add deal'}`}
+                                    onToggle={() => toggleDeal(deal)}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -714,40 +915,6 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                         </div>
                       ))}
                     </div>
-
-                    {visibleDeals.length > 0 && (
-                      <div id={DEALS_SECTION_ID} className="mt-10 scroll-mt-40">
-                        <h3 className="text-ink-muted text-xs font-semibold tracking-wider uppercase">
-                          Deals
-                        </h3>
-                        <div
-                          data-testid="deal-grid"
-                          className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
-                        >
-                          {visibleDeals.map((deal) => {
-                            const isSelected = isDealSelected(deal);
-                            return (
-                              <BookItemCard
-                                key={deal.id}
-                                id={deal.id}
-                                title={deal.title}
-                                label="Deal"
-                                imageUrl={
-                                  deal.image_url ??
-                                  deal.bundled_services.find((svc) => svc.image_url)?.image_url ??
-                                  null
-                                }
-                                price={deal.deal_price}
-                                originalPrice={deal.deal_price ? deal.original_price : null}
-                                selected={isSelected}
-                                ariaLabel={`${deal.title}: ${isSelected ? 'Added' : 'Add deal'}`}
-                                onToggle={() => toggleDeal(deal)}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
 
                     {serviceSections.length === 0 && visibleDeals.length === 0 && (
                       <p className="text-ink-muted py-10 text-center text-sm">
@@ -910,6 +1077,61 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                           onChange={(event) => setForm({ ...form, email: event.target.value })}
                         />
                       </div>
+                      {!authUser && (
+                        <div className="sm:col-span-2">
+                          <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                            <input
+                              id="booking-create-account"
+                              type="checkbox"
+                              checked={form.createAccount}
+                              onChange={(event) =>
+                                setForm({ ...form, createAccount: event.target.checked })
+                              }
+                              className="accent-accent-600 mt-0.5 size-4 shrink-0"
+                            />
+                            <span>
+                              <span className="font-medium">
+                                Create an account to manage my bookings
+                              </span>{' '}
+                              <span className="text-ink-muted">(optional)</span>
+                            </span>
+                          </label>
+                          {form.createAccount && (
+                            <div className="border-border-soft bg-surface mt-3 space-y-4 rounded-xl border p-4">
+                              <p className="text-ink-muted text-xs">
+                                We&rsquo;ll use your name, WhatsApp number and email above. You can
+                                log in with your WhatsApp number or your email to view, reschedule
+                                or cancel this booking.
+                              </p>
+                              <div className="space-y-2">
+                                <PasswordInput
+                                  id="booking-password"
+                                  label="Password"
+                                  autoComplete="new-password"
+                                  value={form.password}
+                                  onChange={(value) => setForm({ ...form, password: value })}
+                                />
+                                <PasswordChecklist password={form.password} />
+                              </div>
+                              <div className="space-y-2">
+                                <PasswordInput
+                                  id="booking-password-confirm"
+                                  label="Confirm password"
+                                  autoComplete="new-password"
+                                  value={form.passwordConfirmation}
+                                  onChange={(value) =>
+                                    setForm({ ...form, passwordConfirmation: value })
+                                  }
+                                />
+                                <MatchTick
+                                  password={form.password}
+                                  confirmation={form.passwordConfirmation}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="sm:col-span-2">
                         <label className="text-sm font-medium" htmlFor="booking-subject">
                           Subject / Inquiry Topic{' '}
@@ -974,35 +1196,43 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                 <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
                   Your selection
                 </p>
-                {selectedServices.length > 0 && (
+                {cartRows.length > 0 && (
                   <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
                     Price
                   </p>
                 )}
               </div>
-              {selectedServices.length ? (
-                selectedServices.map((service) => (
-                  <div key={service.id} className="mt-3 flex items-center gap-3">
+              {cartRows.length ? (
+                cartRows.map((row) => (
+                  <div key={row.key} className="mt-3 flex items-center gap-3">
                     <div className="bg-accent-50 flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md">
-                      {service.image_url ? (
-                        <img src={service.image_url} alt="" className="size-full object-cover" />
+                      {row.image_url ? (
+                        <img src={row.image_url} alt="" className="size-full object-cover" />
                       ) : (
                         <Sparkles className="text-accent-600 size-4" aria-hidden="true" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{service.name}</p>
-                      <p className="text-ink-muted text-xs">{service.duration_min} min</p>
+                      <p className="truncate text-sm font-medium">{row.name}</p>
+                      <p className="text-ink-muted text-xs">
+                        {row.ids.length > 1
+                          ? `${row.ids.length} services`
+                          : `${services.find((service) => service.id === row.ids[0])?.duration_min ?? 0} min`}
+                      </p>
                     </div>
                     <span className="shrink-0 text-right text-sm tabular-nums">
-                      {formatCurrency(service.price)}
+                      {row.original_price !== undefined && row.original_price > row.price && (
+                        <span className="text-ink-muted block text-xs line-through">
+                          {formatCurrency(String(row.original_price))}
+                        </span>
+                      )}
+                      {formatCurrency(String(row.price))}
                     </span>
-                    {/* Ad hoc task 34: lets a service be removed directly from the selection list
-                        rather than only by scrolling back to its "Added" card and toggling it off. */}
+                    {/* Removes the whole row — every service of a deal, or the single service. */}
                     <button
                       type="button"
-                      aria-label={`Remove ${service.name} from your selection`}
-                      onClick={() => toggleService(service.id)}
+                      aria-label={`Remove ${row.name} from your selection`}
+                      onClick={() => removeIds(row.ids)}
                       className="text-ink-muted shrink-0 rounded-md p-1 hover:text-red-600"
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
@@ -1017,7 +1247,7 @@ export default function Book({ services, categories, deals, authUser, look, faqH
                   {new Date(slot.starts_at).toLocaleString()}
                 </p>
               )}
-              {selectedServices.length > 0 && (
+              {cartRows.length > 0 && (
                 <div className="border-border-soft mt-4 border-t pt-4">
                   {/* Ad hoc task 35: the raw sum of every selected service's own duration, placed
                       directly above the Total Amount it accompanies. */}
@@ -1083,13 +1313,12 @@ export default function Book({ services, categories, deals, authUser, look, faqH
           matches this page's own already-established mobile/desktop split (`order-1 lg:order-none`,
           `static lg:sticky` on the aside above) rather than introducing a separate breakpoint that
           would leave a tablet-width gap where neither bar is active. */}
-      {selectedServices.length > 0 && (
+      {cartRows.length > 0 && (
         <div className="border-border-soft bg-ivory fixed inset-x-0 bottom-0 z-40 border-t px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] lg:hidden">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-ink-muted text-xs">
-                {selectedServices.length} {selectedServices.length === 1 ? 'service' : 'services'}{' '}
-                selected
+                {cartRows.length} {cartRows.length === 1 ? 'item' : 'items'} selected
               </p>
               <p className="text-ink font-semibold tabular-nums">
                 {formatCurrency(String(liveTotal))}

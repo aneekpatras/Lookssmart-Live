@@ -49,15 +49,21 @@ class CustomerController extends Controller
                 'customerProfile',
                 fn ($query) => $query->whereJsonContains('tags', $request->string('tag')->value()),
             ))
-            ->orderByDesc('ltv')
+            // Newest customers first (id breaks ties), so a brand-new Rs. 0 account is not buried under everyone with spend.
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
+
+        $bookingPhones = $this->bookingPhones($customers->pluck('id')->all());
 
         return Inertia::render('Admin/CRM/Customers/Index', [
             'customers' => $customers->map(fn (User $customer) => [
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'email' => $customer->email,
-                'phone' => $customer->phone,
+                // A guest who booked with an email (no account) has no number on the user row — fall back to
+                // the WhatsApp number they gave on their latest booking so the admin can still reach them.
+                'phone' => $customer->phone ?? $bookingPhones[$customer->id] ?? null,
                 'ltv' => number_format((float) ($customer->ltv ?? 0), 2, '.', ''),
                 'visits' => $customer->completed_visits,
                 'no_show_count' => $customer->no_show_count,
@@ -70,6 +76,29 @@ class CustomerController extends Controller
                 'tag' => $request->string('tag')->value() ?: null,
             ],
         ]);
+    }
+
+    /**
+     * The WhatsApp number each customer last gave on a booking (`bookings.guest_phone`, encrypted at rest,
+     * so it is read here rather than searched in SQL), keyed by customer id.
+     *
+     * @param  array<int, int>  $customerIds
+     * @return array<int, string>
+     */
+    private function bookingPhones(array $customerIds): array
+    {
+        if ($customerIds === []) {
+            return [];
+        }
+
+        return \App\Models\Booking::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereNotNull('guest_phone')
+            ->latest('starts_at')
+            ->get(['customer_id', 'guest_phone'])
+            ->unique('customer_id')
+            ->mapWithKeys(fn ($booking) => [$booking->customer_id => (string) $booking->guest_phone])
+            ->all();
     }
 
     /**
@@ -91,7 +120,7 @@ class CustomerController extends Controller
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'email' => $customer->email,
-                'phone' => $customer->phone,
+                'phone' => $customer->phone ?? $this->bookingPhones([$customer->id])[$customer->id] ?? null,
                 'created_at' => $customer->created_at?->toIso8601String(),
             ],
             'stats' => [

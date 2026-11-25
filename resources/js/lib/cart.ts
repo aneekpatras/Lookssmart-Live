@@ -46,26 +46,37 @@ export interface CartItem {
   deal_label?: string;
 }
 
-/** Reads the cart; carries over a cart an earlier build kept in `sessionStorage`. */
-function readRaw(): string {
+/** A stored cart older than this is discarded, so abandoned items from an earlier visit can never
+ * resurface as "random" services in a later booking. Refreshed on every write. */
+const CART_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Reads the stored cart items. Stored as `{ items, savedAt }`; a bare array (the pre-expiry format,
+ * with no timestamp) or an expired payload counts as empty and is removed. */
+function readRaw(): unknown {
   try {
     const stored = window.localStorage.getItem(CART_STORAGE_KEY);
-    if (stored !== null) return stored;
-    const legacy = window.sessionStorage.getItem(CART_STORAGE_KEY);
-    if (legacy !== null) {
-      window.localStorage.setItem(CART_STORAGE_KEY, legacy);
-      return legacy;
+    if (stored === null) return [];
+    const payload = JSON.parse(stored) as { items?: unknown; savedAt?: unknown } | null;
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(payload) &&
+      typeof payload.savedAt === 'number' &&
+      Date.now() - payload.savedAt < CART_TTL_MS
+    ) {
+      return payload.items;
     }
+    window.localStorage.removeItem(CART_STORAGE_KEY);
   } catch {
-    // storage blocked: behave as an empty cart
+    // storage blocked or corrupt: behave as an empty cart
   }
-  return '[]';
+  return [];
 }
 
 export function getCartItems(): CartItem[] {
   if (typeof window === 'undefined') return [];
   try {
-    const parsed = JSON.parse(readRaw()) as unknown;
+    const parsed = readRaw();
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (item): item is CartItem =>
@@ -88,7 +99,10 @@ export function getCartServiceIds(): number[] {
 export function setCartItems(items: CartItem[]): void {
   const deduped = Array.from(new Map(items.map((item) => [item.id, item])).values());
   try {
-    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(deduped));
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({ items: deduped, savedAt: Date.now() }),
+    );
   } catch {
     // storage blocked: the in-page event below still updates this tab
   }
@@ -228,4 +242,93 @@ export function dealBundleToCartItems(
     deal_id: dealId,
     deal_label: dealLabel,
   }));
+}
+
+/** One visible cart line: a whole deal (all its services together) or a single service. */
+export interface CartRow {
+  key: string;
+  name: string;
+  price: number;
+  /** Set only when the row's real catalog total is higher than `price` (a genuine deal saving). */
+  original_price?: number;
+  image_url: string | null;
+  /** Every real service id behind this row (a deal row holds several). */
+  ids: number[];
+}
+
+/**
+ * The single place that turns `ls_booking_cart_items` into display lines. Both the header drawer and
+ * the booking page's "Your selection" render exactly this, so their grouping, prices and counts can
+ * never drift. Every item of the same deal collapses into one row; a plain service is its own row.
+ */
+export function groupCartRows(items: CartItem[]): CartRow[] {
+  const groups = new Map<string, CartRow & { hasDiscount: boolean; originalSum: number }>();
+
+  for (const item of items) {
+    const key = item.deal_id ? `deal-${item.deal_id}` : `item-${item.id}`;
+    const itemOriginal =
+      item.original_price !== undefined ? Number(item.original_price) : Number(item.price);
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.price += Number(item.price);
+      existing.originalSum += itemOriginal;
+      existing.hasDiscount = existing.hasDiscount || item.original_price !== undefined;
+      existing.ids.push(item.id);
+      continue;
+    }
+
+    groups.set(key, {
+      key,
+      name: item.deal_label ?? item.name,
+      price: Number(item.price),
+      image_url: item.image_url,
+      ids: [item.id],
+      hasDiscount: item.original_price !== undefined,
+      originalSum: itemOriginal,
+    });
+  }
+
+  return Array.from(groups.values()).map(({ hasDiscount, originalSum, ...row }) => ({
+    ...row,
+    original_price: hasDiscount ? originalSum : undefined,
+  }));
+}
+
+/**
+ * Called by every "Claim Offer" link BEFORE it navigates: this deal's services (with deal id/label and
+ * discounted prices) are merged into the cart — existing items stay, a service already there is
+ * updated rather than duplicated — so the header badge/drawer are already right when `/book` opens.
+ * `/book` resolves the same deal from `?code=` and merges the same items (idempotent).
+ */
+export function claimDealInCart(deal: {
+  id: number;
+  title: string;
+  original_price: string | null;
+  deal_price: string | null;
+  bundled_services: { id: number; name: string; price: string; image_url: string | null }[];
+}): void {
+  if (deal.bundled_services.length === 0) return;
+  addItemsToCart(
+    dealBundleToCartItems(
+      deal.bundled_services,
+      deal.original_price,
+      deal.deal_price,
+      deal.id,
+      deal.title,
+    ),
+  );
+}
+
+/** "Book this service" links: the service is in the cart before `/book` opens. */
+export function addServiceToCartForBooking(service: {
+  id: number;
+  name: string;
+  price: string;
+  image_url: string | null;
+}): void {
+  if (getCartItems().some((item) => item.id === service.id)) return;
+  addItemsToCart([
+    { id: service.id, name: service.name, price: service.price, image_url: service.image_url },
+  ]);
 }

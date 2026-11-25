@@ -4,6 +4,7 @@ import { ArrowRight, Check, Plus, Sparkles } from 'lucide-react';
 import { CartAddButton } from '@/Components/CartAddButton';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
+import { claimDealInCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 
 import type { DealShowcase } from './DealDetailsModal';
@@ -117,7 +118,7 @@ export function DealCard({ deal, onViewDetails }: DealCardProps) {
             {/* `prefetch` (ad hoc task 31) loads /book in the background on hover, so by the time a
                 real click lands the response is often already cached — the click itself then just
                 swaps in an already-fetched page instead of waiting on a fresh round trip. */}
-            <Link href={deal.claim_url} prefetch>
+            <Link href={deal.claim_url} prefetch onClick={() => claimDealInCart(deal)}>
               Claim Offer <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </Button>

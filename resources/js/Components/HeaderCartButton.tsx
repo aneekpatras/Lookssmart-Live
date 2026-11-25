@@ -10,6 +10,7 @@ import {
   CART_CHANGED_EVENT,
   cartBookingUrl,
   clearCart,
+  groupCartRows,
   type CartItem,
   getCartItems,
   OPEN_CART_EVENT,
@@ -116,63 +117,8 @@ export function HeaderCartButton() {
     0,
   );
 
-  /**
-   * Groups every item the SAME deal added back into one visual row — matching what the shopper
-   * actually clicked ("Engagement Ready Package", not 3 separate services) — while `items` itself
-   * (what `/book` reads via `getCartServiceIds()`) keeps each real service id untouched, since the
-   * booking wizard needs those individually for duration/slot scheduling. A service added on its
-   * own (no `deal_id`) stays its own row exactly as before.
-   */
-  const rows = React.useMemo(() => {
-    interface Group {
-      key: string;
-      name: string;
-      price: number;
-      originalPriceSum: number;
-      hasDiscount: boolean;
-      image_url: string | null;
-      ids: number[];
-    }
-
-    const groups = new Map<string, Group>();
-
-    for (const item of items) {
-      const key = item.deal_id ? `deal-${item.deal_id}` : `item-${item.id}`;
-      // Every item contributes its own original price when discounted, else its own actual price —
-      // so the group's original-price sum only differs from its price sum by real savings, never a
-      // fabricated one for an undiscounted item sharing the group.
-      const itemOriginal =
-        item.original_price !== undefined ? Number(item.original_price) : Number(item.price);
-      const existing = groups.get(key);
-
-      if (existing) {
-        existing.price += Number(item.price);
-        existing.originalPriceSum += itemOriginal;
-        existing.hasDiscount = existing.hasDiscount || item.original_price !== undefined;
-        existing.ids.push(item.id);
-        continue;
-      }
-
-      groups.set(key, {
-        key,
-        name: item.deal_label ?? item.name,
-        price: Number(item.price),
-        originalPriceSum: itemOriginal,
-        hasDiscount: item.original_price !== undefined,
-        image_url: item.image_url,
-        ids: [item.id],
-      });
-    }
-
-    return Array.from(groups.values()).map((group) => ({
-      key: group.key,
-      name: group.name,
-      price: group.price,
-      original_price: group.hasDiscount ? group.originalPriceSum : undefined,
-      image_url: group.image_url,
-      ids: group.ids,
-    }));
-  }, [items]);
+  // Same grouping the booking page's "Your selection" renders (shared `groupCartRows`).
+  const rows = React.useMemo(() => groupCartRows(items), [items]);
 
   const itemsLabel = `${rows.length} ${rows.length === 1 ? 'item' : 'items'}`;
 

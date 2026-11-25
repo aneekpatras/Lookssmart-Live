@@ -6,6 +6,7 @@ import { CartAddButton } from '@/Components/CartAddButton';
 import { AutoMarquee } from '@/Components/AutoMarquee';
 import type { DealShowcase } from '@/Components/DealDetailsModal';
 import { Button } from '@/Components/ui/button';
+import { claimDealInCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 import { validTill } from '@/lib/format';
 
@@ -255,7 +256,12 @@ function DealMarqueeCard({ deal, duplicate }: { deal: MarqueeDeal; duplicate: bo
               variant="accent"
               className="h-8 px-1.5 text-[11px] sm:px-2 sm:text-xs"
             >
-              <Link href={deal.claim_url} tabIndex={duplicate ? -1 : undefined} draggable={false}>
+              <Link
+                href={deal.claim_url}
+                tabIndex={duplicate ? -1 : undefined}
+                draggable={false}
+                onClick={() => claimDealInCart(deal)}
+              >
                 <span className="sm:hidden">Claim</span>
                 <span className="hidden sm:inline">Claim Offer</span>
               </Link>

@@ -7,6 +7,7 @@ import { SeoHead } from '@/Components/SeoHead';
 import { CartAddButton } from '@/Components/CartAddButton';
 import { Button } from '@/Components/ui/button';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { claimDealInCart } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 
 interface DealDetailProps {
@@ -128,7 +129,7 @@ export default function DealDetail({ deal, whatsapp }: DealDetailProps) {
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild variant="accent" size="lg">
-                  <Link href={deal.claim_url}>
+                  <Link href={deal.claim_url} onClick={() => claimDealInCart(deal)}>
                     Claim Offer <ArrowRight aria-hidden="true" />
                   </Link>
                 </Button>

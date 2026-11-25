@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Booking;
 
+use App\Models\User;
+use App\Support\PasswordPolicy;
 use App\Support\Phone;
 use App\Http\Requests\BaseFormRequest;
 
@@ -27,6 +29,10 @@ class StoreBookingRequest extends BaseFormRequest
     public function rules(): array
     {
         $guestRequired = ! $this->user();
+        // Optional "create my account" checkbox on the checkout form. Everything is validated HERE, before
+        // any slot is held or booking written, so a problem (email/number already registered, weak
+        // password) never costs the customer their booking flow.
+        $account = $guestRequired && $this->boolean('create_account');
 
         return [
             'service_ids' => ['required', 'array', 'min:1'],
@@ -40,12 +46,21 @@ class StoreBookingRequest extends BaseFormRequest
             'timezone' => ['required', 'timezone'],
             'guest_name' => [$guestRequired ? 'required' : 'nullable', 'string', 'max:255'],
             // Email is optional (validated only when filled); the WhatsApp number is required and normalised.
-            'guest_email' => ['nullable', 'email', 'max:255'],
-            'guest_phone' => ['required', 'string', 'max:30', function ($attribute, $value, $fail) {
+            // Same rule as /register: the WhatsApp number (always required here) or the email is enough —
+            // the email is only mandatory on a server where phone-based accounts are switched off.
+            'guest_email' => $account
+                ? [Phone::accountsSupported() ? 'nullable' : 'required', 'email', 'max:255', 'unique:users,email']
+                : ['nullable', 'email', 'max:255'],
+            'guest_phone' => ['required', 'string', 'max:30', function ($attribute, $value, $fail) use ($account) {
                 if (! Phone::isValid((string) $value)) {
                     $fail(Phone::MESSAGE);
+                } elseif ($account && ($normalised = Phone::normalize((string) $value)) !== null
+                    && User::where('phone', $normalised)->exists()) {
+                    $fail('That number already has an account. Log in to book, or untick "Create an account".');
                 }
             }],
+            'create_account' => ['sometimes', 'boolean'],
+            'password' => $account ? PasswordPolicy::rulesFor(null, true) : ['nullable'],
             // `subject` has no dedicated column on `bookings` — folded onto `notes` in
             // `BookingController::store()`, the same precedent `submitContact()` already uses for
             // `leads.notes` (that table has no `subject` column either).
@@ -57,10 +72,22 @@ class StoreBookingRequest extends BaseFormRequest
             'quote.code' => ['nullable', 'string'],
             'quote.subtotal' => ['required', 'numeric'],
             'quote.discount' => ['required', 'numeric'],
+            'quote.deal_lines' => ['nullable', 'array'],
+            'quote.deal_lines.*.deal_id' => ['integer'],
+            'quote.deal_lines.*.discount' => ['numeric'],
             'quote.tax' => ['required', 'numeric'],
             'quote.total' => ['required', 'numeric'],
             'quote.expires_at' => ['required', 'integer'],
             'quote.signature' => ['required', 'string'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'guest_email.required' => 'Enter your email address to create an account.',
+            'guest_email.unique' => 'That email is already registered (or was used for an earlier booking). Log in or reset your password, or untick "Create an account" to book as a guest.',
         ];
     }
 }

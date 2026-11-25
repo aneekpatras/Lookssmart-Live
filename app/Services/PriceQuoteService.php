@@ -24,7 +24,7 @@ class PriceQuoteService
     /**
      * @param int[] $serviceIds
      */
-    public function quote(array $serviceIds, ?string $couponCode = null, ?int $customerId = null): array
+    public function quote(array $serviceIds, ?string $couponCode = null, ?int $customerId = null, array $dealIds = []): array
     {
         $services = Service::whereIn('id', $serviceIds)->get();
 
@@ -37,6 +37,15 @@ class PriceQuoteService
         $discount = 0.0;
         $normalizedCode = $couponCode ? strtoupper(trim($couponCode)) : null;
 
+        // Deals the customer put in their cart (one line per deal, each priced on its own bundle). These are
+        // the real, server-computed deal prices, so a multi-deal booking charges exactly what the cart showed.
+        [$dealLines, $consumedServiceIds] = $this->cartDealLines($dealIds, $services, $customerId);
+        $dealLinesTotal = round((float) collect($dealLines)->sum('discount'), 2);
+        $appliedDealIds = collect($dealLines)->pluck('deal_id')->all();
+        // A coupon/auto-apply discount only ever applies to the services no cart deal already priced.
+        $remainingSubtotal = round((float) $services->reject(fn (Service $service) => in_array($service->id, $consumedServiceIds, true))->sum('base_price'), 2);
+        $codeDiscount = 0.0;
+
         if ($normalizedCode) {
             $deal = Deal::active()->where('code', $normalizedCode)->first();
 
@@ -44,19 +53,24 @@ class PriceQuoteService
                 throw ValidationException::withMessages(['code' => 'That coupon code is not valid or has expired.']);
             }
 
-            $this->assertDealUsable($deal, $services, $subtotal, $customerId, requireApplicability: true);
-            $discount = $this->calculateDiscount($deal, $subtotal);
-            $dealId = $deal->id;
+            // The code of a deal that is already a cart line must not discount it a second time.
+            if (! in_array($deal->id, $appliedDealIds, true)) {
+                $this->assertDealUsable($deal, $services, $subtotal, $customerId, requireApplicability: true);
+                $codeDiscount = $this->calculateDiscount($deal, $remainingSubtotal);
+                $dealId = $deal->id;
+            }
         } else {
             $autoDeal = Deal::active()->where('is_auto_apply', true)->get()
                 ->first(fn (Deal $deal) => $this->dealApplies($deal, $services)
                     && $this->dealWithinLimits($deal, $subtotal, $customerId));
 
             if ($autoDeal) {
-                $discount = $this->calculateDiscount($autoDeal, $subtotal);
+                $codeDiscount = $this->calculateDiscount($autoDeal, $remainingSubtotal);
                 $dealId = $autoDeal->id;
             }
         }
+
+        $discount = min($subtotal, round($dealLinesTotal + $codeDiscount, 2));
 
         $taxRate = (float) (Setting::get('booking.tax_rate', 0) ?? 0);
         $taxableAmount = max(0, $subtotal - $discount);
@@ -69,12 +83,65 @@ class PriceQuoteService
             'code' => $normalizedCode,
             'subtotal' => $subtotal,
             'discount' => $discount,
+            'deal_lines' => $dealLines,
             'tax' => $tax,
             'total' => $total,
             'expires_at' => now()->addMinutes(self::QUOTE_TTL_MINUTES)->timestamp,
         ];
 
         return [...$payload, 'signature' => $this->sign($payload)];
+    }
+
+    /**
+     * One discount line per cart deal whose whole bundle is among the selected services. A service already
+     * priced by an earlier deal is never discounted twice (an overlapping later deal is skipped), and the
+     * deal's own `original_price`/`deal_price` scale the bundle exactly the way the cart displays it, falling
+     * back to the deal's type/value when it has no price pair.
+     *
+     * @param  array<int, mixed>  $dealIds
+     * @return array{0: array<int, array{deal_id:int, discount:float}>, 1: array<int, int>}
+     */
+    private function cartDealLines(array $dealIds, Collection $services, ?int $customerId): array
+    {
+        $selectedIds = $services->pluck('id')->all();
+        $consumed = [];
+        $lines = [];
+
+        foreach (array_values(array_unique(array_map('intval', $dealIds))) as $dealId) {
+            $deal = Deal::active()->with('services:id')->find($dealId);
+
+            if (! $deal) {
+                continue;
+            }
+
+            $bundleIds = $deal->services->pluck('id')->all();
+
+            if ($bundleIds === []
+                || array_diff($bundleIds, $selectedIds) !== []
+                || array_intersect($bundleIds, $consumed) !== []) {
+                continue;
+            }
+
+            $bundle = round((float) $services->whereIn('id', $bundleIds)->sum('base_price'), 2);
+
+            if (! $this->dealWithinLimits($deal, $bundle, $customerId)) {
+                throw ValidationException::withMessages(['deal_ids' => "The offer \"{$deal->title}\" is no longer available."]);
+            }
+
+            $original = (float) $deal->original_price;
+            $discount = $original > 0 && $deal->deal_price !== null
+                ? round(max(0.0, $bundle * (1 - (float) $deal->deal_price / $original)), 2)
+                : $this->calculateDiscount($deal, $bundle);
+
+            if ($discount <= 0) {
+                continue;
+            }
+
+            $lines[] = ['deal_id' => $deal->id, 'discount' => $discount];
+            $consumed = [...$consumed, ...$bundleIds];
+        }
+
+        return [$lines, $consumed];
     }
 
     /**

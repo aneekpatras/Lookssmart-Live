@@ -17,7 +17,7 @@ class CustomerDashboardController extends Controller
         $user = $request->user();
         $bookings = Booking::query()
             ->where('customer_id', $user->id)
-            ->with(['items.service'])
+            ->with(['items.service', 'dealRedemptions.deal.services:id'])
             ->latest('starts_at')
             ->paginate(10)
             ->withQueryString();
@@ -81,6 +81,51 @@ class CustomerDashboardController extends Controller
         return back()->with('status', 'Communication preferences updated.');
     }
 
+    /**
+     * Structured breakdown for the booking card: every booked service with its own duration and catalog
+     * price, the deals applied (each with its real discount and resulting deal price), and the stored
+     * subtotal/discount — so the card shows exactly how the saved total was reached.
+     *
+     * @return array<string, mixed>
+     */
+    private function bookingBreakdown(Booking $booking): array
+    {
+        $items = $booking->items->filter(fn ($item) => $item->service !== null);
+
+        $deals = $booking->dealRedemptions
+            ->filter(fn ($redemption) => $redemption->deal !== null)
+            ->map(function ($redemption) use ($items) {
+                $serviceIds = $redemption->deal->services->pluck('id')->all();
+                $bundle = $items->filter(fn ($item) => in_array($item->service_id, $serviceIds, true));
+                $catalog = round((float) $bundle->sum('price_snapshot'), 2);
+                $discount = (float) $redemption->discount_amount;
+
+                return [
+                    'title' => $redemption->deal->title,
+                    'service_ids' => $bundle->pluck('service_id')->values()->all(),
+                    'catalog_price' => number_format($catalog, 2, '.', ''),
+                    'discount' => number_format($discount, 2, '.', ''),
+                    'price' => number_format(max(0, $catalog - $discount), 2, '.', ''),
+                    // A coupon redemption (no bundled services) is shown as a discount line, not a deal row.
+                    'is_bundle' => $bundle->isNotEmpty(),
+                ];
+            })
+            ->filter(fn (array $deal) => $deal['is_bundle'])
+            ->values();
+
+        return [
+            'items' => $items->map(fn ($item) => [
+                'service_id' => $item->service_id,
+                'name' => $item->service->name,
+                'duration_min' => (int) $item->duration_snapshot,
+                'price' => number_format((float) $item->price_snapshot, 2, '.', ''),
+            ])->values(),
+            'deals' => $deals,
+            'subtotal' => number_format((float) $items->sum('price_snapshot'), 2, '.', ''),
+            'discount' => number_format((float) $booking->discount, 2, '.', ''),
+        ];
+    }
+
     /** @return array<string, mixed> */
     private function bookingData(Booking $booking): array
     {
@@ -92,6 +137,7 @@ class CustomerDashboardController extends Controller
             'ends_at' => $booking->ends_at?->toIso8601String(),
             'staff_id' => $booking->staff_id,
             'services' => $booking->items->map(fn ($item) => $item->service?->name)->filter()->values(),
+            ...$this->bookingBreakdown($booking),
             'total' => (string) $booking->total,
             // Real, not a client-side guess — `Booking::isCustomerCancellable()`/
             // `isWithinCancellationWindow()` are the exact same checks `CancelBookingAction` itself

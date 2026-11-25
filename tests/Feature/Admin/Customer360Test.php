@@ -141,3 +141,17 @@ it('filters the customer directory by search term', function () use ($makeConfir
     $response->assertInertia(fn ($page) => $page
         ->where('customers', fn ($customers) => count($customers) === 1 && $customers[0]['id'] === $matching->id));
 });
+
+it('lists the newest customers first, not by lifetime value', function () use ($makeConfirmedUser) {
+    $this->seed(RolesAndPermissionsSeeder::class);
+
+    $admin = $makeConfirmedUser('admin');
+    $old = User::factory()->create(['created_at' => now()->subMonths(2)]);
+    CustomerProfile::factory()->create(['user_id' => $old->id]);
+    Booking::factory()->create(['customer_id' => $old->id, 'staff_id' => Staff::factory()->create()->id, 'status' => 'completed', 'total' => 500]);
+    $new = User::factory()->create(['created_at' => now()]);
+    CustomerProfile::factory()->create(['user_id' => $new->id]);
+
+    $this->actingAs($admin)->get('/admin/customers')->assertInertia(fn ($page) => $page
+        ->where('customers.0.id', $new->id));
+});

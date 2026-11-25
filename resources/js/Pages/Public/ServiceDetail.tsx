@@ -6,6 +6,7 @@ import { SeoHead } from '@/Components/SeoHead';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { addServiceToCartForBooking } from '@/lib/cart';
 import { formatCurrency } from '@/lib/currency';
 
 interface Service {
@@ -95,7 +96,7 @@ export default function ServiceDetail({
         <div className="from-ink/80 via-ink/40 absolute inset-0 bg-gradient-to-t to-transparent" />
         <div className="absolute inset-x-0 bottom-0 px-6 pb-8 lg:px-10">
           <div className="mx-auto max-w-6xl">
-            <p className="text-accent-300 text-sm font-semibold uppercase tracking-[0.18em]">
+            <p className="text-accent-300 text-sm font-semibold tracking-[0.18em] uppercase">
               {service.category}
             </p>
             <h1
@@ -124,7 +125,10 @@ export default function ServiceDetail({
                 <ul className="mt-4 grid gap-3 sm:grid-cols-2">
                   {guide.benefits.map((benefit) => (
                     <li key={benefit} className="text-ink-muted flex gap-3 text-sm leading-6">
-                      <Check className="text-accent-600 mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                      <Check
+                        className="text-accent-600 mt-0.5 size-4 shrink-0"
+                        aria-hidden="true"
+                      />
                       {benefit}
                     </li>
                   ))}
@@ -135,10 +139,12 @@ export default function ServiceDetail({
 
           <Card className="border-border-soft bg-surface shadow-soft lg:sticky lg:top-28">
             <CardContent className="p-6">
-              <p className="text-accent-700 text-xs font-semibold uppercase tracking-wider">
+              <p className="text-accent-700 text-xs font-semibold tracking-wider uppercase">
                 This appointment
               </p>
-              <p className="text-ink mt-3 text-3xl font-semibold">{formatCurrency(service.price)}</p>
+              <p className="text-ink mt-3 text-3xl font-semibold">
+                {formatCurrency(service.price)}
+              </p>
               <p className="text-ink-muted mt-2 inline-flex items-center gap-2 text-sm">
                 <Clock3 className="text-accent-700 size-4" aria-hidden="true" />
                 {formatDuration(service.duration_min)} in the chair
@@ -153,7 +159,7 @@ export default function ServiceDetail({
                 </p>
               )}
               <Button asChild size="lg" variant="accent" className="mt-6 w-full">
-                <Link href={bookHref}>
+                <Link href={bookHref} onClick={() => addServiceToCartForBooking(service)}>
                   <CalendarCheck className="size-4" aria-hidden="true" /> Book this service
                 </Link>
               </Button>
@@ -300,7 +306,7 @@ export default function ServiceDetail({
             </p>
           </div>
           <Button asChild size="lg" variant="accent">
-            <Link href={bookHref}>
+            <Link href={bookHref} onClick={() => addServiceToCartForBooking(service)}>
               <CalendarCheck className="size-4" aria-hidden="true" /> Book this service
             </Link>
           </Button>

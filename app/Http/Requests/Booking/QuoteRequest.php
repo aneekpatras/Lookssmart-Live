@@ -17,6 +17,9 @@ class QuoteRequest extends BaseFormRequest
             'service_ids' => ['required', 'array', 'min:1'],
             'service_ids.*' => ['integer', 'exists:services,id'],
             'code' => ['nullable', 'string', 'max:50'],
+            // Deals in the customer's cart; each is priced server-side from its own bundle.
+            'deal_ids' => ['nullable', 'array', 'max:30'],
+            'deal_ids.*' => ['integer'],
         ];
     }
 }

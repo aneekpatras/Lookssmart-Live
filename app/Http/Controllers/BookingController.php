@@ -146,7 +146,7 @@ class BookingController extends Controller
         $data = $request->validated();
 
         try {
-            $quote = $priceQuoteService->quote($data['service_ids'], $data['code'] ?? null, $request->user()?->id);
+            $quote = $priceQuoteService->quote($data['service_ids'], $data['code'] ?? null, $request->user()?->id, $data['deal_ids'] ?? []);
         } catch (ValidationException $e) {
             return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
@@ -203,10 +203,35 @@ class BookingController extends Controller
             return response()->json(['message' => 'That time is no longer available.'], 409);
         }
 
+        // Optional account (checkbox on the checkout form), created BEFORE the booking so the booking is
+        // linked to it from the start (CreateBookingAction otherwise makes a password-less guest stub for
+        // any email). StoreBookingRequest already validated email/number/password; if the booking then
+        // fails below, the new account is discarded again so a retry starts clean.
+        $newUser = null;
+        if (! $request->user() && $request->boolean('create_account')) {
+            try {
+                $newUser = app(\App\Actions\Fortify\CreateNewUser::class)->create([
+                    'name' => $data['guest_name'],
+                    'email' => $data['guest_email'] ?? null,
+                    'phone' => $data['guest_phone'],
+                    'password' => (string) $request->input('password'),
+                    'password_confirmation' => (string) $request->input('password_confirmation'),
+                ]);
+            } catch (ValidationException $e) {
+                return response()->json(['message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
+            }
+        }
+        $discardNewUser = function () use (&$newUser): void {
+            $newUser?->delete();
+            $newUser = null;
+        };
+
         $budget = (int) Setting::get('booking.max_bookings_per_slot', 3) - $slot['booked_count'];
         $capacitySeat = $slotHoldService->holdCapacitySeat($startsAt, $budget);
 
         if (! $capacitySeat) {
+            $discardNewUser();
+
             return response()->json(['message' => 'That time is no longer available.'], 409);
         }
 
@@ -231,7 +256,7 @@ class BookingController extends Controller
                     quote: $data['quote'],
                     timezone: $data['timezone'],
                     source: 'website',
-                    customerId: $request->user()?->id,
+                    customerId: $request->user()?->id ?? $newUser?->id,
                     guestName: $data['guest_name'] ?? null,
                     guestEmail: $data['guest_email'] ?? null,
                     guestPhone: $guestPhoneNormalised,
@@ -242,6 +267,13 @@ class BookingController extends Controller
                 // count — the ephemeral database-backed claim has done its job of blocking concurrent checkouts
                 // during this request and can be released immediately rather than waiting out its TTL.
                 $slotHoldService->releaseCapacitySeat($startsAt, $capacitySeat);
+
+                // The booking exists and is linked to the new account: sign the customer in.
+                if ($newUser) {
+                    event(new \Illuminate\Auth\Events\Registered($newUser));
+                    \Illuminate\Support\Facades\Auth::login($newUser);
+                    $request->session()->regenerate();
+                }
 
                 // Close matching follow-ups (incomplete booking, contact draft, visitor session) for this phone.
                 $sid = (string) $request->input('session_id');
@@ -255,6 +287,8 @@ class BookingController extends Controller
                     'ends_at' => $booking->ends_at->toIso8601String(),
                     'total' => $booking->total,
                     'status' => $booking->status,
+                    'account_created' => $newUser !== null,
+                    'account_error' => null,
                 ], 201);
             } catch (SlotUnavailableException $e) {
                 $lastFailure = $e;
@@ -262,12 +296,14 @@ class BookingController extends Controller
                 continue;
             } catch (ValidationException $e) {
                 $slotHoldService->releaseCapacitySeat($startsAt, $capacitySeat);
+                $discardNewUser();
 
                 return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
             }
         }
 
         $slotHoldService->releaseCapacitySeat($startsAt, $capacitySeat);
+        $discardNewUser();
 
         return response()->json([
             'message' => $lastFailure?->getMessage() ?? 'That time is no longer available.',
